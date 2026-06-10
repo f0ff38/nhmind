@@ -1,3 +1,5 @@
+import { NostrClient, buildHeartbeatTemplate } from "@nhmind/nostr-client";
+import { createModuleSigner } from "./runtime/nostr-signer";
 import { getStd } from "./runtime/types";
 
 export interface HealthCheckResult {
@@ -19,6 +21,41 @@ export function healthCheck(): HealthCheckResult {
   };
 }
 
+export async function publishHeartbeat(): Promise<boolean> {
+  const std = getStd();
+  const relayUrl = std.env.RELAY_URL?.trim();
+  if (!relayUrl) {
+    return false;
+  }
+
+  const health = healthCheck();
+  const client = new NostrClient({
+    relays: [relayUrl],
+    signer: createModuleSigner(),
+  });
+
+  try {
+    const event = await client.publish(
+      buildHeartbeatTemplate({
+        moduleId: "hello",
+        deploymentId: std.job.getId(),
+        health,
+        appVersion: std.app_info.version,
+      }),
+    );
+    console.log("heartbeat published:", event.id);
+    return true;
+  } catch (error) {
+    console.warn(
+      "heartbeat publish skipped:",
+      error instanceof Error ? error.message : String(error),
+    );
+    return false;
+  } finally {
+    await client.close();
+  }
+}
+
 export async function main(): Promise<void> {
   const std = getStd();
   const deployment = std.job.getId();
@@ -32,4 +69,6 @@ export async function main(): Promise<void> {
   if (!health.ok) {
     throw new Error(health.details ?? "health check failed");
   }
+
+  await publishHeartbeat();
 }

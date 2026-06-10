@@ -16,6 +16,9 @@
     "live:setup": "acurast live --setup"
   },
   "license": "MIT",
+  "dependencies": {
+    "@nhmind/nostr-client": "file:../../packages/nostr-client"
+  },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "ts-loader": "^9.5.1",

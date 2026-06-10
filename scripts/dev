@@ -22,6 +22,7 @@ Commands:
   bundle          Build dist/bundle.js (Acurast deploy artifact)
   run             Run bundle locally with mock _STD_
   test            Run unit tests
+  test:integration  Run nostr-relay integration tests (requires ./scripts/dev up)
   new-module <n>  Scaffold modules/<n> from module-template
   acurast <cmd>   Run acurast CLI in module dir (init, deploy, live, ...)
   npm <args>      Run npm in module dir
@@ -59,7 +60,7 @@ case "${1:-}" in
     run_dev bash
     ;;
   install)
-    run_dev npm ci --prefix "${MODULE_DIR}"
+    run_dev bash -lc "npm ci --prefix packages/nostr-client && npm run build --prefix packages/nostr-client && npm ci --prefix ${MODULE_DIR}"
     ;;
   bundle)
     run_dev npm run bundle --prefix "${MODULE_DIR}"
@@ -69,6 +70,9 @@ case "${1:-}" in
     ;;
   test)
     run_dev npm test --prefix "${MODULE_DIR}"
+    ;;
+  test:integration)
+    run_dev npm run test:integration --prefix packages/nostr-client
     ;;
   new-module)
     shift
