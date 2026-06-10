@@ -4,3 +4,8 @@ dist/
 .acurast-cache/
 *.log
 .DS_Store
+
+# Cloud agent / local git workaround artifacts (never commit)
+.git-ops*
+git-ops.ipynb
+.workflow-result.json
