@@ -1,0 +1,37 @@
+{
+  "projects": {
+    "coordinator": {
+      "projectName": "coordinator",
+      "fileUrl": "dist/bundle.js",
+      "network": "canary",
+      "onlyAttestedDevices": true,
+      "enableDevtools": true,
+      "assignmentStrategy": {
+        "type": "Single"
+      },
+      "execution": {
+        "type": "interval",
+        "intervalInMs": 60000,
+        "numberOfExecutions": 1440,
+        "maxExecutionTimeInMs": 50000
+      },
+      "maxAllowedStartDelayInMs": 10000,
+      "usageLimit": {
+        "maxMemory": 0,
+        "maxNetworkRequests": 10,
+        "maxStorage": 0
+      },
+      "numberOfReplicas": 1,
+      "requiredModules": [],
+      "minProcessorReputation": 0,
+      "maxCostPerExecution": 5000000000,
+      "includeEnvironmentVariables": [
+        "RELAY_URL",
+        "COORDINATOR_WATCH_MODULES",
+        "ACURAST_DEPLOY_ENABLED"
+      ],
+      "processorWhitelist": [],
+      "mutability": "Mutable"
+    }
+  }
+}
