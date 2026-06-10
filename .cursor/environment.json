@@ -3,6 +3,6 @@
     "dockerfile": "../Dockerfile",
     "context": ".."
   },
-  "install": "npm ci --prefix modules/hello && npm ci --prefix modules/module-template",
+  "install": "npm ci --prefix packages/nostr-client && npm run build --prefix packages/nostr-client && npm ci --prefix modules/hello && npm ci --prefix modules/module-template",
   "start": "command -v docker >/dev/null && (sudo service docker start 2>/dev/null || true) || true"
 }

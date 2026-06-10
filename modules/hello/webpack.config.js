@@ -23,4 +23,8 @@ module.exports = {
   optimization: {
     minimize: false,
   },
+  externals: {
+    ws: "commonjs ws",
+    "nostr-tools/pool": "commonjs nostr-tools/pool",
+  },
 };

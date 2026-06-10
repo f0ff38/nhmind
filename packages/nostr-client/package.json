@@ -1,0 +1,27 @@
+{
+  "name": "@nhmind/nostr-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nostr coordination client for NostrHiveMind",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:watch": "vitest"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "nostr-tools": "^2.10.4"
+  },
+  "optionalDependencies": {
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.4.5",
+    "vitest": "^3.0.5"
+  }
+}

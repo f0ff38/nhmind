@@ -48,7 +48,7 @@ npm run start:local --prefix modules/hello
 3. **Один bundle** — `dist/bundle.js`, зависимости внутри, без тяжёлых native-модулей.
 4. **Секреты** — только `.env` + `includeEnvironmentVariables`; **никогда** в коде или bundle.
 5. **Подпись** — `_STD_.signers` в TEE; локально — mock из `modules/hello/src/runtime/local-std.ts`.
-6. **Nostr** — NIP-90 (jobs), NIP-44 (шифрование), NIP-33 (replaceable state); не использовать Nostr как БД.
+6. **Nostr** — NIP-90 (jobs), NIP-44 (шифрование), NIP-33 (replaceable state); не использовать Nostr как БД. На Acurast processor: relay через `httpGET`/`httpPOST` (`@nhmind/nostr-client` HTTP backend), **не** npm `ws` и **не** `_STD_.ws` (это P2P mesh, не Nostr relay). Подпись: `createAcurastSigner(_STD_)`.
 7. **Production defaults** — `onlyAttestedDevices: true`, `mutability: Immutable` (в dev-модулях допустим `Mutable`).
 
 ## Что агенты НЕ делают автоматически
@@ -76,6 +76,8 @@ Cloud Agent VM: Ubuntu, конфигурация в [.cursor/environment.json](.
 ### Setup (idempotent)
 
 ```bash
+npm ci --prefix packages/nostr-client
+npm run build --prefix packages/nostr-client
 npm ci --prefix modules/hello
 ```
 

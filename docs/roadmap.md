@@ -27,7 +27,7 @@ flowchart LR
 
 ---
 
-## Текущее состояние — v0.2 (Phase 0 complete)
+## Текущее состояние — v0.3 (Phase 1 complete)
 
 
 | Компонент                                                    | Статус                    |
@@ -39,8 +39,8 @@ flowchart LR
 | GitHub Actions CI (`verify` + scaffold job)                  | ✅                         |
 | Cursor: `AGENTS.md`, `.cursor/environment.json`, `BUGBOT.md` | ✅                         |
 | Roadmap / economics docs                                     | ✅                         |
-| **Активная фаза**                                            | **Phase 1 — Nostr layer** |
-| `packages/nostr-client`                                      | ⬜ Phase 1                 |
+| **Активная фаза**                                            | **Phase 2 — Coordinator** |
+| `packages/nostr-client`                                      | ✅ Phase 1                  |
 | `modules/coordinator`                                        | ⬜ Phase 2                 |
 | Canary deploy на processor                                   | ⬜ Phase 3 (ручной шаг)    |
 
@@ -79,17 +79,18 @@ flowchart LR
 
 ### Deliverables
 
-- [ ] `docs/nostr-protocol.md` — kinds, tags, примеры payload
-- [ ] `packages/nostr-client` — publish/subscribe, NIP-44 encrypt/decrypt
-- [ ] NIP-90 helpers — job request / result / feedback
-- [ ] NIP-33 replaceable events — agent heartbeat, module scorecard
-- [ ] Интеграционные тесты против `nostr-relay` в compose
-- [ ] `hello` публикует heartbeat в relay (dev)
+- [x] `docs/nostr-protocol.md` — kinds, tags, примеры payload
+- [x] `packages/nostr-client` — publish/subscribe, NIP-44, NIP-90 helpers
+- [x] NIP-33 replaceable events — agent heartbeat (`30090`; scorecard `30091` — Phase 2)
+- [x] Интеграционные тесты против `nostr-relay` в compose
+- [x] `hello` публикует heartbeat в relay (dev)
 
 ### Exit criteria
 
-- Модуль может опубликовать и прочитать своё replaceable-событие через локальный relay
-- Схема событий задокументирована и покрыта тестами
+- [x] Модуль может опубликовать и прочитать своё replaceable-событие через локальный relay
+- [x] Схема событий задокументирована и покрыта тестами
+
+**Phase 1 — завершена.** Дальше: Phase 2.
 
 ### Риски
 

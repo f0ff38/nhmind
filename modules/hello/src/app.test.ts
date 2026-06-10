@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { healthCheck, main } from "./app";
+import { healthCheck, main, publishHeartbeat } from "./app";
 import { createLocalStd } from "./runtime/local-std";
 
 describe("hello module", () => {
@@ -17,6 +17,11 @@ describe("hello module", () => {
   it("fails health check without relay", () => {
     globalThis._STD_ = createLocalStd({ RELAY_URL: "" });
     expect(healthCheck().ok).toBe(false);
+  });
+
+  it("skips heartbeat publish when relay url is missing", async () => {
+    globalThis._STD_ = createLocalStd({ RELAY_URL: "" });
+    expect(await publishHeartbeat()).toBe(false);
   });
 
   it("runs main without throwing", async () => {

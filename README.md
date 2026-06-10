@@ -267,7 +267,7 @@ nhmind/
 │   ├── src/                    # TypeScript + mock _STD_
 │   ├── acurast.json            # canary, enableDevtools, Mutable (dev)
 │   └── dist/bundle.js          # артефакт deploy (после bundle)
-├── packages/                   # (planned) coordinator, nostr-client
+├── packages/nostr-client/      # Nostr coordination library (Phase 1)
 └── docs/                       # roadmap.md, economics.md, github-actions.md
 ```
 
