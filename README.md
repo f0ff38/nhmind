@@ -44,7 +44,7 @@ NostrHiveMind is a **decentralized TEE agent system** on Acurast: coordination v
 
 ```
 [ Phase 0 — BTC Runway ]
-BTC Treasury  →  swap  →  cAcurast / TON  →  Acurast compute
+BTC Treasury  →  swap  →  cAcurast  →  Acurast compute
        ↑                                            |
        |         (goal: stop spending BTC)          v
        └──── validated module revenue ──────────────┘
