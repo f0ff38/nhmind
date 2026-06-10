@@ -10,6 +10,8 @@ export {
   SCHEMA_JOB_FEEDBACK,
   SCHEMA_JOB_REQUEST,
   SCHEMA_JOB_RESULT,
+  SCHEMA_REGISTRY,
+  SCHEMA_SCORECARD,
 } from "./constants";
 
 export { NostrClient, type NostrClientOptions, type SubscribeHandlers } from "./client";
@@ -41,6 +43,10 @@ export type {
   EventTemplate,
   HealthStatus,
   HeartbeatPayload,
+  RegistryPayload,
+  RegistryStatus,
+  ScorecardPayload,
+  Verdict,
   JobFeedbackPayload,
   JobFeedbackStatus,
   JobInputEncoding,
@@ -81,3 +87,19 @@ export {
   parseJobFeedbackEvent,
   type BuildJobFeedbackParams,
 } from "./events/job-feedback";
+
+export {
+  buildScorecardPayload,
+  buildScorecardTemplate,
+  parseScorecardEvent,
+  scorecardDTag,
+  type BuildScorecardParams,
+} from "./events/scorecard";
+
+export {
+  buildRegistryPayload,
+  buildRegistryTemplate,
+  parseRegistryEvent,
+  registryDTag,
+  type BuildRegistryParams,
+} from "./events/registry";
