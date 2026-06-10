@@ -14,6 +14,10 @@ jobs:
   verify:
     name: verify
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [hello, module-template]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,13 +26,32 @@ jobs:
         run: docker compose build dev
 
       - name: Install dependencies
-        run: docker compose run --rm dev npm ci --prefix modules/hello
+        run: docker compose run --rm dev npm ci --prefix modules/${{ matrix.module }}
 
       - name: Unit tests
-        run: docker compose run --rm dev npm test --prefix modules/hello
+        run: docker compose run --rm dev npm test --prefix modules/${{ matrix.module }}
 
       - name: Bundle
-        run: docker compose run --rm dev npm run bundle --prefix modules/hello
+        run: docker compose run --rm dev npm run bundle --prefix modules/${{ matrix.module }}
 
       - name: Smoke run (mock _STD_)
-        run: docker compose run --rm dev npm run start:local --prefix modules/hello
+        run: docker compose run --rm dev npm run start:local --prefix modules/${{ matrix.module }}
+
+  scaffold:
+    name: verify-new-module-script
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build dev image
+        run: docker compose build dev
+
+      - name: Create module from template
+        run: ./scripts/new-module.sh ci-scaffold-smoke
+
+      - name: Test scaffolded module
+        run: |
+          docker compose run --rm dev npm ci --prefix modules/ci-scaffold-smoke
+          docker compose run --rm dev npm test --prefix modules/ci-scaffold-smoke
+          docker compose run --rm dev npm run bundle --prefix modules/ci-scaffold-smoke

@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
 MODULE_DIR="${NHIND_MODULE_DIR:-modules/hello}"
+NEW_MODULE_SCRIPT="${ROOT_DIR}/scripts/new-module.sh"
 COMPOSE=(docker compose)
 
 usage() {
@@ -17,12 +18,13 @@ Commands:
   up              Start dev + nostr-relay containers in background
   down            Stop containers
   shell           Interactive shell inside dev container
-  install         npm ci in modules/hello
+  install         npm ci in module (NHIND_MODULE_DIR, default: modules/hello)
   bundle          Build dist/bundle.js (Acurast deploy artifact)
   run             Run bundle locally with mock _STD_
   test            Run unit tests
-  acurast <cmd>   Run acurast CLI in modules/hello (init, deploy, live, ...)
-  npm <args>      Run npm in modules/hello
+  new-module <n>  Scaffold modules/<n> from module-template
+  acurast <cmd>   Run acurast CLI in module dir (init, deploy, live, ...)
+  npm <args>      Run npm in module dir
   compose <args>  Pass-through to docker compose
 
 Examples:
@@ -48,7 +50,7 @@ run_dev() {
 case "${1:-}" in
   up)
     ensure_image
-    "${COMPOSE[@]}" up -d dev nostr-relay
+    "${COMPOSE[@]}" --profile relay up -d dev nostr-relay
     ;;
   down)
     "${COMPOSE[@]}" down
@@ -67,6 +69,10 @@ case "${1:-}" in
     ;;
   test)
     run_dev npm test --prefix "${MODULE_DIR}"
+    ;;
+  new-module)
+    shift
+    "${NEW_MODULE_SCRIPT}" "$@"
     ;;
   acurast)
     shift

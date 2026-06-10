@@ -15,12 +15,11 @@ services:
       RELAY_URL: ws://nostr-relay:8080
     stdin_open: true
     tty: true
-    depends_on:
-      nostr-relay:
-        condition: service_started
 
+  # Optional for local Nostr integration (Phase 1+). CI does not start this service.
   nostr-relay:
-    image: ghcr.io/scsibug/nostr-rs-relay:latest
+    profiles: ["relay"]
+    image: scsibug/nostr-rs-relay:0.10.0
     ports:
       - "7777:8080"
     volumes:

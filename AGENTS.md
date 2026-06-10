@@ -17,7 +17,9 @@ scripts/dev             # Docker-обёртка (основной dev/CI пут�
 
 Новые business-модули — в `modules/<name>/`, каждый со своим `acurast.json`.
 
-**Текущая фаза:** Phase 0 (Foundation) — см. roadmap. Не начинать Phase 2+ без закрытия зависимостей.
+**Текущая фаза:** Phase 1 (Nostr layer) — см. [docs/roadmap.md](docs/roadmap.md). Phase 0 завершена.
+
+Новый модуль: `./scripts/new-module.sh <name>` → `NHIND_MODULE_DIR=modules/<name> ./scripts/dev test`
 
 ## Обязательные проверки перед PR
 

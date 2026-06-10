@@ -6,7 +6,7 @@
 
 ---
 
-## North Star
+# NostrHiveMind
 
 Децентрализованная сеть автономных AI-агентов:
 
@@ -23,21 +23,27 @@ flowchart LR
   P4 --> P5[Phase 5\nProduction]
 ```
 
+
+
 ---
 
-## Текущее состояние — v0.1 (foundation)
+## Текущее состояние — v0.2 (Phase 0 complete)
 
-| Компонент | Статус |
-|-----------|--------|
-| Архитектура и README | ✅ |
-| Docker-only dev (`scripts/dev`, compose, Dev Container) | ✅ |
-| Стартовый модуль `modules/hello` (bundle, mock `_STD_`, tests) | ✅ |
-| GitHub Actions CI (`verify`) | ✅ |
-| Cursor: `AGENTS.md`, `.cursor/environment.json`, `BUGBOT.md` | ✅ |
-| `packages/nostr-client` | ⬜ |
-| `modules/coordinator` | ⬜ |
-| Canary deploy `hello` на processor | ⬜ |
-| Первый revenue-модуль | ⬜ |
+
+| Компонент                                                    | Статус                    |
+| ------------------------------------------------------------ | ------------------------- |
+| Архитектура и README                                         | ✅                         |
+| Docker-only dev (`scripts/dev`, compose, Dev Container)      | ✅                         |
+| Стартовый модуль `modules/hello`                             | ✅                         |
+| Scaffold `modules/module-template` + `scripts/new-module.sh` | ✅                         |
+| GitHub Actions CI (`verify` + scaffold job)                  | ✅                         |
+| Cursor: `AGENTS.md`, `.cursor/environment.json`, `BUGBOT.md` | ✅                         |
+| Roadmap / economics docs                                     | ✅                         |
+| **Активная фаза**                                            | **Phase 1 — Nostr layer** |
+| `packages/nostr-client`                                      | ⬜ Phase 1                 |
+| `modules/coordinator`                                        | ⬜ Phase 2                 |
+| Canary deploy на processor                                   | ⬜ Phase 3 (ручной шаг)    |
+
 
 ---
 
@@ -52,13 +58,18 @@ flowchart LR
 - [x] Mock `_STD_` для локального прогона
 - [x] CI: test → bundle → smoke
 - [x] Cursor / GitHub integration docs
-- [ ] Merge PR #1 в `main`, branch protection + required `verify`
-- [ ] `modules/module-template` — scaffold для новых модулей (`acurast init` + copy)
+- [x] Merge foundation PR в `main`
+- [x] `modules/module-template` + `scripts/new-module.sh`
+- [x] CI matrix (hello + module-template) + scaffold smoke job
+- [x] Branch protection на `main` (ручная настройка в GitHub UI — см. [github-actions.md](github-actions.md))
 
 ### Exit criteria
 
-- Любой разработчик с Docker + Cursor клонирует репо и проходит `./scripts/dev test` без ручной настройки Node
-- CI зелёный на `main`
+- [x] Любой разработчик с Docker + Cursor клонирует репо и проходит `./scripts/dev test` без ручной настройки Node
+- [x] CI зелёный на `main` (после merge)
+- [x] Новый модуль создаётся одной командой: `./scripts/new-module.sh <name>`
+
+**Phase 0 — завершена.** Дальше: Phase 1.
 
 ---
 
@@ -185,13 +196,15 @@ flowchart LR
 
 ## Backlog (после Phase 5)
 
-| Идея | Заметка |
-|------|---------|
-| GameFi / MEV modules | High-risk; только после стабильного coordinator |
-| NIP-AC / agent swarm | Если стандартизируется в экосистеме Nostr |
-| Multi-relay quorum | Снижение зависимости от одного relay |
-| `packages/module-template` CLI | `npx create-nhmind-module` |
-| Cursor Automations | PR opened → review; CI failed → agent fix |
+
+| Идея                           | Заметка                                         |
+| ------------------------------ | ----------------------------------------------- |
+| GameFi / MEV modules           | High-risk; только после стабильного coordinator |
+| NIP-AC / agent swarm           | Если стандартизируется в экосистеме Nostr       |
+| Multi-relay quorum             | Снижение зависимости от одного relay            |
+| `packages/module-template` CLI | `npx create-nhmind-module`                      |
+| Cursor Automations             | PR opened → review; CI failed → agent fix       |
+
 
 ---
 
@@ -206,10 +219,13 @@ flowchart LR
 
 ## Метрики успеха (сквозные)
 
-| Метрика | Целевое значение |
-|---------|------------------|
-| CI `verify` | Зелёный на каждый PR |
+
+| Метрика                      | Целевое значение                        |
+| ---------------------------- | --------------------------------------- |
+| CI `verify`                  | Зелёный на каждый PR                    |
 | Bundle size (hello baseline) | Контроль роста < 500 KB gzip (ориентир) |
-| Module ROI | ≥ 1.0 для `promote` |
-| Centralized servers in prod | 0 |
-| Secrets in repo | 0 |
+| Module ROI                   | ≥ 1.0 для `promote`                     |
+| Centralized servers in prod  | 0                                       |
+| Secrets in repo              | 0                                       |
+
+

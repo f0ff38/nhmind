@@ -204,11 +204,12 @@ git clone https://github.com/f0ff38/nhmind.git
 cd nhmind
 cp .env.example .env
 
-./scripts/dev up          # dev + nostr-relay
+./scripts/dev up          # dev + nostr-relay (profile relay)
 ./scripts/dev install     # npm ci в modules/hello
 ./scripts/dev bundle      # dist/bundle.js
 ./scripts/dev run         # локальный прогон (mock _STD_)
 ./scripts/dev test        # unit-тесты
+./scripts/new-module.sh my-module   # scaffold из module-template
 ```
 
 ### Acurast CLI (в контейнере)
@@ -260,7 +261,9 @@ nhmind/
 ├── .cursor/                    # environment.json, BUGBOT.md
 ├── .devcontainer/              # Cursor Dev Container
 ├── .github/workflows/ci.yml    # test + bundle + smoke
-├── modules/hello/              # стартовый Acurast deployment
+├── modules/hello/              # эталонный Acurast deployment
+├── modules/module-template/    # scaffold для новых модулей
+├── scripts/new-module.sh       # копирует template → modules/<name>
 │   ├── src/                    # TypeScript + mock _STD_
 │   ├── acurast.json            # canary, enableDevtools, Mutable (dev)
 │   └── dist/bundle.js          # артефакт deploy (после bundle)
