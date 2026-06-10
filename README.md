@@ -227,6 +227,19 @@ cp .env.example .env
 
 Откройте репозиторий в Cursor → **Reopen in Container**. Терминал и зависимости уже внутри `dev`-сервиса.
 
+### Cursor + GitHub
+
+1. [Dashboard → Integrations → GitHub](https://cursor.com/dashboard/integrations) — подключить `f0ff38/nhmind`
+2. [Bugbot](https://cursor.com/dashboard/bugbot) — авто-ревью PR (правила: `.cursor/BUGBOT.md`)
+3. Cloud Agents — `@cursor` в issue/PR или [cursor.com/agents](https://cursor.com/agents)
+4. Инструкции для агентов: [`AGENTS.md`](AGENTS.md), окружение: [`.cursor/environment.json`](.cursor/environment.json)
+
+### GitHub Actions
+
+CI на каждый push/PR в `main`: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — тот же Docker-путь, что `./scripts/dev`.
+
+Планы и ограничения (секреты, deploy, Bugbot): [`docs/github-actions.md`](docs/github-actions.md).
+
 ### Что остаётся вне Docker
 
 | Шаг | Где выполняется |
@@ -241,15 +254,18 @@ cp .env.example .env
 
 ```
 nhmind/
+├── AGENTS.md                   # инструкции для Cursor Cloud Agents
 ├── Dockerfile / docker-compose.yml
 ├── scripts/dev                 # обёртка без npm на хосте
+├── .cursor/                    # environment.json, BUGBOT.md
 ├── .devcontainer/              # Cursor Dev Container
+├── .github/workflows/ci.yml    # test + bundle + smoke
 ├── modules/hello/              # стартовый Acurast deployment
 │   ├── src/                    # TypeScript + mock _STD_
 │   ├── acurast.json            # canary, enableDevtools, Mutable (dev)
 │   └── dist/bundle.js          # артефакт deploy (после bundle)
 ├── packages/                   # (planned) coordinator, nostr-client
-└── docs/                       # (planned) nostr-protocol, economics
+└── docs/                       # github-actions.md, (planned) nostr-protocol
 ```
 
 ---

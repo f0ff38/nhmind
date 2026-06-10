@@ -1,0 +1,8 @@
+{
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+  "install": "npm ci --prefix modules/hello",
+  "start": "command -v docker >/dev/null && (sudo service docker start 2>/dev/null || true) || true"
+}
