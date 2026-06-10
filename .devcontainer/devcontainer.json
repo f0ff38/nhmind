@@ -1,0 +1,13 @@
+{
+  "name": "nhmind",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+    }
+  },
+  "postCreateCommand": "npm ci --prefix modules/hello",
+  "forwardPorts": [7777]
+}

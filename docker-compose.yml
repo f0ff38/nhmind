@@ -1,0 +1,31 @@
+services:
+  dev:
+    build: .
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - nhmind-node-modules:/workspace/modules/hello/node_modules
+      - nhmind-acurast:/workspace/.acurast-cache
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HOME: /workspace
+      NPM_CONFIG_CACHE: /workspace/.acurast-cache/npm
+      RELAY_URL: ws://nostr-relay:8080
+    stdin_open: true
+    tty: true
+
+  # Optional for local Nostr integration (Phase 1+). CI does not start this service.
+  nostr-relay:
+    profiles: ["relay"]
+    image: scsibug/nostr-rs-relay:0.10.0
+    ports:
+      - "7777:8080"
+    volumes:
+      - nostr-relay-data:/usr/src/app/db
+
+volumes:
+  nhmind-node-modules:
+  nhmind-acurast:
+  nostr-relay-data:
