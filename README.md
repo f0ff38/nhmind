@@ -239,7 +239,7 @@ cp .env.example .env
 
 CI на каждый push/PR в `main`: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — тот же Docker-путь, что `./scripts/dev`.
 
-Планы и ограничения (секреты, deploy, Bugbot): [`docs/github-actions.md`](docs/github-actions.md).
+CI и branch protection: [`docs/github-actions.md`](docs/github-actions.md) (PR → `main`, required checks).
 
 ### Что остаётся вне Docker
 

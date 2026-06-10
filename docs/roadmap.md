@@ -61,7 +61,7 @@ flowchart LR
 - [x] Merge foundation PR в `main`
 - [x] `modules/module-template` + `scripts/new-module.sh`
 - [x] CI matrix (hello + module-template) + scaffold smoke job
-- [x] Branch protection на `main` (ручная настройка в GitHub UI — см. [github-actions.md](github-actions.md))
+- [x] Branch protection на `main` ✅
 
 ### Exit criteria
 
