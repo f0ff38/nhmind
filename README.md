@@ -132,12 +132,14 @@ Nostr — **event log с eventual consistency**, не база данных. В 
 
 ### Разработка и деплой
 
-| Этап | Инструмент |
-|------|------------|
-| Scaffold | `npx @acurast/cli new <module>` |
-| Локальная отладка | `node dist/bundle.js`, затем `acurast live` |
-| Canary | `acurast deploy` на `canary` |
-| Production | `acurast deploy` на `mainnet` или [@acurast/sdk](https://docs.acurast.com/) |
+| Этап | Инструмент (в Docker через `./scripts/dev`) |
+|------|-----------------------------------------------|
+| Scaffold | `npx @acurast/cli new <module>` внутри контейнера |
+| Bundle | `./scripts/dev bundle` |
+| Локальная отладка | `./scripts/dev run`, затем `acurast live` |
+| Тесты | `./scripts/dev test` |
+| Canary | `./scripts/dev acurast deploy` |
+| Production | `network: mainnet` + deploy или [@acurast/sdk](https://docs.acurast.com/) |
 | Оплата без ACU-аккаунта | [Deploy Agent](https://docs.acurast.com/developers/deploy-agent) (x402, USDC на Base) |
 | LLM inference | `requiredModules` для LLM; confidential inference в TEE |
 
@@ -185,43 +187,69 @@ Coordinator агрегирует метрики и публикует scorecard.
 
 ---
 
-## Структура репозитория (целевая)
+## Локальная разработка (только Docker)
+
+На хосте нужны **Docker Desktop**, **Cursor** и **git**. Node.js и npm на машине не требуются.
+
+Официальный цикл Acurast выполняется в контейнере:
 
 ```
-nhmind/
-├── README.md
-├── packages/
-│   ├── coordinator/          # Acurast deployment + @acurast/sdk
-│   ├── nostr-client/         # NIP-90, NIP-44, NIP-33 helpers
-│   └── module-template/      # scaffold для нового business module
-├── modules/                  # business deployments (каждый — свой acurast.json)
-└── docs/
-    ├── nostr-protocol.md     # kinds, tags, схемы событий
-    └── economics.md          # формулы ROI, scorecard
+bundle → run (mock _STD_) → test → acurast init → faucet → deploy → devtools/live
 ```
+
+### Быстрый старт
+
+```bash
+git clone https://github.com/f0ff38/nhmind.git
+cd nhmind
+cp .env.example .env
+
+./scripts/dev up          # dev + nostr-relay
+./scripts/dev install     # npm ci в modules/hello
+./scripts/dev bundle      # dist/bundle.js
+./scripts/dev run         # локальный прогон (mock _STD_)
+./scripts/dev test        # unit-тесты
+```
+
+### Acurast CLI (в контейнере)
+
+```bash
+./scripts/dev acurast init            # acurast.json + .env (mnemonic)
+./scripts/dev acurast estimate-fee
+./scripts/dev acurast deploy          # canary, см. modules/hello/acurast.json
+./scripts/dev acurast live --setup    # один раз: processor снаружи (телефон)
+./scripts/dev acurast live            # отладка на live-processor
+```
+
+После deploy с `enableDevtools: true` CLI выдаёт URL веб-дашборда с логами.
+
+### Cursor Dev Container
+
+Откройте репозиторий в Cursor → **Reopen in Container**. Терминал и зависимости уже внутри `dev`-сервиса.
+
+### Что остаётся вне Docker
+
+| Шаг | Где выполняется |
+|-----|-----------------|
+| `acurast live` | CLI в контейнере, **processor на телефоне** |
+| TEE / `_STD_.signers` | Только на Acurast processor (canary deploy) |
+| Faucet cACU | Браузер → [faucet.acurast.com](https://faucet.acurast.com) |
 
 ---
 
-## Команды разработки
+## Структура репозитория
 
-```bash
-# Новый модуль
-npx @acurast/cli new modules/<name>
-
-# Сборка bundle
-npm run bundle          # → dist/bundle.js
-
-# Локальный прогон
-node dist/bundle.js
-
-# Live-отладка на processor
-acurast live
-
-# Оценка стоимости
-acurast estimate-fee
-
-# Деплой
-acurast deploy          # canary по умолчанию в acurast.json
+```
+nhmind/
+├── Dockerfile / docker-compose.yml
+├── scripts/dev                 # обёртка без npm на хосте
+├── .devcontainer/              # Cursor Dev Container
+├── modules/hello/              # стартовый Acurast deployment
+│   ├── src/                    # TypeScript + mock _STD_
+│   ├── acurast.json            # canary, enableDevtools, Mutable (dev)
+│   └── dist/bundle.js          # артефакт deploy (после bundle)
+├── packages/                   # (planned) coordinator, nostr-client
+└── docs/                       # (planned) nostr-protocol, economics
 ```
 
 ---

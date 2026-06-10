@@ -1,0 +1,32 @@
+services:
+  dev:
+    build: .
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - nhmind-node-modules:/workspace/modules/hello/node_modules
+      - nhmind-acurast:/workspace/.acurast-cache
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HOME: /workspace
+      NPM_CONFIG_CACHE: /workspace/.acurast-cache/npm
+      RELAY_URL: ws://nostr-relay:8080
+    stdin_open: true
+    tty: true
+    depends_on:
+      nostr-relay:
+        condition: service_started
+
+  nostr-relay:
+    image: ghcr.io/scsibug/nostr-rs-relay:latest
+    ports:
+      - "7777:8080"
+    volumes:
+      - nostr-relay-data:/usr/src/app/db
+
+volumes:
+  nhmind-node-modules:
+  nhmind-acurast:
+  nostr-relay-data:

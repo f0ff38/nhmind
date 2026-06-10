@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${ROOT_DIR}"
+
+MODULE_DIR="${NHIND_MODULE_DIR:-modules/hello}"
+COMPOSE=(docker compose)
+
+usage() {
+  cat <<'EOF'
+NostrHiveMind dev wrapper (Docker-only host toolchain).
+
+Usage: ./scripts/dev <command> [args...]
+
+Commands:
+  up              Start dev + nostr-relay containers in background
+  down            Stop containers
+  shell           Interactive shell inside dev container
+  install         npm ci in modules/hello
+  bundle          Build dist/bundle.js (Acurast deploy artifact)
+  run             Run bundle locally with mock _STD_
+  test            Run unit tests
+  acurast <cmd>   Run acurast CLI in modules/hello (init, deploy, live, ...)
+  npm <args>      Run npm in modules/hello
+  compose <args>  Pass-through to docker compose
+
+Examples:
+  ./scripts/dev up
+  ./scripts/dev bundle
+  ./scripts/dev run
+  ./scripts/dev test
+  ./scripts/dev acurast init
+  ./scripts/dev acurast deploy
+  ./scripts/dev acurast estimate-fee
+EOF
+}
+
+ensure_image() {
+  "${COMPOSE[@]}" build dev >/dev/null
+}
+
+run_dev() {
+  ensure_image
+  "${COMPOSE[@]}" run --rm dev "$@"
+}
+
+case "${1:-}" in
+  up)
+    ensure_image
+    "${COMPOSE[@]}" up -d dev nostr-relay
+    ;;
+  down)
+    "${COMPOSE[@]}" down
+    ;;
+  shell)
+    run_dev bash
+    ;;
+  install)
+    run_dev npm ci --prefix "${MODULE_DIR}"
+    ;;
+  bundle)
+    run_dev npm run bundle --prefix "${MODULE_DIR}"
+    ;;
+  run)
+    run_dev npm run start:local --prefix "${MODULE_DIR}"
+    ;;
+  test)
+    run_dev npm test --prefix "${MODULE_DIR}"
+    ;;
+  acurast)
+    shift
+    run_dev bash -lc "cd ${MODULE_DIR} && acurast $*"
+    ;;
+  npm)
+    shift
+    run_dev npm "$@" --prefix "${MODULE_DIR}"
+    ;;
+  compose)
+    shift
+    "${COMPOSE[@]}" "$@"
+    ;;
+  -h|--help|help|"")
+    usage
+    ;;
+  *)
+    echo "Unknown command: $1" >&2
+    usage >&2
+    exit 1
+    ;;
+esac
