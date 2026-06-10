@@ -80,27 +80,16 @@ on:
 
 Триггер **CI completed** срабатывает на завершение workflow. Держите один основной CI workflow или явно фильтруйте по `workflow name` в automation prompt.
 
-### 8. Branch protection (Phase 0)
+### 8. Branch protection (Phase 0) — ✅ настроено
 
-На `main` (настройка в GitHub → Settings → Branches):
+На `main` (GitHub → Settings → Branches):
 
-- [x] Required status checks: **`verify`** (matrix jobs) и **`verify-new-module-script`**
-- [ ] Require pull request before merging
-- [ ] Do not allow bypassing the above settings
-- optional: Bugbot `Cursor Bugbot`
+- [x] Required status checks: **`verify (hello)`**, **`verify (module-template)`**, **`verify-new-module-script`**
+- [x] Require pull request before merging
+- [x] Do not allow bypassing the above settings
+- [ ] optional: Bugbot `Cursor Bugbot` как required check
 
-Через CLI (нужны admin-права на репо):
-
-```bash
-gh api repos/f0ff38/nhmind/branches/main/protection -X PUT \
-  -H "Accept: application/vnd.github+json" \
-  -f required_status_checks='{"strict":true,"checks":[{"context":"verify"},{"context":"verify-new-module-script"}]}' \
-  -f enforce_admins=false \
-  -f required_pull_request_reviews='{"required_approving_review_count":0}' \
-  -f restrictions=null
-```
-
-> Если API недоступен — включите те же правила вручную в UI после merge Phase 0.
+Прямой push в `main` заблокирован — только через PR с зелёным CI.
 
 ### 9. Артефакты bundle (опционально)
 
