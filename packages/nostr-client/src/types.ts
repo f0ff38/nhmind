@@ -4,6 +4,8 @@ import {
   SCHEMA_JOB_FEEDBACK,
   SCHEMA_JOB_REQUEST,
   SCHEMA_JOB_RESULT,
+  SCHEMA_REGISTRY,
+  SCHEMA_SCORECARD,
 } from "./constants";
 
 export type { Event, EventTemplate };
@@ -30,6 +32,35 @@ export interface HeartbeatPayload {
   capacity: ModuleCapacity;
   app_version: string;
   ts: number;
+}
+
+export type Verdict = "promote" | "pause" | "kill";
+
+export interface ScorecardPayload {
+  schema: typeof SCHEMA_SCORECARD;
+  module_id: string;
+  deployment_id: DeploymentId;
+  window_start: number;
+  window_end: number;
+  revenue_acu: string;
+  cost_acu: string;
+  relay_fees_acu: string;
+  roi: number;
+  verdict: Verdict;
+  verdict_reason?: string;
+  ts: number;
+}
+
+export type RegistryStatus = "active" | "paused" | "killed";
+
+export interface RegistryPayload {
+  schema: typeof SCHEMA_REGISTRY;
+  module_id: string;
+  deployment_id: DeploymentId;
+  module_pubkey: string;
+  network: string;
+  registered_at: number;
+  status: RegistryStatus;
 }
 
 export type JobInputEncoding = "plain" | "nip44";

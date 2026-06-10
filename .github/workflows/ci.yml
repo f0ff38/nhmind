@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [hello, module-template]
+        module: [hello, coordinator, module-template]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

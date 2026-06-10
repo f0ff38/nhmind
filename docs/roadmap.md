@@ -41,7 +41,7 @@ flowchart LR
 | Roadmap / economics docs                                     | ✅                         |
 | **Активная фаза**                                            | **Phase 2 — Coordinator** |
 | `packages/nostr-client`                                      | ✅ Phase 1                  |
-| `modules/coordinator`                                        | ⬜ Phase 2                 |
+| `modules/coordinator`                                        | 🚧 Phase 2 (in progress)   |
 | Canary deploy на processor                                   | ⬜ Phase 3 (ручной шаг)    |
 
 
@@ -104,10 +104,10 @@ flowchart LR
 
 ### Deliverables
 
-- [ ] `modules/coordinator` — interval deployment, `@acurast/sdk`
-- [ ] Регистрация модулей (Nostr event → known module list)
-- [ ] Scorecard aggregator (метрики из module events)
-- [ ] Verdict engine: `promote` | `pause` | `kill` (правила без on-chain revenue пока — stub metrics)
+- [x] `modules/coordinator` — interval deployment, `@acurast/sdk` (deploy stub in bundle)
+- [x] Регистрация модулей (Nostr event → known module list)
+- [x] Scorecard aggregator (метрики из module events — stub metrics)
+- [x] Verdict engine: `promote` | `pause` | `kill` (правила без on-chain revenue пока — stub metrics)
 - [ ] Programmatic deploy / scale через SDK (canary only)
 - [ ] Canary deploy coordinator + smoke на processor
 
