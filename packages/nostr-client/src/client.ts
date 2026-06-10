@@ -1,5 +1,5 @@
 import type { Event, EventTemplate, Filter } from "nostr-tools";
-import { getRelayBackend } from "./transport";
+import { getRelayBackend, type RelayBackend } from "./transport";
 import type { Signer } from "./signer";
 
 export interface NostrClientOptions {
@@ -13,7 +13,7 @@ export interface SubscribeHandlers {
 }
 
 export class NostrClient {
-  private readonly backend = getRelayBackend();
+  private backend: RelayBackend | undefined;
   private closed = false;
 
   constructor(private readonly options: NostrClientOptions) {
@@ -36,19 +36,19 @@ export class NostrClient {
 
   async get(filter: Filter, maxWaitMs = 5_000): Promise<Event | null> {
     this.ensureOpen();
-    return this.backend.get(this.options.relays, filter, maxWaitMs);
+    return this.resolveBackend().get(this.options.relays, filter, maxWaitMs);
   }
 
   async publish(template: EventTemplate): Promise<Event> {
     this.ensureOpen();
     const event = this.sign(template);
-    await this.backend.publish(this.options.relays, event);
+    await this.resolveBackend().publish(this.options.relays, event);
     return event;
   }
 
   subscribe(filters: Filter[], handlers: SubscribeHandlers): () => void {
     this.ensureOpen();
-    return this.backend.subscribe(this.options.relays, filters, handlers);
+    return this.resolveBackend().subscribe(this.options.relays, filters, handlers);
   }
 
   async close(): Promise<void> {
@@ -56,7 +56,16 @@ export class NostrClient {
       return;
     }
     this.closed = true;
-    await this.backend.close(this.options.relays);
+    if (this.backend) {
+      await this.backend.close(this.options.relays);
+    }
+  }
+
+  private resolveBackend(): RelayBackend {
+    if (!this.backend) {
+      this.backend = getRelayBackend();
+    }
+    return this.backend;
   }
 
   private ensureOpen(): void {

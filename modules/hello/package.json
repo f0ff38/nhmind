@@ -17,7 +17,11 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@nhmind/nostr-client": "file:../../packages/nostr-client"
+    "@nhmind/nostr-client": "file:../../packages/nostr-client",
+    "nostr-tools": "^2.10.4"
+  },
+  "optionalDependencies": {
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

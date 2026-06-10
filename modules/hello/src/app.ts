@@ -29,12 +29,13 @@ export async function publishHeartbeat(): Promise<boolean> {
   }
 
   const health = healthCheck();
-  const client = new NostrClient({
-    relays: [relayUrl],
-    signer: createModuleSigner(),
-  });
+  let client: NostrClient | undefined;
 
   try {
+    client = new NostrClient({
+      relays: [relayUrl],
+      signer: createModuleSigner(),
+    });
     const event = await client.publish(
       buildHeartbeatTemplate({
         moduleId: "hello",
@@ -52,7 +53,9 @@ export async function publishHeartbeat(): Promise<boolean> {
     );
     return false;
   } finally {
-    await client.close();
+    if (client) {
+      await client.close();
+    }
   }
 }
 

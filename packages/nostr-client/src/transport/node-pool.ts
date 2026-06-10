@@ -16,36 +16,35 @@ type SimplePoolInstance = {
   close: (relays: string[]) => void;
 };
 
-function loadNodeWebSocket(): new () => WebSocket {
-  // Dynamic require keeps `ws` out of Acurast webpack bundles.
-  const dynamicRequire = (moduleName: string): unknown => {
-    // eslint-disable-next-line no-eval
-    return eval("require")(moduleName);
-  };
+type PoolModule = {
+  SimplePool: new () => SimplePoolInstance;
+  useWebSocketImplementation: (impl: new () => WebSocket) => void;
+};
 
-  const wsModule = dynamicRequire("ws") as { default?: new () => WebSocket };
-  const WebSocketImpl = wsModule.default ?? wsModule;
-  return WebSocketImpl as new () => WebSocket;
-}
+// Static require so webpack bundles pool into hello dist/bundle.js.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const poolModule = require("nostr-tools/pool") as PoolModule;
 
-function loadSimplePool(): new () => SimplePoolInstance {
-  const dynamicRequire = (moduleName: string): unknown => {
-    // eslint-disable-next-line no-eval
-    return eval("require")(moduleName);
-  };
-
-  const poolModule = dynamicRequire("nostr-tools/pool") as {
-    SimplePool: new () => SimplePoolInstance;
-    useWebSocketImplementation: (impl: new () => WebSocket) => void;
-  };
-
-  poolModule.useWebSocketImplementation(loadNodeWebSocket());
-  return poolModule.SimplePool;
+function loadNodeWebSocket(): (new () => WebSocket) | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const wsModule = require("ws") as { default?: new () => WebSocket };
+    return (wsModule.default ?? wsModule) as new () => WebSocket;
+  } catch {
+    return undefined;
+  }
 }
 
 export function createNodePoolBackend(): RelayBackend {
-  const SimplePool = loadSimplePool();
-  const pool = new SimplePool();
+  const WebSocketImpl = loadNodeWebSocket();
+  if (!WebSocketImpl) {
+    throw new Error(
+      "Node WebSocket (ws) is not available; install optional dependency or use Acurast httpPOST runtime",
+    );
+  }
+
+  poolModule.useWebSocketImplementation(WebSocketImpl);
+  const pool = new poolModule.SimplePool();
 
   return {
     async publish(relays, event) {
