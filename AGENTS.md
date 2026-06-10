@@ -1,6 +1,6 @@
 # AGENTS.md — инструкции для Cursor (Cloud Agents, Automations, CLI)
 
-Стартовая точка для агентов. Человекочитаемый обзор — [README.md](README.md).
+Стартовая точка для агентов. Человекочитаемый обзор — [README.md](README.md). План работ — [docs/roadmap.md](docs/roadmap.md).
 
 ## Проект
 
@@ -16,6 +16,8 @@ scripts/dev             # Docker-обёртка (основной dev/CI пут�
 ```
 
 Новые business-модули — в `modules/<name>/`, каждый со своим `acurast.json`.
+
+**Текущая фаза:** Phase 0 (Foundation) — см. roadmap. Не начинать Phase 2+ без закрытия зависимостей.
 
 ## Обязательные проверки перед PR
 

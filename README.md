@@ -2,7 +2,7 @@
 
 Децентрализованная система AI-агентов: **исполнение в TEE на [Acurast](https://docs.acurast.com/)**, **координация через [Nostr](https://github.com/nostr-protocol/nips)**.
 
-> Репозиторий: [github.com/f0ff38/nhmind](https://github.com/f0ff38/nhmind)
+> Репозиторий: [github.com/f0ff38/nhmind](https://github.com/f0ff38/nhmind) · **Roadmap:** [docs/roadmap.md](docs/roadmap.md)
 
 ---
 
@@ -265,7 +265,7 @@ nhmind/
 │   ├── acurast.json            # canary, enableDevtools, Mutable (dev)
 │   └── dist/bundle.js          # артефакт deploy (после bundle)
 ├── packages/                   # (planned) coordinator, nostr-client
-└── docs/                       # github-actions.md, (planned) nostr-protocol
+└── docs/                       # roadmap.md, economics.md, github-actions.md
 ```
 
 ---
