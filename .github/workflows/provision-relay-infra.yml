@@ -130,10 +130,18 @@ jobs:
         if: inputs.action == 'apply' && inputs.set_dns_a
         working-directory: ${{ github.workspace }}
         env:
+          SELECTEL_ACCOUNT_ID: ${{ secrets.SELECTEL_ACCOUNT_ID }}
+          SELECTEL_PROJECT_ID: ${{ secrets.SELECTEL_PROJECT_ID }}
+          SELECTEL_SERVICE_USER: ${{ secrets.SELECTEL_SERVICE_USER }}
+          SELECTEL_SERVICE_PASSWORD: ${{ secrets.SELECTEL_SERVICE_PASSWORD }}
+          SELECTEL_IAM_PROJECT_NAME: ${{ secrets.SELECTEL_IAM_PROJECT_NAME }}
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
           RELAY_DNS_ZONE: ${{ secrets.RELAY_DNS_ZONE }}
         run: |
           set -euo pipefail
+          export PREPARE_OPENSTACK_EXPORT=1
+          # shellcheck disable=SC1091
+          source infra/selectel/scripts/prepare-openstack-env.sh
           PUBLIC_IP="$(terraform -chdir=infra/selectel/terraform output -raw public_ip)"
           export PUBLIC_IP
           bash infra/selectel/scripts/upsert-relay-dns-a.sh

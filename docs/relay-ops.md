@@ -92,7 +92,7 @@ Selectel использует **три типа** токенов; для GitOps 
 
 1. **Terraform** — логин/пароль **сервисного пользователя** с ролью `member` в scope **Проект** (паттерн из [Terraform quickstart](https://docs.selectel.ru/terraform/quickstart/)): провайдеры `selectel` + `openstack`, `auth_url = https://cloud.api.selcloud.ru/identity/v3`. Пароль — в GitHub Secret; IAM-токен в CI **можно** получать через Keystone POST, но проще отдать password провайдеру (он сам ходит в Keystone).
 2. **PTR** — [upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh): `POST`/`PUT` к **IPAM API** `https://api.selectel.ru/ipam/v1/` с `X-Token` (не `domains/v1/ptr` — legacy, HTTP 405). IAM-токены для PTR **не поддерживаются**.
-3. **DNS** (зона в Selectel DNS) — после `apply`: workflow upsert **A** через [DNS API v2](https://docs.selectel.ru/en/api/dns-actual/) (`X-Auth-Token` project-scoped, тот же сервисный пользователь). Зона должна **уже существовать** в панели DNS; input `set_dns_a` (default `true`).
+3. **DNS** (зона в Selectel DNS) — после `apply`: workflow upsert **A** через [DNS API v2](https://docs.selectel.ru/en/api/dns-actual/) (`X-Auth-Token` **project-scoped IAM**, тот же сервисный пользователь). Keystone scope: сначала **32 hex project id** (как Terraform), опционально `SELECTEL_IAM_PROJECT_NAME` для scope по имени IAM-проекта. Зона должна **уже существовать** в панели DNS; input `set_dns_a` (default `true`).
 4. **Не хранить** статический `X-Token` в Terraform state; PTR — shell/curl или маленький script в workflow после `terraform apply`.
 
 Ограничение API по IP: в панели можно [ограничить доступ](https://docs.selectel.ru/api/authorization/) к `https://api.selectel.ru` — для GHA учесть egress GitHub Actions или не включать whitelist на первом этапе.
@@ -135,7 +135,8 @@ infra/selectel/scripts/
 ├── read-relay-public-ip.sh   # terraform output public_ip (deploy + validate)
 ├── get-openstack-project-token.sh
 ├── upsert-relay-dns-a.sh     # Selectel DNS A record after apply
-└── upsert-relay-ptr.sh       # Selectel IPAM PTR (ipam/v1)
+├── upsert-relay-ptr.sh       # Selectel IPAM PTR (ipam/v1)
+└── verify-selectel-dns-auth.sh
 
 infra/selectel/cloud-init/
 └── relay-bootstrap.yaml  # Docker, UFW 22+443, deploy-user, /opt/nhmind-relay
@@ -176,6 +177,7 @@ infra/nostr-relay/
 | `SELECTEL_STATIC_TOKEN` | после VM, до PTR | Статический ключ панели (`X-Token`), **не** сервисный пользователь — [PTR API](https://docs.selectel.ru/api/ip-addresses/) |
 | `RELAY_HOSTNAME` | до PTR/DNS/TLS | FQDN, напр. `nostr.example.com` (PTR = этот hostname) |
 | `RELAY_DNS_ZONE` | опционально | Зона в Selectel DNS, напр. `example.com` — если не задана, выводится из `RELAY_HOSTNAME` (`nostr.example.com` → `example.com`) |
+| `SELECTEL_IAM_PROJECT_NAME` | опционально | IAM → Проекты → имя; для DNS API, если scope по project id не проходит |
 
 **Не секрет:** floating IP relay — **`terraform output public_ip`** (S3 state). Workflow **Deploy Relay** и validate stage `deploy` читают его автоматически; ручной secret `RELAY_SSH_HOST` **не нужен**. SSH user — `deploy` (cloud-init).
 
@@ -223,6 +225,7 @@ Workflow нормализует project id в **32 hex** (как в панели
 | Instance `ERROR` / `%!s(<nil>)` | частичный apply, FIP до VM, orphan volume, **или нет места в AZ** | см. строку ниже; `destroy` → сменить AZ → `apply` |
 | Панель: «не хватает свободных ресурсов» в **ru-3a** | сегмент перегружен (capacity), не баг Terraform | **destroy** → AZ **`ru-3b`**: secret `SELECTEL_AVAILABILITY_ZONE` или workflow input `availability_zone=ru-3b` → **apply** |
 | PTR API **HTTP 405** `Method Not Allowed` | старый endpoint `domains/v1/ptr` | используйте **IPAM** `ipam/v1` ([upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh)); повторный **apply** с `set_ptr=true` |
+| DNS A: **Keystone HTTP 401** | token script использовал UUID project id; Terraform — hex | обновите repo; повторный **apply** с `set_dns_a=true`; при необходимости secret `SELECTEL_IAM_PROJECT_NAME` (IAM → Проекты → имя) |
 
 **Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
 

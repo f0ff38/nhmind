@@ -19,48 +19,115 @@ if [ "${#project_hex}" -eq 32 ]; then
     "${project_hex:20:4}" "${project_hex:24:12}")"
 fi
 
-body="$(jq -n \
-  --arg user "$OS_USERNAME" \
-  --arg domain "$OS_DOMAIN_NAME" \
-  --arg password "$OS_PASSWORD" \
-  --arg project "$project_uuid" \
-  '{
-    auth: {
-      identity: {
-        methods: ["password"],
-        password: {
-          user: {
-            name: $user,
-            domain: { name: $domain },
-            password: $password
+iam_project_name="$(printf '%s' "${SELECTEL_IAM_PROJECT_NAME:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+
+request_project_token() {
+  local label="$1"
+  local scope_mode="$2"
+  local project_ref="$3"
+
+  local body
+  if [ "${scope_mode}" = "name" ]; then
+    body="$(jq -n \
+      --arg user "$OS_USERNAME" \
+      --arg domain "$OS_DOMAIN_NAME" \
+      --arg password "$OS_PASSWORD" \
+      --arg project "$project_ref" \
+      '{
+        auth: {
+          identity: {
+            methods: ["password"],
+            password: {
+              user: {
+                name: $user,
+                domain: { name: $domain },
+                password: $password
+              }
+            }
+          },
+          scope: {
+            project: {
+              name: $project,
+              domain: { name: $domain }
+            }
           }
         }
-      },
-      scope: {
-        project: { id: $project }
-      }
-    }
-  }')"
+      }')"
+  else
+    body="$(jq -n \
+      --arg user "$OS_USERNAME" \
+      --arg domain "$OS_DOMAIN_NAME" \
+      --arg password "$OS_PASSWORD" \
+      --arg project "$project_ref" \
+      '{
+        auth: {
+          identity: {
+            methods: ["password"],
+            password: {
+              user: {
+                name: $user,
+                domain: { name: $domain },
+                password: $password
+              }
+            }
+          },
+          scope: {
+            project: { id: $project }
+          }
+        }
+      }')"
+  fi
 
-headers_file="$(mktemp)"
-response_file="$(mktemp)"
-trap 'rm -f "${headers_file}" "${response_file}"' EXIT
+  local headers_file response_file http_code token
+  headers_file="$(mktemp)"
+  response_file="$(mktemp)"
 
-http_code="$(curl -sS -o "${response_file}" -D "${headers_file}" -w "%{http_code}" \
-  -X POST "${AUTH_URL}/auth/tokens" \
-  -H "Content-Type: application/json" \
-  -d "${body}")"
+  http_code="$(curl -sS -o "${response_file}" -D "${headers_file}" -w "%{http_code}" \
+    -X POST "${AUTH_URL}/auth/tokens" \
+    -H "Content-Type: application/json" \
+    -d "${body}")"
 
-if [ "${http_code}" != "201" ]; then
-  echo "::error::Keystone project token failed (HTTP ${http_code})" >&2
+  if [ "${http_code}" = "201" ]; then
+    token="$(awk 'BEGIN { IGNORECASE=1 } /^x-subject-token:/ { sub(/^[^:]*:[ \t]*/, ""); gsub(/\r$/, ""); print; exit }' "${headers_file}")"
+    rm -f "${headers_file}" "${response_file}"
+    if [ -n "${token}" ]; then
+      printf '%s' "${token}"
+      return 0
+    fi
+    echo "::error::Keystone ${label}: response missing X-Subject-Token header" >&2
+    return 1
+  fi
+
+  echo "::warning::Keystone ${label} failed (HTTP ${http_code})" >&2
   jq . "${response_file}" 2>/dev/null >&2 || cat "${response_file}" >&2
-  exit 1
+  rm -f "${headers_file}" "${response_file}"
+  return 1
+}
+
+if [ "${#project_hex}" -eq 32 ]; then
+  if token="$(request_project_token "project scope (hex id)" "id" "${project_hex}")"; then
+    printf '%s' "${token}"
+    exit 0
+  fi
 fi
 
-token="$(awk 'BEGIN { IGNORECASE=1 } /^x-subject-token:/ { sub(/^[^:]*:[ \t]*/, ""); gsub(/\r$/, ""); print; exit }' "${headers_file}")"
-if [ -z "${token}" ]; then
-  echo "::error::Keystone response missing X-Subject-Token header" >&2
-  exit 1
+if [ "${project_uuid}" != "${project_hex}" ]; then
+  if token="$(request_project_token "project scope (uuid id)" "id" "${project_uuid}")"; then
+    printf '%s' "${token}"
+    exit 0
+  fi
 fi
 
-printf '%s' "${token}"
+if [ -n "${iam_project_name}" ]; then
+  if token="$(request_project_token "project scope (IAM name)" "name" "${iam_project_name}")"; then
+    printf '%s' "${token}"
+    exit 0
+  fi
+fi
+
+echo "::error::Keystone project token failed (hex, uuid${iam_project_name:+, IAM project name})" >&2
+echo "Checklist:" >&2
+echo "  - SELECTEL_PROJECT_ID = Cloud servers project ID (32 hex)" >&2
+echo "  - For DNS API: set SELECTEL_IAM_PROJECT_NAME if zone is under IAM project name scope" >&2
+echo "  - Service user: member on cloud project + IAM permission for DNS project" >&2
+exit 1
