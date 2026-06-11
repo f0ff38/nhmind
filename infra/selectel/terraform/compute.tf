@@ -4,11 +4,7 @@ resource "openstack_compute_keypair_v2" "relay" {
 }
 
 data "openstack_compute_flavor_v2" "relay" {
-  count = var.flavor_id == "" ? 1 : 0
-
-  vcpus = 2
-  ram   = 4096
-  disk  = 0
+  flavor_id = var.flavor_id
 }
 
 data "openstack_images_image_v2" "ubuntu" {

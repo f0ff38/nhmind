@@ -37,9 +37,13 @@ variable "deploy_ssh_public_key" {
 }
 
 variable "flavor_id" {
-  description = "Selectel flavor ID for the relay VM (pool-specific). Empty = auto-pick 2 vCPU / 4096 MB / disk 0 (Selectel minimum for 2 vCPU)."
+  description = "Selectel flavor ID for the relay VM (pool-specific). Set via workflow input or resolve-relay-flavor.sh (auto: 2 vCPU / 4096 MB / disk 0)."
   type        = string
-  default     = ""
+
+  validation {
+    condition     = trimspace(var.flavor_id) != ""
+    error_message = "flavor_id is required. Run resolve-relay-flavor.sh or set workflow input flavor_id from Selectel panel."
+  }
 }
 
 variable "image_name" {
