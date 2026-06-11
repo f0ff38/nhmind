@@ -29,7 +29,7 @@ checkout → docker compose build → install → test → bundle → smoke run
 | `ACURAST_MNEMONIC_COORDINATOR` | Deploy `coordinator` | Environment **canary** |
 | `ACURAST_MNEMONIC` | Fallback, если нет per-module secret | Environment **canary** |
 | `CURSOR_API_KEY` | Cursor CLI в Actions | Будущий workflow для авто-фиксов/docs |
-| `RELAY_URL` | Relay для deploy env vars | Environment **canary** (optional) |
+| `RELAY_URL` | Nostr relay (`wss://nostr.<ваш-домен>`) для deploy env vars | Environment **canary** (нужен для exit criteria Phase 2) |
 
 **Не коммитить** секреты. `.env` в `.gitignore`.
 
@@ -43,10 +43,19 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
 2. В environment **canary** добавить secrets:
    - `ACURAST_MNEMONIC_HELLO` — mnemonic из `modules/hello/.env`
    - `ACURAST_MNEMONIC_COORDINATOR` — mnemonic из `modules/coordinator/.env`
-   - `RELAY_URL` — `wss://…` (когда relay будет)
-3. Actions → **Deploy Canary** → Run workflow → module `hello` → сначала `dry_run: true`, затем реальный deploy.
+   - `RELAY_URL` — `wss://nostr.<ваш-домен>` (собственный Nostr relay; не Acurast P2P/RPC — см. [nostr-protocol.md](nostr-protocol.md#nostr-relay-на-canary-ops))
+3. Actions → **Deploy Canary** → Run workflow:
+   - `hello` — ✅ уже задеплоен (canary)
+   - `coordinator` — следующий шаг (`dry_run: true`, затем deploy)
+4. После deploy: `acurast devtools <deployment-id>` или Hub → логи execution.
 
-Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com) на адреса deploy-кошельков (локально: `node scripts/show-acurast-address.mjs modules/hello`).
+Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com). Адрес кошелька:
+
+```bash
+docker compose run --rm --entrypoint bash dev -c "node scripts/show-acurast-address.mjs modules/hello"
+```
+
+Programmatic SDK (вне TEE): `scripts/deploy-acurast-sdk.mjs` — тот же стек, что `acurast deploy`.
 
 `acurast deploy` в PR/push по-прежнему **не** запускается автоматически.
 

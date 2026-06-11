@@ -24,7 +24,8 @@ export function createDeployActions(
 ): DeployActions {
   if (env.ACURAST_DEPLOY_ENABLED?.trim().toLowerCase() === "true") {
     console.warn(
-      "[coordinator] ACURAST_DEPLOY_ENABLED=true but SDK deploy is not bundled in TEE; using stub",
+      "[coordinator] ACURAST_DEPLOY_ENABLED=true: SDK deploy runs outside TEE",
+      "(scripts/deploy-acurast-sdk.mjs or Deploy Canary workflow); using in-bundle stub",
     );
   }
   return createStubDeployActions();
