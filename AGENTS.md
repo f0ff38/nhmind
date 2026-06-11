@@ -1,6 +1,8 @@
 # AGENTS.md — инструкции для Cursor (Cloud Agents, Automations, CLI)
 
-Стартовая точка для агентов. Человекочитаемый обзор — [README.md](README.md). План работ — [docs/roadmap.md](docs/roadmap.md).
+**Точка входа — [README.md](README.md)** (корень проекта). Затем [docs/roadmap.md](docs/roadmap.md) (фаза и checkpoint). Навигация по всем docs — [docs/map.md](docs/map.md).
+
+При добавлении или изменении документации **обязательно** обновляйте [docs/map.md](docs/map.md); при смене статуса фазы — [roadmap.md](docs/roadmap.md). См. [правила в map.md](docs/map.md#правила-обновления-карты-агенты-и-pr).
 
 ## Проект
 

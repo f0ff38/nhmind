@@ -2,7 +2,7 @@
 
 Живой план развития. Статус обновляется по мере закрытия фаз.
 
-**Связанные документы:** [README](../README.md) · [AGENTS.md](../AGENTS.md) · [github-actions.md](github-actions.md)
+**Связанные документы:** [README](../README.md) (корень) · [map.md](map.md) · [roadmap.md](roadmap.md) · [AGENTS.md](../AGENTS.md) · [github-actions.md](github-actions.md)
 
 ---
 
@@ -39,7 +39,7 @@ flowchart LR
 | GitHub Actions CI (`verify` + scaffold job)                  | ✅                              |
 | GitHub Actions `deploy-canary.yml`                           | ✅                              |
 | Cursor: `AGENTS.md`, `.cursor/environment.json`, `BUGBOT.md` | ✅                              |
-| Roadmap / economics docs                                     | ✅                              |
+| Roadmap / economics docs                                     | ✅ ([map.md](map.md))           |
 | **Активная фаза**                                            | **Phase 2 — Coordinator**      |
 | `packages/nostr-client`                                      | ✅ Phase 1                       |
 | `modules/coordinator` (код)                                  | ✅                              |
@@ -276,8 +276,9 @@ Deliverable Phase 2: **`infra/nostr-relay/`** + **`deploy-relay.yml`** (ещё �
 
 1. **Перед началом фазы** — создать GitHub milestone `Phase N` и issues по deliverables.
 2. **При закрытии deliverable** — отметить `[x]` в этом файле (отдельный PR).
-3. **Агентам (Cursor)** — брать задачи только из текущей открытой фазы, если не указано иное.
-4. **Не перескакивать** Phase 3 (real TEE) без Phase 1–2 — иначе нет координации и схемы событий.
+3. **Навигация по docs** — [map.md](map.md); корень проекта — [README.md](../README.md).
+4. **Агентам (Cursor)** — README → roadmap → map; задачи из текущей открытой фазы, если не указано иное.
+5. **Не перескакивать** Phase 3 (real TEE) без Phase 1–2 — иначе нет координации и схемы событий.
 
 ---
 

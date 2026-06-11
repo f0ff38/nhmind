@@ -1,5 +1,9 @@
 # GitHub Actions — текущее состояние и планы
 
+**Навигация:** [README](../README.md) · [map.md](map.md) · [roadmap.md](roadmap.md)
+
+---
+
 ## Что уже есть
 
 Workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):

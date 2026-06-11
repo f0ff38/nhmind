@@ -1,8 +1,8 @@
 # Nostr relay — ops и выбор хостинга
 
-Руководство по production relay для nhmind: требования Acurast, выбор VPS, уроки из экосистемы Nostr (в т.ч. [Nosflare](https://github.com/Spl0itable/nosflare)).
+**Навигация:** [README](../README.md) · [map.md](map.md) · [roadmap.md](roadmap.md) (checkpoint) · [github-actions.md](github-actions.md)
 
-**Связанные документы:** [nostr-protocol.md](nostr-protocol.md) · [github-actions.md](github-actions.md) · [roadmap.md](roadmap.md)
+Руководство по production relay для nhmind: требования Acurast, выбор VPS, уроки из экосистемы Nostr (в т.ч. [Nosflare](https://github.com/Spl0itable/nosflare)).
 
 **Статус (2026-06):** validate ✅, **terraform plan ✅** (15 ресурсов, flavor `BL1.2-4096` / `1003`). **Apply ⬜.** Порядок следующих шагов — **[roadmap → checkpoint](roadmap.md#checkpoint--следующая-сессия)** (не дублировать здесь).
 

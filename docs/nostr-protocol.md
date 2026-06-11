@@ -2,7 +2,7 @@
 
 Спецификация событий координации для **NostrHiveMind (nhmind)**.
 
-**Связанные документы:** [README](../README.md) · [roadmap](roadmap.md) · [relay-ops](relay-ops.md) · [economics](economics.md) · [AGENTS.md](../AGENTS.md)
+**Связанные документы:** [README](../README.md) (корень) · [map.md](map.md) · [roadmap.md](roadmap.md) · [relay-ops.md](relay-ops.md) · [economics.md](economics.md) · [AGENTS.md](../AGENTS.md)
 
 **Статус:** Phase 1 (черновик v1). Изменения — через PR с обновлением `schema` в payload.
 

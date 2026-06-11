@@ -1,5 +1,7 @@
 # Economics — NostrHiveMind
 
+**Навигация:** [README](../README.md) · [map.md](map.md) · [roadmap.md](roadmap.md)
+
 Черновик формул и правил. Детализация — в Phase 3–4 [roadmap](roadmap.md).
 
 ## Treasury

@@ -2,7 +2,28 @@
 
 Децентрализованная система AI-агентов: **исполнение в TEE на [Acurast](https://docs.acurast.com/)**, **координация через [Nostr](https://github.com/nostr-protocol/nips)**.
 
-> Репозиторий: [github.com/f0ff38/nhmind](https://github.com/f0ff38/nhmind) · **Roadmap:** [docs/roadmap.md](docs/roadmap.md)
+> Репозиторий: [github.com/f0ff38/nhmind](https://github.com/f0ff38/nhmind)
+
+**Это корневой файл проекта.** Начинайте здесь — обзор, архитектура, dev-цикл и навигация по документации. **Агенты (Cursor Cloud, Automations, CLI):** сначала этот README, затем [roadmap](docs/roadmap.md) для текущей фазы и checkpoint; полный указатель — [docs/map.md](docs/map.md). Машинные правила — [AGENTS.md](AGENTS.md).
+
+---
+
+## Документация
+
+**Иерархия:** `README` (корень) → [`roadmap`](docs/roadmap.md) (план и checkpoint) → специализированные docs ([карта](docs/map.md)).
+
+| Уровень | Документ | Зачем |
+|---------|----------|--------|
+| 0 | **README.md** (этот файл) | Обзор, архитектура, локальная разработка |
+| 0 | [AGENTS.md](AGENTS.md) | Инструкции для агентов и PR |
+| 1 | [docs/roadmap.md](docs/roadmap.md) | Фазы, статус, **следующая сессия** |
+| 2 | [docs/map.md](docs/map.md) | **Карта всей документации** — поддерживать актуальной |
+| 2 | [docs/nostr-protocol.md](docs/nostr-protocol.md) | Nostr kinds, схемы, Acurast transport |
+| 2 | [docs/relay-ops.md](docs/relay-ops.md) | Relay VPS, Selectel GitOps |
+| 2 | [docs/github-actions.md](docs/github-actions.md) | CI, canary, relay workflows |
+| 2 | [docs/economics.md](docs/economics.md) | ROI, treasury (Phase 3–4) |
+
+**При изменении docs в PR:** обновите [docs/map.md](docs/map.md) и при смене статуса/фазы — [roadmap](docs/roadmap.md). Правила — в [map.md § обновление](docs/map.md#правила-обновления-карты-агенты-и-pr).
 
 ---
 
@@ -304,7 +325,7 @@ nhmind/
 │   ├── coordinator/              # interval, registry + scorecard (Phase 2)
 │   └── module-template/          # scaffold для новых модулей
 ├── packages/nostr-client/        # Nostr coordination library
-└── docs/                         # roadmap, nostr-protocol, relay-ops, github-actions
+└── docs/                         # roadmap, map, nostr-protocol, relay-ops, github-actions, economics
 ```
 
 ---
