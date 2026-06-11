@@ -1,6 +1,6 @@
 # Economics — NostrHiveMind
 
-**Навигация:** [README](../README.md) · [map.md](map.md) · [roadmap.md](roadmap.md)
+**Связанные документы:** [README](../README.md) (корень) · [map.md](map.md) · [roadmap.md](roadmap.md) · [AGENTS.md](../AGENTS.md) · [github-actions.md](github-actions.md)
 
 Черновик формул и правил. Детализация — в Phase 3–4 [roadmap](roadmap.md).
 
@@ -23,11 +23,13 @@ ROI = (revenue − ACU_cost − relay_fees) / ACU_cost
 
 Окно измерения: **7 дней** скользящее (canary).
 
-| Verdict | Условие | Действие coordinator |
-|---------|---------|----------------------|
-| `promote` | ROI ≥ 1.0, стабильный `healthCheck()` | ↑ replicas, mainnet |
-| `pause` | ROI < 1.0 или flaky health | stop scaling |
-| `kill` | ROI < 0.5 три окна подряд или critical failure | cleanup deployment |
+
+| Verdict   | Условие                                        | Действие coordinator |
+| --------- | ---------------------------------------------- | -------------------- |
+| `promote` | ROI ≥ 1.0, стабильный `healthCheck()`          | ↑ replicas, mainnet  |
+| `pause`   | ROI < 1.0 или flaky health                     | stop scaling         |
+| `kill`    | ROI < 0.5 три окна подряд или critical failure | cleanup deployment   |
+
 
 ### Anti-flapping (Phase 4)
 
@@ -37,11 +39,13 @@ ROI = (revenue − ACU_cost − relay_fees) / ACU_cost
 
 ## Cost attribution
 
-| Статья | Источник данных |
-|--------|-----------------|
-| ACU_cost | `acurast deployments`, `maxCostPerExecution` × executions |
-| relay_fees | TBD (платные relays / self-hosted) |
-| revenue | TBD per module (on-chain events, API settlement) |
+
+| Статья     | Источник данных                                           |
+| ---------- | --------------------------------------------------------- |
+| ACU_cost   | `acurast deployments`, `maxCostPerExecution` × executions |
+| relay_fees | TBD (платные relays / self-hosted)                        |
+| revenue    | TBD per module (on-chain events, API settlement)          |
+
 
 ## Module Scorecard (Nostr)
 
