@@ -174,7 +174,15 @@ infra/nostr-relay/
 
 **Секреты только в environment `relay`:** Settings → **Environments** → **relay** → Environment secrets (не Repository secrets).
 
-**Проверка секретов:** workflow [**Validate Relay Secrets**](../.github/workflows/validate-relay-secrets.yml) (`workflow_dispatch`, environment **relay**). Режимы: `provision` (до Terraform), `deploy` (после VM), `all`. Значения не логируются — только «пусто / неверный формат». На этапе `provision` также выполняется **Keystone auth smoke test** (те же credentials, что у Terraform).
+**Проверка секретов:** workflow [**Validate Relay Secrets**](../.github/workflows/validate-relay-secrets.yml) (`workflow_dispatch`, environment **relay**).
+
+| Режим | Формат | Live-проверки |
+|-------|--------|---------------|
+| `provision` | presence + формат | SSH keypair, S3 state bucket, Keystone (OpenStack), `X-Token` (Balance API) |
+| `deploy` | presence + формат | SSH keypair, SSH login to `RELAY_SSH_HOST` |
+| `all` | оба | все выше |
+
+Значения не логируются — только «пусто / неверный формат / HTTP-код / checklist».
 
 ### Troubleshooting: `Authentication failed` (OpenStack)
 
