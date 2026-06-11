@@ -137,6 +137,7 @@ jobs:
           SELECTEL_IAM_PROJECT_NAME: ${{ secrets.SELECTEL_IAM_PROJECT_NAME }}
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
           RELAY_DNS_ZONE: ${{ secrets.RELAY_DNS_ZONE }}
+          RELAY_DNS_ZONE_ID: ${{ secrets.RELAY_DNS_ZONE_ID }}
         run: |
           set -euo pipefail
           export PREPARE_OPENSTACK_EXPORT=1
