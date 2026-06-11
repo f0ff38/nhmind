@@ -1,5 +1,14 @@
 # Copy to terraform.tfvars for local runs only — never commit secrets.
 # In GitHub Actions, values come from environment relay secrets + workflow.
+#
+# Local init (backend must match bucket pool — see relay-ops.md):
+#   terraform init -backend-config=backend.local.hcl
+# backend.local.hcl:
+#   bucket = "my-bucket"
+#   access_key = "..."
+#   secret_key = "..."
+#   region = "ru-3"
+#   endpoints = { s3 = "https://s3.ru-3.storage.selcloud.ru" }
 
 selectel_account_id       = "123456"
 selectel_project_id       = "a07abc12310546f1b9291ab3013a7d75"

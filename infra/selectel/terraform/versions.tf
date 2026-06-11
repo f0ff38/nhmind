@@ -8,12 +8,9 @@ terraform {
     }
   }
 
+  # bucket, region, endpoints, credentials — via -backend-config in CI (pool must match bucket location)
   backend "s3" {
-    endpoints = {
-      s3 = "https://s3.ru-1.storage.selcloud.ru"
-    }
     key                         = "nhmind-relay/terraform.tfstate"
-    region                      = "ru-1"
     skip_region_validation      = true
     skip_credentials_validation = true
     skip_requesting_account_id  = true
