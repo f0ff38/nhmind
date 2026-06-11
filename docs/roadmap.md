@@ -50,6 +50,51 @@ flowchart LR
 
 ---
 
+## Checkpoint — следующая сессия
+
+**Где продолжить:** Phase 2, блок relay (Selectel). Plan сохранён (`tfplan`), **apply не делали**. Детали ops — [relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay).
+
+### 1. Apply инфраструктуры
+
+**Actions → Provision Relay Infra** (environment **relay**):
+
+| Input | Значение |
+|-------|----------|
+| action | **apply** |
+| set_ptr | **true** (нужны `SELECTEL_STATIC_TOKEN`, `RELAY_HOSTNAME`) |
+| flavor_id | пусто (auto-resolve; на plan: `BL1.2-4096` / `1003`) |
+
+Результат: **`public_ip`** в job summary; PTR — шаг workflow или вручную в Selectel **IP-адреса**.
+
+### 2. DNS и secrets
+
+1. **A:** `RELAY_HOSTNAME` → `public_ip`.
+2. Environment **relay** → **`RELAY_SSH_HOST`** = IP (`deploy` user из cloud-init).
+3. **Validate Relay Secrets** → **`deploy`** (SSH smoke).
+
+### 3. Deploy relay
+
+Deliverable Phase 2: **`infra/nostr-relay/`** + **`deploy-relay.yml`** (ещё не в репо). До merge — временно SSH на VM (Docker уже в cloud-init).
+
+### 4. Canary (exit criteria Phase 2)
+
+1. TXT **`_acu.<hostname>`** (hello + coordinator wallets).
+2. **canary** → **`RELAY_URL=wss://<RELAY_HOSTNAME>`**.
+3. **Deploy Canary** → coordinator.
+4. DevTools: heartbeat `30090`, scorecard `30091`.
+
+### Если apply упадёт
+
+| Симптом | Действие |
+|---------|----------|
+| Flavor | workflow input **`flavor_id=1003`** |
+| Keystone | [relay-ops — OpenStack troubleshooting](relay-ops.md#troubleshooting-authentication-failed-openstack) |
+| PTR | проверить `SELECTEL_STATIC_TOKEN`; PTR вручную |
+
+После закрытия шагов — обновить чеклист в [relay-ops.md](relay-ops.md#чеклист-первого-запуска) и отметить deliverables Phase 2 ниже.
+
+---
+
 ## Phase 0 — Foundation
 
 **Цель:** воспроизводимая среда разработки и CI без зависимости от хостового Node.
@@ -114,7 +159,7 @@ flowchart LR
 - [x] Programmatic deploy через SDK (canary) — `deploy-canary.yml` + `scripts/deploy-acurast-sdk.mjs`; autoscale в TEE — Phase 4
 - [ ] Canary deploy **coordinator** + smoke на processor
 - [x] Canary deploy **hello** на processor (GHA)
-- [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml`; validate ✅, plan ✅, apply ⬜ ([relay-ops.md](relay-ops.md#следующая-сессия-checkpoint))
+- [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml`; validate ✅, plan ✅, apply ⬜ (см. [checkpoint](#checkpoint--следующая-сессия))
 - [ ] **Selectel GitOps (deploy relay)** — `infra/nostr-relay/` + `deploy-relay.yml`
 
 ### Exit criteria

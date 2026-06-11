@@ -20,7 +20,7 @@ scripts/dev             # Docker-обёртка (основной dev/CI пут�
 
 Новые business-модули — в `modules/<name>/`, каждый со своим `acurast.json`.
 
-**Текущая фаза:** Phase 2 (Coordinator + relay на Selectel) — см. [docs/roadmap.md](docs/roadmap.md). Phase 0–1 завершены.
+**Текущая фаза:** Phase 2 (Coordinator + relay на Selectel) — см. [docs/roadmap.md](docs/roadmap.md) (таблица статуса и **checkpoint — следующая сессия**). Phase 0–1 завершены.
 
 Новый модуль: `./scripts/new-module.sh <name>` → `NHIND_MODULE_DIR=modules/<name> ./scripts/dev test`
 

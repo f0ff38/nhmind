@@ -4,9 +4,7 @@
 
 **Связанные документы:** [nostr-protocol.md](nostr-protocol.md) · [github-actions.md](github-actions.md) · [roadmap.md](roadmap.md)
 
-**Статус (2026-06):** validate ✅, **terraform plan ✅** (15 ресурсов, flavor auto `BL1.2-4096` / id `1003`). **Apply ещё не выполнен.** Следующий шаг — apply → DNS A → `deploy-relay.yml`.
-
-**Текущая фаза работ:** `infra/selectel/terraform/` + [provision-relay-infra.yml](../.github/workflows/provision-relay-infra.yml); затем `infra/nostr-relay/` + `deploy-relay.yml`.
+**Статус (2026-06):** validate ✅, **terraform plan ✅** (15 ресурсов, flavor `BL1.2-4096` / `1003`). **Apply ⬜.** Порядок следующих шагов — **[roadmap → checkpoint](roadmap.md#checkpoint--следующая-сессия)** (не дублировать здесь).
 
 ---
 
@@ -312,57 +310,6 @@ TXT hash: формула в [Acurast Network docs](https://docs.acurast.com/deve
 ## Известный риск: HTTP на processor
 
 На processor транспорт — **HTTP POST** (`packages/nostr-client` → `acurast-http`), не WebSocket. `nostr-rs-relay` — WebSocket. nginx проксирует WSS для клиентов; для processor может понадобиться **HTTP→WS адаптер** в том же compose — проверить на шаге 9 чеклиста.
-
----
-
-## Следующая сессия (checkpoint)
-
-Краткий порядок работ — продолжить с текущего состояния (plan сохранён, apply не делали).
-
-### 1. Apply инфраструктуры
-
-GitHub → **Actions** → **Provision Relay Infra** → Run workflow:
-
-| Input | Значение |
-|-------|----------|
-| environment | **relay** |
-| action | **apply** |
-| set_ptr | **true** (если `SELECTEL_STATIC_TOKEN` и `RELAY_HOSTNAME` уже в secrets) |
-| flavor_id | пусто (auto-resolve, как на plan) |
-
-После job: в summary — **`public_ip`**. PTR создаётся шагом workflow (или вручную в **IP-адреса** Selectel).
-
-### 2. DNS и secrets
-
-1. **A-запись:** `RELAY_HOSTNAME` → `public_ip`.
-2. Environment **relay** → добавить **`RELAY_SSH_HOST`** = тот же IP (user = `deploy`, уже в cloud-init).
-3. **Validate Relay Secrets** → режим **`deploy`** — проверка SSH на VM.
-
-### 3. Deploy relay (код ещё не в репо)
-
-Следующая задача разработки: `infra/nostr-relay/` + `.github/workflows/deploy-relay.yml` (SSH, compose, smoke WSS).
-
-До merge workflow — временно на VM после SSH:
-
-```bash
-ssh deploy@<public_ip>
-# Docker уже в cloud-init; relay compose — из будущего infra/nostr-relay/
-```
-
-### 4. Canary
-
-1. DNS TXT **`_acu.<hostname>`** для Acurast whitelist (hello + coordinator wallets).
-2. Environment **canary** → **`RELAY_URL=wss://<RELAY_HOSTNAME>`**.
-3. **Deploy Canary** → coordinator (hello уже на processor).
-4. DevTools: heartbeat `30090`, scorecard `30091`.
-
-### Если apply упадёт
-
-| Симптом | Действие |
-|---------|----------|
-| Flavor | Перезапустить с workflow input **`flavor_id=1003`** (или из панели) |
-| Keystone / project | [Troubleshooting OpenStack](#troubleshooting-authentication-failed-openstack) + **Validate Relay Secrets** |
-| PTR HTTP ≠ 200 | Проверить `SELECTEL_STATIC_TOKEN`; PTR можно выставить вручную |
 
 ---
 
