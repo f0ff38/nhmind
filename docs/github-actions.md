@@ -110,7 +110,7 @@ on:
 
 | Workflow | Триггер | Назначение |
 |----------|---------|------------|
-| `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Проверка заполненности и формата секретов **relay** (без вывода значений) ✅ |
+| `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Формат + live-проверки секретов **relay** (Keystone, S3, SSH keys, X-Token; deploy: SSH to VM) ✅ |
 | `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через `X-Token` ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke`) | SSH → `infra/nostr-relay/` compose |
 

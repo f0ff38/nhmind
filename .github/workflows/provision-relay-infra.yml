@@ -83,67 +83,42 @@ jobs:
           terraform init -backend-config=backend.ci.hcl
           rm -f backend.ci.hcl
 
+      - name: Prepare OpenStack credentials
+        if: inputs.action == 'plan' || inputs.action == 'apply' || inputs.action == 'destroy'
+        working-directory: ${{ github.workspace }}
+        env:
+          SELECTEL_ACCOUNT_ID: ${{ secrets.SELECTEL_ACCOUNT_ID }}
+          SELECTEL_PROJECT_ID: ${{ secrets.SELECTEL_PROJECT_ID }}
+          SELECTEL_SERVICE_USER: ${{ secrets.SELECTEL_SERVICE_USER }}
+          SELECTEL_SERVICE_PASSWORD: ${{ secrets.SELECTEL_SERVICE_PASSWORD }}
+          SELECTEL_REGION: ${{ secrets.SELECTEL_REGION }}
+          SELECTEL_AVAILABILITY_ZONE: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
+          RELAY_DEPLOY_SSH_PUBLIC_KEY: ${{ secrets.RELAY_DEPLOY_SSH_PUBLIC_KEY }}
+          TF_VAR_flavor_id: ${{ inputs.flavor_id }}
+        run: bash infra/selectel/scripts/prepare-openstack-env.sh
+
+      - name: Verify OpenStack authentication
+        if: inputs.action == 'plan' || inputs.action == 'apply' || inputs.action == 'destroy'
+        working-directory: ${{ github.workspace }}
+        run: bash infra/selectel/scripts/verify-openstack-auth.sh
+
       - name: Terraform validate
         run: terraform validate
 
       - name: Terraform plan
         id: plan
         if: inputs.action == 'plan' || inputs.action == 'apply'
-        env:
-          TF_VAR_selectel_account_id: ${{ secrets.SELECTEL_ACCOUNT_ID }}
-          TF_VAR_selectel_project_id: ${{ secrets.SELECTEL_PROJECT_ID }}
-          TF_VAR_selectel_service_user: ${{ secrets.SELECTEL_SERVICE_USER }}
-          TF_VAR_selectel_service_password: ${{ secrets.SELECTEL_SERVICE_PASSWORD }}
-          TF_VAR_selectel_region: ${{ secrets.SELECTEL_REGION }}
-          TF_VAR_availability_zone: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
-          TF_VAR_deploy_ssh_public_key: ${{ secrets.RELAY_DEPLOY_SSH_PUBLIC_KEY }}
-          TF_VAR_flavor_id: ${{ inputs.flavor_id }}
         run: |
           set -euo pipefail
-          if [ -z "${TF_VAR_selectel_region}" ]; then
-            TF_VAR_selectel_region="${TF_VAR_availability_zone%?}"
-            export TF_VAR_selectel_region
-            echo "Derived SELECTEL_REGION=${TF_VAR_selectel_region} from availability zone"
-          fi
           terraform plan -out=tfplan -no-color | tee plan.txt
 
       - name: Terraform apply
         if: inputs.action == 'apply'
-        env:
-          TF_VAR_selectel_account_id: ${{ secrets.SELECTEL_ACCOUNT_ID }}
-          TF_VAR_selectel_project_id: ${{ secrets.SELECTEL_PROJECT_ID }}
-          TF_VAR_selectel_service_user: ${{ secrets.SELECTEL_SERVICE_USER }}
-          TF_VAR_selectel_service_password: ${{ secrets.SELECTEL_SERVICE_PASSWORD }}
-          TF_VAR_selectel_region: ${{ secrets.SELECTEL_REGION }}
-          TF_VAR_availability_zone: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
-          TF_VAR_deploy_ssh_public_key: ${{ secrets.RELAY_DEPLOY_SSH_PUBLIC_KEY }}
-          TF_VAR_flavor_id: ${{ inputs.flavor_id }}
-        run: |
-          set -euo pipefail
-          if [ -z "${TF_VAR_selectel_region}" ]; then
-            TF_VAR_selectel_region="${TF_VAR_availability_zone%?}"
-            export TF_VAR_selectel_region
-          fi
-          terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve tfplan
 
       - name: Terraform destroy
         if: inputs.action == 'destroy'
-        env:
-          TF_VAR_selectel_account_id: ${{ secrets.SELECTEL_ACCOUNT_ID }}
-          TF_VAR_selectel_project_id: ${{ secrets.SELECTEL_PROJECT_ID }}
-          TF_VAR_selectel_service_user: ${{ secrets.SELECTEL_SERVICE_USER }}
-          TF_VAR_selectel_service_password: ${{ secrets.SELECTEL_SERVICE_PASSWORD }}
-          TF_VAR_selectel_region: ${{ secrets.SELECTEL_REGION }}
-          TF_VAR_availability_zone: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
-          TF_VAR_deploy_ssh_public_key: ${{ secrets.RELAY_DEPLOY_SSH_PUBLIC_KEY }}
-          TF_VAR_flavor_id: ${{ inputs.flavor_id }}
-        run: |
-          set -euo pipefail
-          if [ -z "${TF_VAR_selectel_region}" ]; then
-            TF_VAR_selectel_region="${TF_VAR_availability_zone%?}"
-            export TF_VAR_selectel_region
-          fi
-          terraform destroy -auto-approve
+        run: terraform destroy -auto-approve
 
       - name: Set PTR record
         if: inputs.action == 'apply' && inputs.set_ptr
