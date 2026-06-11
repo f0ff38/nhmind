@@ -91,7 +91,7 @@ Selectel использует **три типа** токенов; для GitOps 
 **Рекомендация для GHA:**
 
 1. **Terraform** — логин/пароль **сервисного пользователя** с ролью `member` в scope **Проект** (паттерн из [Terraform quickstart](https://docs.selectel.ru/terraform/quickstart/)): провайдеры `selectel` + `openstack`, `auth_url = https://cloud.api.selcloud.ru/identity/v3`. Пароль — в GitHub Secret; IAM-токен в CI **можно** получать через Keystone POST, но проще отдать password провайдеру (он сам ходит в Keystone).
-2. **PTR** — отдельный шаг workflow: `POST` к IP API с `X-Token` (статический ключ с минимальными правами, если Selectel позволит; иначе отдельный ключ «только IP»). IAM-токены для PTR **не поддерживаются**.
+2. **PTR** — [upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh): `POST`/`PUT` к **IPAM API** `https://api.selectel.ru/ipam/v1/` с `X-Token` (не `domains/v1/ptr` — legacy, HTTP 405). IAM-токены для PTR **не поддерживаются**.
 3. **DNS** (зона в Selectel DNS) — после `apply`: workflow upsert **A** через [DNS API v2](https://docs.selectel.ru/en/api/dns-actual/) (`X-Auth-Token` project-scoped, тот же сервисный пользователь). Зона должна **уже существовать** в панели DNS; input `set_dns_a` (default `true`).
 4. **Не хранить** статический `X-Token` в Terraform state; PTR — shell/curl или маленький script в workflow после `terraform apply`.
 
@@ -134,7 +134,8 @@ infra/selectel/scripts/
 ├── write-terraform-backend-ci.sh
 ├── read-relay-public-ip.sh   # terraform output public_ip (deploy + validate)
 ├── get-openstack-project-token.sh
-└── upsert-relay-dns-a.sh     # Selectel DNS A record after apply
+├── upsert-relay-dns-a.sh     # Selectel DNS A record after apply
+└── upsert-relay-ptr.sh       # Selectel IPAM PTR (ipam/v1)
 
 infra/selectel/cloud-init/
 └── relay-bootstrap.yaml  # Docker, UFW 22+443, deploy-user, /opt/nhmind-relay
@@ -221,6 +222,7 @@ Workflow нормализует project id в **32 hex** (как в панели
 | `SecurityGroupRuleExists` egress | Selectel уже создаёт default egress на новой SG | egress rule убран из Terraform; `destroy` → `apply` |
 | Instance `ERROR` / `%!s(<nil>)` | частичный apply, FIP до VM, orphan volume, **или нет места в AZ** | см. строку ниже; `destroy` → сменить AZ → `apply` |
 | Панель: «не хватает свободных ресурсов» в **ru-3a** | сегмент перегружен (capacity), не баг Terraform | **destroy** → AZ **`ru-3b`**: secret `SELECTEL_AVAILABILITY_ZONE` или workflow input `availability_zone=ru-3b` → **apply** |
+| PTR API **HTTP 405** `Method Not Allowed` | старый endpoint `domains/v1/ptr` | используйте **IPAM** `ipam/v1` ([upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh)); повторный **apply** с `set_ptr=true` |
 
 **Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
 

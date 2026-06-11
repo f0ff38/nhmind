@@ -116,28 +116,15 @@ jobs:
 
       - name: Set PTR record
         if: inputs.action == 'apply' && inputs.set_ptr
+        working-directory: ${{ github.workspace }}
         env:
           SELECTEL_STATIC_TOKEN: ${{ secrets.SELECTEL_STATIC_TOKEN }}
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
-        working-directory: infra/selectel/terraform
         run: |
           set -euo pipefail
-          PUBLIC_IP="$(terraform output -raw public_ip)"
-          echo "Setting PTR for ${PUBLIC_IP} -> ${RELAY_HOSTNAME}"
-          HTTP_CODE="$(curl -sS -o ptr-response.json -w "%{http_code}" \
-            -X POST "https://api.selectel.ru/domains/v1/ptr" \
-            -H "X-Token: ${SELECTEL_STATIC_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"ip\":\"${PUBLIC_IP}\",\"content\":\"${RELAY_HOSTNAME}\",\"ttl\":86400}")"
-          if [ "${HTTP_CODE}" = "200" ] || [ "${HTTP_CODE}" = "201" ]; then
-            echo "PTR created or updated"
-          elif [ "${HTTP_CODE}" = "409" ]; then
-            echo "::warning::PTR already exists for this IP — update manually in IP-адреса if hostname differs"
-          else
-            echo "::error::PTR API returned HTTP ${HTTP_CODE}"
-            cat ptr-response.json || true
-            exit 1
-          fi
+          PUBLIC_IP="$(terraform -chdir=infra/selectel/terraform output -raw public_ip)"
+          export PUBLIC_IP
+          bash infra/selectel/scripts/upsert-relay-ptr.sh
 
       - name: Upsert DNS A record (Selectel DNS)
         if: inputs.action == 'apply' && inputs.set_dns_a
