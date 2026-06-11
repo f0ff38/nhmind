@@ -16,11 +16,6 @@ on:
         required: false
         type: boolean
         default: true
-      extra_ssh_cidr:
-        description: Optional extra CIDR for SSH, e.g. 203.0.113.10/32
-        required: false
-        type: string
-        default: ""
       flavor_id:
         description: Selectel flavor ID override (pool-specific; empty = auto 2 vCPU / 2GB)
         required: false
@@ -42,30 +37,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Fetch GitHub Actions egress CIDRs
-        id: meta
-        run: |
-          set -euo pipefail
-          CIDR_JSON="$(curl -fsSL https://api.github.com/meta | jq -c '.actions')"
-          if [ -z "${CIDR_JSON}" ] || [ "${CIDR_JSON}" = "null" ]; then
-            echo "::error::Failed to read actions CIDRs from api.github.com/meta"
-            exit 1
-          fi
-          echo "cidrs=${CIDR_JSON}" >> "${GITHUB_OUTPUT}"
-          echo "Loaded $(echo "${CIDR_JSON}" | jq 'length') GitHub Actions CIDR prefixes"
-
-      - name: Build extra SSH CIDR JSON
-        id: extra_ssh
-        env:
-          EXTRA_SSH_CIDR: ${{ inputs.extra_ssh_cidr }}
-        run: |
-          set -euo pipefail
-          if [ -n "${EXTRA_SSH_CIDR}" ]; then
-            echo "json=[\"${EXTRA_SSH_CIDR}\"]" >> "${GITHUB_OUTPUT}"
-          else
-            echo "json=[]" >> "${GITHUB_OUTPUT}"
-          fi
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -126,8 +97,6 @@ jobs:
           TF_VAR_selectel_region: ${{ secrets.SELECTEL_REGION }}
           TF_VAR_availability_zone: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
           TF_VAR_deploy_ssh_public_key: ${{ secrets.RELAY_DEPLOY_SSH_PUBLIC_KEY }}
-          TF_VAR_github_actions_cidrs: ${{ steps.meta.outputs.cidrs }}
-          TF_VAR_extra_ssh_cidrs: ${{ steps.extra_ssh.outputs.json }}
           TF_VAR_flavor_id: ${{ inputs.flavor_id }}
         run: |
           set -euo pipefail
@@ -148,8 +117,6 @@ jobs:
           TF_VAR_selectel_region: ${{ secrets.SELECTEL_REGION }}
           TF_VAR_availability_zone: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
           TF_VAR_deploy_ssh_public_key: ${{ secrets.RELAY_DEPLOY_SSH_PUBLIC_KEY }}
-          TF_VAR_github_actions_cidrs: ${{ steps.meta.outputs.cidrs }}
-          TF_VAR_extra_ssh_cidrs: ${{ steps.extra_ssh.outputs.json }}
           TF_VAR_flavor_id: ${{ inputs.flavor_id }}
         run: |
           set -euo pipefail
@@ -169,8 +136,6 @@ jobs:
           TF_VAR_selectel_region: ${{ secrets.SELECTEL_REGION }}
           TF_VAR_availability_zone: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
           TF_VAR_deploy_ssh_public_key: ${{ secrets.RELAY_DEPLOY_SSH_PUBLIC_KEY }}
-          TF_VAR_github_actions_cidrs: ${{ steps.meta.outputs.cidrs }}
-          TF_VAR_extra_ssh_cidrs: ${{ steps.extra_ssh.outputs.json }}
           TF_VAR_flavor_id: ${{ inputs.flavor_id }}
         run: |
           set -euo pipefail

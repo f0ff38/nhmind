@@ -60,17 +60,6 @@ variable "private_subnet_cidr" {
   default     = "10.10.42.0/24"
 }
 
-variable "github_actions_cidrs" {
-  description = "GitHub Actions runner egress CIDRs (api.github.com/meta actions)."
-  type        = list(string)
-}
-
-variable "extra_ssh_cidrs" {
-  description = "Optional extra CIDRs allowed to SSH (e.g. operator /32)."
-  type        = list(string)
-  default     = []
-}
-
 variable "server_name" {
   description = "Cloud server display name."
   type        = string

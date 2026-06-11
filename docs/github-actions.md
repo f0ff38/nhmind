@@ -129,7 +129,7 @@ on:
 | `RELAY_HOSTNAME` | PTR/DNS/deploy | `nostr.<домен>` |
 | `RELAY_SSH_HOST`, `RELAY_SSH_USER` | deploy-relay | IP и `deploy` (host можно брать из TF output) |
 
-**Файрвол:** SSH (22) на VM — только CIDR из `https://api.github.com/meta` → `actions`; 443 — весь интернет. Подробнее: [relay-ops.md — файрвол VM](relay-ops.md#файрвол-vm-ssh-только-с-github-actions).
+**Файрвол:** SG `0.0.0.0/0:22` (key-only) + `0.0.0.0/0:443`. Подробнее: [relay-ops.md — файрвол VM](relay-ops.md#файрвол-vm-canary-ssh-key-only-https-public).
 
 **Аутентификация:** OpenStack/Terraform — пароль сервисного пользователя; PTR — `X-Token`. См. [authorization](https://docs.selectel.ru/api/authorization/).
 
@@ -143,8 +143,7 @@ Workflow [`.github/workflows/provision-relay-infra.yml`](../.github/workflows/pr
 2. **Provision Relay Infra** → `plan` — проверить diff (VM, сеть, floating IP, security group).
 3. **Provision Relay Infra** → `apply`, `set_ptr: true` — создаёт VM + PTR.
 4. Вручную: DNS **A** `RELAY_HOSTNAME` → `public_ip` из job summary.
-5. Опционально: workflow input `extra_ssh_cidr` = ваш `/32` для SSH с ноутбука.
-6. Если `plan` падает на flavor — укажите `flavor_id` из панели Selectel (pool-specific).
+5. Если `plan` падает на flavor — укажите `flavor_id` из панели Selectel (pool-specific).
 
 Следующий workflow: **Deploy Relay** (ещё не реализован).
 

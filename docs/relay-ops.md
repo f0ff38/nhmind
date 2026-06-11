@@ -99,23 +99,24 @@ Selectel использует **три типа** токенов; для GitOps 
 
 Ограничение API по IP: в панели можно [ограничить доступ](https://docs.selectel.ru/api/authorization/) к `https://api.selectel.ru` — для GHA учесть egress GitHub Actions или не включать whitelist на первом этапе.
 
-### Файрвол VM: SSH только с GitHub Actions
+### Файрвол VM (canary): SSH key-only, HTTPS public
 
-На этапе Terraform (`infra/selectel/`) ingress **TCP/22** на порт сервера ограничиваем CIDR из [GitHub Meta API](https://api.github.com/meta), поле **`actions`** (egress раннеров `ubuntu-latest`). **443** — `0.0.0.0/0` (Acurast processor и публичный WSS).
+На этапе Terraform ([группа безопасности](https://docs.selectel.ru/cloud-servers/security-groups/about-security-groups/), лимит **200 правил** на пул) для Phase 2 canary:
 
-| Слой Selectel | Ресурс Terraform | Зачем |
-|---------------|------------------|-------|
-| Порт сервера | [группа безопасности](https://docs.selectel.ru/cloud-servers/security-groups/about-security-groups/) + `openstack_networking_secgroup_rule_v2` | SSH (22) по CIDR `actions`; 443 для всех |
-| Роутер (опционально) | [облачный файрвол](https://docs.selectel.ru/terraform/examples/cloud-firewalls/create-firewall-and-server/) на router port | Дублирующий периметр; для MVP достаточно security group на port VM |
+| Порт | Источник | Зачем |
+|------|----------|--------|
+| **443/tcp** | `0.0.0.0/0` | Acurast processor, WSS-клиенты |
+| **22/tcp** | `0.0.0.0/0` | SSH для GHA deploy и ops; **только по ключу** (нет паролей) |
 
-**Реализация в workflow (позже, в коде):** перед `terraform apply` шаг `curl -s https://api.github.com/meta | jq -r '.actions[]'` → список CIDR → `TF_VAR_github_actions_cidrs` (или файл) → отдельное правило secgroup **на каждый** префикс (OpenStack — одно правило = один `remote_ip_prefix`).
+Почему не [Meta API `actions`](https://docs.github.com/ru/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses): ~7000+ динамических CIDR, лимит Selectel 200 правил, список меняется — GitHub не рекомендует жёсткий allowlist для hosted runners.
 
-Замечания:
+Защита SSH:
 
-- Список `actions` **меняется** — при сбое SSH после months без deploy перезапустить provision/plan (обновит правила).
-- Для ручного SSH с ноутбука: временное правило с вашим `/32` в панели или отдельный workflow input `extra_ssh_cidr` (не коммитить IP в git).
-- UFW в cloud-init — второй слой; источник истины для облака — security group.
-- API Selectel (`api.selectel.ru`) и SSH на VM — разные вещи; whitelist API в панели Selectel тоже должен включать `actions` CIDR, если включён.
+- Security group + cloud-init: `PasswordAuthentication no`, пользователь `deploy`, ключ из `RELAY_DEPLOY_SSH_*`
+- UFW на VM дублирует 22/443 (второй слой)
+- Сканирование порта 22 возможно — для production позже сузить (self-hosted runner, VPN, `/32` operator)
+
+**Файрвол workflow:** [provision-relay-infra.yml](../.github/workflows/provision-relay-infra.yml) — [github-actions.md](github-actions.md#10-provision-relay-vm-selectel).
 
 ### Планируемая структура в репозитории
 
@@ -251,7 +252,7 @@ infra/nostr-relay/
 ## Безопасность relay (минимальный baseline)
 
 1. **SSH:** только ключи (ed25519), отдельный deploy-user, `PasswordAuthentication no`.
-2. **Firewall:** `443` открыт; `22` — по возможности ограничить IP GitHub Actions / ваш IP.
+2. **Firewall:** SG `22`/`443` + SSH key-only (canary: `0.0.0.0/0:22`).
 3. **nginx stable ≥ 1.30.2** в Docker (pin в compose), не полагаться на версию панели хостера.
 4. **Relay не на публичном :8080** — только через nginx `:443`.
 5. **TLS:** Let's Encrypt (certbot/Caddy) или ISPmanager LE — на выбор; автообновление.

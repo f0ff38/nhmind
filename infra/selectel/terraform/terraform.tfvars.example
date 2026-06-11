@@ -20,5 +20,3 @@ deploy_ssh_public_key     = "ssh-ed25519 AAAA... user@host"
 
 # Pool-specific: openstack flavor list, or Selectel panel flavor ID
 # flavor_id = "1014"
-
-github_actions_cidrs = ["140.82.112.0/20"]
