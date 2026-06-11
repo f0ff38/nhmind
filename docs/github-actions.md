@@ -104,12 +104,45 @@ on:
 
 Для релизов можно публиковать `modules/*/dist/bundle.js` как artifact — не коммитить `dist/` в git (уже в `.gitignore`).
 
+## Relay на Selectel (GitOps) — активный шаг
+
+Два workflow, environment **relay** (отдельно от **canary**). Детали: [relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay).
+
+| Workflow | Триггер | Назначение |
+|----------|---------|------------|
+| `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Проверка заполненности и формата секретов **relay** (без вывода значений) ✅ |
+| `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через `X-Token` |
+| `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke`) | SSH → `infra/nostr-relay/` compose |
+
+**Секреты environment `relay`:**
+
+| Secret | Когда | Назначение |
+|--------|-------|------------|
+| `SELECTEL_SERVICE_USER` / `SELECTEL_SERVICE_PASSWORD` | ✅ | Terraform/OpenStack ([quickstart](https://docs.selectel.ru/terraform/quickstart/)) |
+| `SELECTEL_ACCOUNT_ID` | до 1-го plan | Номер аккаунта |
+| `SELECTEL_PROJECT_ID` | до 1-го plan | Проект **nhmind** |
+| `RELAY_DEPLOY_SSH_PRIVATE_KEY` / `RELAY_DEPLOY_SSH_PUBLIC_KEY` | до 1-го apply | SSH keypair → Selectel keypair + пользователь `deploy` |
+| `SELECTEL_AVAILABILITY_ZONE` | до plan | AZ, напр. `ru-3a` |
+| `TF_STATE_S3_BUCKET`, `TF_STATE_S3_ACCESS_KEY`, `TF_STATE_S3_SECRET_KEY` | до `terraform init` | Remote state |
+| `SELECTEL_STATIC_TOKEN` | PTR-шаг | `X-Token` из **Профиль → API-ключи** (не сервисный user) |
+| `RELAY_HOSTNAME` | PTR/DNS/deploy | `nostr.<домен>` |
+| `RELAY_SSH_HOST`, `RELAY_SSH_USER` | deploy-relay | IP и `deploy` (host можно брать из TF output) |
+
+**Файрвол:** SSH (22) на VM — только CIDR из `https://api.github.com/meta` → `actions`; 443 — весь интернет. Подробнее: [relay-ops.md — файрвол VM](relay-ops.md#файрвол-vm-ssh-только-с-github-actions).
+
+**Аутентификация:** OpenStack/Terraform — пароль сервисного пользователя; PTR — `X-Token`. См. [authorization](https://docs.selectel.ru/api/authorization/).
+
+После smoke: `RELAY_URL` в environment **canary** → `Deploy Canary` для hello/coordinator.
+
 ## Планируемые workflows
 
 | Workflow | Триггер | Назначение |
 |----------|---------|------------|
 | `ci.yml` | push/PR → main | test + bundle + smoke ✅ |
 | `deploy-canary.yml` | `workflow_dispatch` | canary deploy hello / coordinator ✅ |
+| `validate-relay-secrets.yml` | `workflow_dispatch` | проверка секретов relay ✅ |
+| `provision-relay-infra.yml` | `workflow_dispatch` | Selectel VM + сеть 🔄 в разработке |
+| `deploy-relay.yml` | `workflow_dispatch` | relay compose на VM 🔄 в разработке |
 | `cursor-agent.yml` | issue comment / schedule | Cursor CLI (будущее) |
 
 ## Cursor Dashboard
