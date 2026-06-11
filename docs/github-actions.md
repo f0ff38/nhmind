@@ -115,7 +115,7 @@ on:
 | Workflow | Триггер | Назначение |
 |----------|---------|------------|
 | `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Формат + live-проверки секретов **relay** (Keystone, S3, SSH keys, X-Token; deploy: SSH to VM via TF `public_ip`) ✅ |
-| `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через `X-Token` ✅ |
+| `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через IPAM `ipam/v1` + `X-Token` ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke` \| `all`) | SSH → `infra/nostr-relay/` compose; IP из Terraform state ✅ |
 
 **Секреты environment `relay`:**
@@ -129,7 +129,7 @@ on:
 | `SELECTEL_AVAILABILITY_ZONE` | до plan | AZ `ru-3a` (не пул `ru-3`) |
 | `TF_STATE_S3_BUCKET`, `TF_STATE_S3_ACCESS_KEY`, `TF_STATE_S3_SECRET_KEY` | до `terraform init` | Remote state |
 | `TF_STATE_S3_REGION` | опционально | Пул S3 бакета (`ru-3`); иначе из `SELECTEL_REGION` / AZ |
-| `SELECTEL_STATIC_TOKEN` | PTR-шаг | `X-Token` из **Профиль → API-ключи** (не сервисный user) |
+| `SELECTEL_STATIC_TOKEN` | PTR-шаг | `X-Token` из **Профиль → API-ключи**; IPAM API `https://api.selectel.ru/ipam/v1/` |
 | `RELAY_HOSTNAME` | PTR/DNS/deploy | `nostr.<домен>` |
 | `RELAY_DNS_ZONE` | опционально | Зона Selectel DNS (`example.com`), если не выводится из hostname |
 

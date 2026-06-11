@@ -23,13 +23,28 @@ http_code="$(curl -sS -o "${response_file}" -w "%{http_code}" \
 
 if [ "${http_code}" = "200" ]; then
   echo "SELECTEL_STATIC_TOKEN OK (Balance API HTTP 200)"
+else
+  echo "::error::SELECTEL_STATIC_TOKEN rejected (HTTP ${http_code})"
+  head -c 500 "${response_file}" || true
+  echo ""
+  echo "Checklist:"
+  echo "  - Token from Profile → API Keys (X-Token), not service user password"
+  echo "  - Token not revoked; copy without trailing whitespace"
+  exit 1
+fi
+
+ipam_code="$(curl -sS -o "${response_file}" -w "%{http_code}" \
+  -X GET "https://api.selectel.ru/ipam/v1/?only-count=true" \
+  -H "X-Token: ${token}" \
+  -H "Accept: application/json")"
+
+if [ "${ipam_code}" = "200" ]; then
+  echo "SELECTEL_STATIC_TOKEN OK (IPAM PTR API HTTP 200)"
   exit 0
 fi
 
-echo "::error::SELECTEL_STATIC_TOKEN rejected (HTTP ${http_code})"
+echo "::error::SELECTEL_STATIC_TOKEN rejected by IPAM PTR API (HTTP ${ipam_code})"
 head -c 500 "${response_file}" || true
 echo ""
-echo "Checklist:"
-echo "  - Token from Profile → API Keys (X-Token), not service user password"
-echo "  - Token not revoked; copy without trailing whitespace"
+echo "PTR step uses https://api.selectel.ru/ipam/v1/ (not domains/v1/ptr)"
 exit 1
