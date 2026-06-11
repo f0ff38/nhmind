@@ -1,6 +1,8 @@
 # AGENTS.md — инструкции для Cursor (Cloud Agents, Automations, CLI)
 
-Стартовая точка для агентов. Человекочитаемый обзор — [README.md](README.md). План работ — [docs/roadmap.md](docs/roadmap.md).
+**Точка входа — [README.md](README.md)** (корень проекта). Затем [docs/roadmap.md](docs/roadmap.md) (фаза и checkpoint). Навигация по всем docs — [docs/map.md](docs/map.md).
+
+При добавлении или изменении документации **обязательно** обновляйте [docs/map.md](docs/map.md); при смене статуса фазы — [roadmap.md](docs/roadmap.md). См. [правила в map.md](docs/map.md#правила-обновления-карты-агенты-и-pr).
 
 ## Проект
 
@@ -10,14 +12,17 @@
 
 ```
 modules/hello/          # стартовый Acurast deployment (TypeScript → dist/bundle.js)
+modules/coordinator/    # interval coordinator (Phase 2)
+packages/nostr-client/  # Nostr coordination library
+infra/selectel/         # Selectel relay VM (Terraform + cloud-init)
 scripts/dev             # Docker-обёртка (основной dev/CI путь)
 .cursor/                # Cloud Agent environment + Bugbot rules
-.github/workflows/      # GitHub Actions CI
+.github/workflows/      # CI, canary deploy, relay validate/provision
 ```
 
 Новые business-модули — в `modules/<name>/`, каждый со своим `acurast.json`.
 
-**Текущая фаза:** Phase 1 (Nostr layer) — см. [docs/roadmap.md](docs/roadmap.md). Phase 0 завершена.
+**Текущая фаза:** Phase 2 (Coordinator + relay на Selectel) — см. [docs/roadmap.md](docs/roadmap.md) (таблица статуса и **checkpoint — следующая сессия**). Phase 0–1 завершены.
 
 Новый модуль: `./scripts/new-module.sh <name>` → `NHIND_MODULE_DIR=modules/<name> ./scripts/dev test`
 
@@ -110,6 +115,8 @@ docker compose build dev
 ## GitHub Actions
 
 CI: [.github/workflows/ci.yml](.github/workflows/ci.yml) — `install → test → bundle → smoke run` в Docker.
+
+Relay (environment **relay**): [validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml), [provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml). Ops: [docs/relay-ops.md](docs/relay-ops.md).
 
 При добавлении workflows:
 

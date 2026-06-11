@@ -1,5 +1,7 @@
 # module-template
 
+**Навигация:** [README](../../README.md) · [docs/map.md](../../docs/map.md) · [AGENTS.md](../../AGENTS.md)
+
 Эталонный scaffold для новых Acurast-модулей. **Не деплоить как production-модуль** — используйте как источник копирования.
 
 ## Создать новый модуль

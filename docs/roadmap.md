@@ -2,7 +2,7 @@
 
 Живой план развития. Статус обновляется по мере закрытия фаз.
 
-**Связанные документы:** [README](../README.md) · [AGENTS.md](../AGENTS.md) · [github-actions.md](github-actions.md)
+**Связанные документы:** [README](../README.md) (корень) · [map.md](map.md) · [roadmap.md](roadmap.md) · [AGENTS.md](../AGENTS.md) · [github-actions.md](github-actions.md)
 
 ---
 
@@ -39,14 +39,59 @@ flowchart LR
 | GitHub Actions CI (`verify` + scaffold job)                  | ✅                              |
 | GitHub Actions `deploy-canary.yml`                           | ✅                              |
 | Cursor: `AGENTS.md`, `.cursor/environment.json`, `BUGBOT.md` | ✅                              |
-| Roadmap / economics docs                                     | ✅                              |
+| Roadmap / economics docs                                     | ✅ ([map.md](map.md))           |
 | **Активная фаза**                                            | **Phase 2 — Coordinator**      |
 | `packages/nostr-client`                                      | ✅ Phase 1                       |
 | `modules/coordinator` (код)                                  | ✅                              |
 | `hello` canary на processor                                  | ✅ (deploy via GHA)              |
 | `coordinator` canary на processor                            | ⬜ следующий шаг                 |
-| Публичный relay + `RELAY_URL` в deploy                       | 🔄 **в работе** — Selectel GitOps (`infra/selectel/` + provision/deploy workflows) |
+| Публичный relay + `RELAY_URL` в deploy                       | 🔄 plan ✅, apply ⬜ — Selectel GitOps (`infra/selectel/` + provision/deploy workflows) |
 
+
+---
+
+## Checkpoint — следующая сессия
+
+**Где продолжить:** Phase 2, блок relay (Selectel). Plan сохранён (`tfplan`), **apply не делали**. Детали ops — [relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay).
+
+### 1. Apply инфраструктуры
+
+**Actions → Provision Relay Infra** (environment **relay**):
+
+| Input | Значение |
+|-------|----------|
+| action | **apply** |
+| set_ptr | **true** (нужны `SELECTEL_STATIC_TOKEN`, `RELAY_HOSTNAME`) |
+| flavor_id | пусто (auto-resolve; на plan: `BL1.2-4096` / `1003`) |
+
+Результат: **`public_ip`** в job summary; PTR — шаг workflow или вручную в Selectel **IP-адреса**.
+
+### 2. DNS и secrets
+
+1. **A:** `RELAY_HOSTNAME` → `public_ip`.
+2. Environment **relay** → **`RELAY_SSH_HOST`** = IP (`deploy` user из cloud-init).
+3. **Validate Relay Secrets** → **`deploy`** (SSH smoke).
+
+### 3. Deploy relay
+
+Deliverable Phase 2: **`infra/nostr-relay/`** + **`deploy-relay.yml`** (ещё не в репо). До merge — временно SSH на VM (Docker уже в cloud-init).
+
+### 4. Canary (exit criteria Phase 2)
+
+1. TXT **`_acu.<hostname>`** (hello + coordinator wallets).
+2. **canary** → **`RELAY_URL=wss://<RELAY_HOSTNAME>`**.
+3. **Deploy Canary** → coordinator.
+4. DevTools: heartbeat `30090`, scorecard `30091`.
+
+### Если apply упадёт
+
+| Симптом | Действие |
+|---------|----------|
+| Flavor | workflow input **`flavor_id=1003`** |
+| Keystone | [relay-ops — OpenStack troubleshooting](relay-ops.md#troubleshooting-authentication-failed-openstack) |
+| PTR | проверить `SELECTEL_STATIC_TOKEN`; PTR вручную |
+
+После закрытия шагов — обновить чеклист в [relay-ops.md](relay-ops.md#чеклист-первого-запуска) и отметить deliverables Phase 2 ниже.
 
 ---
 
@@ -114,7 +159,7 @@ flowchart LR
 - [x] Programmatic deploy через SDK (canary) — `deploy-canary.yml` + `scripts/deploy-acurast-sdk.mjs`; autoscale в TEE — Phase 4
 - [ ] Canary deploy **coordinator** + smoke на processor
 - [x] Canary deploy **hello** на processor (GHA)
-- [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml` ([relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay))
+- [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml`; validate ✅, plan ✅, apply ⬜ (см. [checkpoint](#checkpoint--следующая-сессия))
 - [ ] **Selectel GitOps (deploy relay)** — `infra/nostr-relay/` + `deploy-relay.yml`
 
 ### Exit criteria
@@ -231,8 +276,9 @@ flowchart LR
 
 1. **Перед началом фазы** — создать GitHub milestone `Phase N` и issues по deliverables.
 2. **При закрытии deliverable** — отметить `[x]` в этом файле (отдельный PR).
-3. **Агентам (Cursor)** — брать задачи только из текущей открытой фазы, если не указано иное.
-4. **Не перескакивать** Phase 3 (real TEE) без Phase 1–2 — иначе нет координации и схемы событий.
+3. **Навигация по docs** — [map.md](map.md); корень проекта — [README.md](../README.md).
+4. **Агентам (Cursor)** — README → **AGENTS.md** → roadmap → map; задачи из текущей открытой фазы, если не указано иное.
+5. **Не перескакивать** Phase 3 (real TEE) без Phase 1–2 — иначе нет координации и схемы событий.
 
 ---
 

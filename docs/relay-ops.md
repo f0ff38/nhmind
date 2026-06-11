@@ -1,12 +1,10 @@
 # Nostr relay — ops и выбор хостинга
 
+**Навигация:** [README](../README.md) · [map.md](map.md) · [roadmap.md](roadmap.md) (checkpoint) · [github-actions.md](github-actions.md)
+
 Руководство по production relay для nhmind: требования Acurast, выбор VPS, уроки из экосистемы Nostr (в т.ч. [Nosflare](https://github.com/Spl0itable/nosflare)).
 
-**Связанные документы:** [nostr-protocol.md](nostr-protocol.md) · [github-actions.md](github-actions.md) · [roadmap.md](roadmap.md)
-
-**Статус:** **активный шаг** — GitOps-провижининг relay на **Selectel** (создание и преднастройка VM из репозитория). Провайдер выбран; ручной заказ VM в панели — fallback.
-
-**Текущая фаза работ:** `infra/selectel/terraform/` + [provision-relay-infra.yml](../.github/workflows/provision-relay-infra.yml) — **plan/apply**; следующий шаг — `deploy-relay.yml` + DNS A.
+**Статус (2026-06):** validate ✅, **terraform plan ✅** (15 ресурсов, flavor `BL1.2-4096` / `1003`). **Apply ⬜.** Порядок следующих шагов — **[roadmap → checkpoint](roadmap.md#checkpoint--следующая-сессия)** (не дублировать здесь).
 
 ---
 
@@ -122,12 +120,17 @@ Selectel использует **три типа** токенов; для GitOps 
 
 ```
 infra/selectel/terraform/
-├── versions.tf           # selectel ~> 7.x, openstack 2.1.0, backend s3 (Selectel Object Storage)
-├── providers.tf          # domain_name, project_id, region (pool)
+├── versions.tf           # openstack 2.1.0, backend s3 (Selectel Object Storage)
+├── providers.tf          # openstack only (auth_url, tenant_id hex, region pool)
 ├── network.tf            # private network, subnet, router, floating IP
 ├── compute.tf            # keypair, VM, user_data ← cloud-init
-├── variables.tf          # flavor, pool, az, relay_hostname
-└── outputs.tf            # public_ip, server_id
+├── variables.tf          # flavor_id, pool, az
+└── outputs.tf            # public_ip, flavor_id, flavor_name, server_id
+
+infra/selectel/scripts/
+├── prepare-openstack-env.sh
+├── verify-openstack-auth.sh
+└── resolve-relay-flavor.sh   # Nova API auto-pick 2 vCPU / 4096 MB / disk 0 → TF_VAR_flavor_id
 
 infra/selectel/cloud-init/
 └── relay-bootstrap.yaml  # Docker, UFW 22+443, deploy-user, /opt/nhmind-relay
@@ -170,7 +173,7 @@ infra/nostr-relay/
 | `RELAY_SSH_HOST` | после provision | Floating IP (можно не секретом — output TF; в GHA удобно для `deploy-relay`) |
 | `RELAY_SSH_USER` | после provision | `deploy` (фиксирован в cloud-init) |
 
-**Не секреты** (в `terraform.tfvars` или variables репо): pool `ru-3` (= `region` OpenStack-провайдера), flavor.
+**Не секреты** (в `terraform.tfvars` или workflow input): pool `ru-3` (= `region` OpenStack-провайдера). **Flavor:** в CI auto-resolve через [resolve-relay-flavor.sh](../infra/selectel/scripts/resolve-relay-flavor.sh) (2 vCPU / 4096 MB / disk 0); override — workflow input `flavor_id` или `terraform.tfvars`.
 
 **Секреты только в environment `relay`:** Settings → **Environments** → **relay** → Environment secrets (не Repository secrets).
 
@@ -288,16 +291,17 @@ infra/nostr-relay/
 
 ## Чеклист первого запуска
 
-1. [ ] **Selectel GitOps:** `provision-relay-infra` (или ручная VM: приватная сеть + 1 публичный IP)
-2. [ ] VM: Docker, deploy-user (cloud-init или вручную)
-3. [ ] **IP-адреса** Selectel: **PTR** = `nostr.<домен>`
-3. [ ] DNS: `A` `nostr.<домен>` → IP
-4. [ ] DNS: TXT `_acu.nostr.<домен>` для deploy-кошельков hello и coordinator
-5. [ ] Поднять relay (compose или `infra/` из репо)
-6. [ ] Smoke WSS с ноутбука (Nostr client или integration test)
-7. [ ] GitHub **canary** → `RELAY_URL=wss://nostr.<домен>`
-8. [ ] Redeploy hello + coordinator (`Deploy Canary`)
-9. [ ] DevTools: heartbeat и scorecard на processor
+1. [x] **Validate Relay Secrets** → `provision` (environment **relay**)
+2. [x] **Provision Relay Infra** → `plan` (15 to add; flavor `BL1.2-4096`)
+3. [ ] **Provision Relay Infra** → `apply`, `set_ptr: true`
+4. [ ] DNS: **A** `RELAY_HOSTNAME` → `public_ip` из job summary
+5. [ ] GitHub **relay** → `RELAY_SSH_HOST` = floating IP (для deploy-relay)
+6. [ ] **Deploy Relay** (`deploy-relay.yml` — ещё не в репо) или ручной compose на VM
+7. [ ] DNS: TXT `_acu.<RELAY_HOSTNAME>` для deploy-кошельков hello и coordinator
+8. [ ] Smoke WSS с ноутбука
+9. [ ] GitHub **canary** → `RELAY_URL=wss://<RELAY_HOSTNAME>`
+10. [ ] Redeploy hello + coordinator (`Deploy Canary`)
+11. [ ] DevTools: heartbeat и scorecard на processor
 
 TXT hash: формула в [Acurast Network docs](https://docs.acurast.com/developers/job-runtime-environment/#network); адреса кошельков — `node scripts/show-acurast-address.mjs modules/<name>`.
 

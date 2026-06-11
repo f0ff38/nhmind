@@ -1,5 +1,9 @@
 # Bugbot rules — NostrHiveMind
 
+**Навигация:** [README](../README.md) · [docs/map.md](../docs/map.md) · [AGENTS.md](../AGENTS.md)
+
+---
+
 ## Security (blockers)
 
 - **No secrets in source or bundles** — mnemonics, API keys, private keys must use `.env` + `includeEnvironmentVariables` / Cursor Secrets. Flag any hardcoded `ACURAST_MNEMONIC`, `nsec`, hex private keys.
