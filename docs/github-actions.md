@@ -133,7 +133,7 @@ on:
 | `RELAY_HOSTNAME` | PTR/DNS/deploy | `nostr.<домен>` |
 | `RELAY_DNS_ZONE` | опционально | Зона Selectel DNS (`example.com`), если не выводится из hostname |
 | `RELAY_DNS_ZONE_ID` | опционально | UUID зоны из панели (`.../registrar/<uuid>/`) |
-| `SELECTEL_IAM_PROJECT_NAME` | **DNS A** | IAM → Проекты → **имя** (не cloud hex id); обязателен для DNS API v2 |
+| `SELECTEL_IAM_PROJECT_NAME` | опционально | Override имени IAM-проекта для DNS; иначе из `SELECTEL_PROJECT_ID` |
 
 Floating IP для SSH/deploy — **`terraform output public_ip`**. **A-запись** — автоматически в **Provision Relay Infra** (`set_dns_a`, default `true`).
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Project IAM token for Selectel DNS API v2 (stdout).
-# DNS requires Keystone scope by IAM project *name*; cloud hex id often returns zero zones.
+# Same SELECTEL_PROJECT_ID as Terraform; DNS Keystone scope uses project *name* (auto-resolved).
 set -euo pipefail
 
 AUTH_URL="${OS_AUTH_URL:-https://cloud.api.selcloud.ru/identity/v3}"
@@ -13,6 +13,9 @@ for var in OS_DOMAIN_NAME OS_USERNAME OS_PASSWORD OS_PROJECT_ID; do
   fi
 done
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+zone_id_probe="$(printf '%s' "${RELAY_DNS_ZONE_ID:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+
 project_hex="$(printf '%s' "${OS_PROJECT_ID}" | tr 'A-Z' 'a-z' | tr -d '-' | sed 's/[^0-9a-f]//g')"
 project_uuid="${OS_PROJECT_ID}"
 if [ "${#project_hex}" -eq 32 ]; then
@@ -21,8 +24,7 @@ if [ "${#project_hex}" -eq 32 ]; then
     "${project_hex:20:4}" "${project_hex:24:12}")"
 fi
 
-iam_project_name="$(printf '%s' "${SELECTEL_IAM_PROJECT_NAME:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-zone_id_probe="$(printf '%s' "${RELAY_DNS_ZONE_ID:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+iam_project_name="$(bash "${script_dir}/resolve-selectel-project-name.sh")"
 
 request_project_token() {
   local label="$1"
@@ -133,24 +135,19 @@ dns_token_can_manage_zones() {
   return 1
 }
 
-declare -a scope_modes=()
-declare -a scope_refs=()
-declare -a scope_labels=()
+declare -a scope_modes=("name")
+declare -a scope_refs=("${iam_project_name}")
+declare -a scope_labels=("IAM project name (from SELECTEL_PROJECT_ID)")
 
-if [ -n "${iam_project_name}" ]; then
-  scope_modes+=("name")
-  scope_refs+=("${iam_project_name}")
-  scope_labels+=("IAM project name")
-fi
 if [ "${#project_hex}" -eq 32 ]; then
   scope_modes+=("id")
   scope_refs+=("${project_hex}")
-  scope_labels+=("cloud project hex id")
+  scope_labels+=("project hex id")
 fi
 if [ "${project_uuid}" != "${project_hex}" ]; then
   scope_modes+=("id")
   scope_refs+=("${project_uuid}")
-  scope_labels+=("cloud project uuid id")
+  scope_labels+=("project uuid id")
 fi
 
 keystone_ok=0
@@ -161,11 +158,7 @@ for i in "${!scope_modes[@]}"; do
   token="$(request_project_token "${label}" "${mode}" "${ref}")" || continue
   keystone_ok=1
   if dns_token_can_manage_zones "${token}"; then
-    if [ "${mode}" != "name" ]; then
-      echo "::warning::DNS API works with ${label}; prefer secret SELECTEL_IAM_PROJECT_NAME (IAM → Projects → name)" >&2
-    else
-      echo "Selectel DNS token scope: IAM project name" >&2
-    fi
+    echo "Selectel DNS token scope: ${label}" >&2
     printf '%s' "${token}"
     exit 0
   fi
@@ -179,8 +172,9 @@ else
 fi
 
 echo "Checklist:" >&2
-echo "  - Set SELECTEL_IAM_PROJECT_NAME = IAM → Projects → project *name* (not 32 hex cloud id)" >&2
-echo "  - Service user permission: Projects scope must include the DNS project" >&2
-echo "  - Optional: RELAY_DNS_ZONE_ID = zone UUID from panel .../registrar/<uuid>/" >&2
-echo "  - SELECTEL_PROJECT_ID (cloud hex) is for Terraform; DNS scope uses IAM project name" >&2
+echo "  - SELECTEL_PROJECT_ID is the same project id as IAM → Projects (correct)" >&2
+echo "  - DNS API needs Keystone scope by project name — auto-resolved from project id" >&2
+echo "  - If resolve failed: set SELECTEL_IAM_PROJECT_NAME = name column in IAM → Projects" >&2
+echo "  - Optional: RELAY_DNS_ZONE_ID from panel .../registrar/<uuid>/" >&2
+echo "  - Service user IAM permission must include this project (DNS hosting)" >&2
 exit 1

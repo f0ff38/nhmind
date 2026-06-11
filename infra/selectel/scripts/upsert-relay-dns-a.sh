@@ -191,7 +191,7 @@ print_zone_lookup_help() {
   echo "Checklist:"
   echo "  - Zone exists in panel → DNS (actual/registrar) for project ${OS_PROJECT_ID:-<unknown>}"
   echo "  - Set RELAY_DNS_ZONE if hostname uses a nested subdomain"
-  echo "  - Set SELECTEL_IAM_PROJECT_NAME (IAM → Projects → name) — required for DNS API token scope"
+  echo "  - SELECTEL_IAM_PROJECT_NAME override if auto-resolve from SELECTEL_PROJECT_ID fails"
   echo "  - Set RELAY_DNS_ZONE_ID from panel URL: .../dns/<project>/registrar/<zone-uuid>/"
   echo "  - Service user IAM permission must include this DNS project"
   if [ -n "${TOTAL_ZONES_REPORT:-}" ]; then

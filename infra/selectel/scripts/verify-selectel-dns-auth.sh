@@ -17,7 +17,7 @@ if [ "${http_code}" != "200" ]; then
   head -c 500 dns-zones.json || true
   echo ""
   echo "Checklist:"
-  echo "  - Set SELECTEL_IAM_PROJECT_NAME (IAM → Projects → name, not cloud hex id)"
+  echo "  - SELECTEL_IAM_PROJECT_NAME override if auto-resolve from SELECTEL_PROJECT_ID fails"
   echo "  - Service user has IAM permission for the project that owns the zone"
   exit 1
 fi
@@ -27,7 +27,7 @@ sample_names="$(jq -r '(.result // [])[:5][]?.name // empty' dns-zones.json 2>/d
 
 if [ "${zone_count}" = "0" ]; then
   echo "::error::Selectel DNS API OK but zero zones visible — wrong IAM project scope"
-  echo "Set secret SELECTEL_IAM_PROJECT_NAME = IAM → Projects → project name (not SELECTEL_PROJECT_ID hex)"
+  echo "Set SELECTEL_IAM_PROJECT_NAME only if auto-resolve from SELECTEL_PROJECT_ID failed"
   exit 1
 fi
 
