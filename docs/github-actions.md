@@ -124,6 +124,7 @@ on:
 | `RELAY_DEPLOY_SSH_PRIVATE_KEY` / `RELAY_DEPLOY_SSH_PUBLIC_KEY` | до 1-го apply | SSH keypair → Selectel keypair + пользователь `deploy` |
 | `SELECTEL_AVAILABILITY_ZONE` | до plan | AZ `ru-3a` (не пул `ru-3`) |
 | `TF_STATE_S3_BUCKET`, `TF_STATE_S3_ACCESS_KEY`, `TF_STATE_S3_SECRET_KEY` | до `terraform init` | Remote state |
+| `TF_STATE_S3_REGION` | опционально | Пул S3 бакета (`ru-3`); иначе из `SELECTEL_REGION` / AZ |
 | `SELECTEL_STATIC_TOKEN` | PTR-шаг | `X-Token` из **Профиль → API-ключи** (не сервисный user) |
 | `RELAY_HOSTNAME` | PTR/DNS/deploy | `nostr.<домен>` |
 | `RELAY_SSH_HOST`, `RELAY_SSH_USER` | deploy-relay | IP и `deploy` (host можно брать из TF output) |

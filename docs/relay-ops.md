@@ -163,6 +163,7 @@ infra/nostr-relay/
 | `TF_STATE_S3_BUCKET` | ✅ до 1-го `init` | Бакет S3 Selectel для `terraform.tfstate` |
 | `TF_STATE_S3_ACCESS_KEY` | ✅ до 1-го `init` | Access Key S3 (ключ сервисного пользователя или отдельный) |
 | `TF_STATE_S3_SECRET_KEY` | ✅ до 1-го `init` | Secret Key S3 |
+| `TF_STATE_S3_REGION` | опционально | Пул бакета S3, напр. `ru-3` — **должен совпадать** с регионом контейнера. Если пусто — берётся `SELECTEL_REGION` или из `SELECTEL_AVAILABILITY_ZONE` (`ru-3a` → `ru-3`) |
 | `SELECTEL_STATIC_TOKEN` | после VM, до PTR | Статический ключ панели (`X-Token`), **не** сервисный пользователь — [PTR API](https://docs.selectel.ru/api/ip-addresses/) |
 | `RELAY_HOSTNAME` | до PTR/DNS/TLS | FQDN, напр. `nostr.example.com` (PTR = этот hostname) |
 | `RELAY_SSH_HOST` | после provision | Floating IP (можно не секретом — output TF; в GHA удобно для `deploy-relay`) |
