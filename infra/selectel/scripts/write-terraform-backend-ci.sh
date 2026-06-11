@@ -23,7 +23,7 @@ if [ -z "${TF_STATE_S3_BUCKET:-}" ] || [ -z "${TF_STATE_S3_ACCESS_KEY:-}" ] || [
 fi
 
 S3_ENDPOINT="https://s3.${S3_REGION}.storage.selcloud.ru"
-echo "Terraform state S3 pool: ${S3_REGION} (${S3_ENDPOINT})"
+echo "Terraform state S3 pool: ${S3_REGION} (${S3_ENDPOINT})" >&2
 umask 077
 cat > "${TF_DIR}/backend.ci.hcl" <<EOF
 bucket     = "${TF_STATE_S3_BUCKET}"
