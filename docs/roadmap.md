@@ -277,7 +277,7 @@ Deliverable Phase 2: **`infra/nostr-relay/`** + **`deploy-relay.yml`** (ещё �
 1. **Перед началом фазы** — создать GitHub milestone `Phase N` и issues по deliverables.
 2. **При закрытии deliverable** — отметить `[x]` в этом файле (отдельный PR).
 3. **Навигация по docs** — [map.md](map.md); корень проекта — [README.md](../README.md).
-4. **Агентам (Cursor)** — README → roadmap → map; задачи из текущей открытой фазы, если не указано иное.
+4. **Агентам (Cursor)** — README → **AGENTS.md** → roadmap → map; задачи из текущей открытой фазы, если не указано иное.
 5. **Не перескакивать** Phase 3 (real TEE) без Phase 1–2 — иначе нет координации и схемы событий.
 
 ---

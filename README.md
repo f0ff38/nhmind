@@ -4,24 +4,28 @@
 
 > Репозиторий: [github.com/f0ff38/nhmind](https://github.com/f0ff38/nhmind)
 
-**Это корневой файл проекта.** Начинайте здесь — обзор, архитектура, dev-цикл и навигация по документации. **Агенты (Cursor Cloud, Automations, CLI):** сначала этот README, затем [roadmap](docs/roadmap.md) для текущей фазы и checkpoint; полный указатель — [docs/map.md](docs/map.md). Машинные правила — [AGENTS.md](AGENTS.md).
+**Это корневой файл проекта.** Начинайте здесь — обзор, архитектура, dev-цикл и навигация по документации.
+
+**Агенты (Cursor Cloud, Automations, CLI):** [README.md](README.md) (этот файл) → [AGENTS.md](AGENTS.md) (правила, проверки, PR) → [roadmap](docs/roadmap.md) (фаза, checkpoint) → [map](docs/map.md) (остальные docs).
 
 ---
 
 ## Документация
 
-**Иерархия:** `README` (корень) → [`roadmap`](docs/roadmap.md) (план и checkpoint) → специализированные docs ([карта](docs/map.md)).
+**Иерархия:** [README](README.md) (корень) → [AGENTS.md](AGENTS.md) (агенты) → [roadmap](docs/roadmap.md) (план, checkpoint) → [map](docs/map.md) и спец. docs.
 
-| Уровень | Документ | Зачем |
-|---------|----------|--------|
-| 0 | **README.md** (этот файл) | Обзор, архитектура, локальная разработка |
-| 0 | [AGENTS.md](AGENTS.md) | Инструкции для агентов и PR |
-| 1 | [docs/roadmap.md](docs/roadmap.md) | Фазы, статус, **следующая сессия** |
-| 2 | [docs/map.md](docs/map.md) | **Карта всей документации** — поддерживать актуальной |
-| 2 | [docs/nostr-protocol.md](docs/nostr-protocol.md) | Nostr kinds, схемы, Acurast transport |
-| 2 | [docs/relay-ops.md](docs/relay-ops.md) | Relay VPS, Selectel GitOps |
-| 2 | [docs/github-actions.md](docs/github-actions.md) | CI, canary, relay workflows |
-| 2 | [docs/economics.md](docs/economics.md) | ROI, treasury (Phase 3–4) |
+
+| Уровень | Документ                                         | Зачем                                                 |
+| ------- | ------------------------------------------------ | ----------------------------------------------------- |
+| 0       | **README.md** (этот файл)                        | Обзор, архитектура, локальная разработка              |
+| 0       | [AGENTS.md](AGENTS.md)                           | **Агенты:** правила, `./scripts/dev`, PR, секреты — после README |
+| 1       | [docs/roadmap.md](docs/roadmap.md)               | Фазы, статус, **следующая сессия**                    |
+| 2       | [docs/map.md](docs/map.md)                       | **Карта всей документации** — поддерживать актуальной |
+| 2       | [docs/nostr-protocol.md](docs/nostr-protocol.md) | Nostr kinds, схемы, Acurast transport                 |
+| 2       | [docs/relay-ops.md](docs/relay-ops.md)           | Relay VPS, Selectel GitOps                            |
+| 2       | [docs/github-actions.md](docs/github-actions.md) | CI, canary, relay workflows                           |
+| 2       | [docs/economics.md](docs/economics.md)           | ROI, treasury (Phase 3–4)                             |
+
 
 **При изменении docs в PR:** обновите [docs/map.md](docs/map.md) и при смене статуса/фазы — [roadmap](docs/roadmap.md). Правила — в [map.md § обновление](docs/map.md#правила-обновления-карты-агенты-и-pr).
 
@@ -64,24 +68,26 @@
 ### Роли компонентов
 
 
-| Компонент           | Где живёт                              | Назначение                                                                              |
-| ------------------- | -------------------------------------- | --------------------------------------------------------------------------------------- |
-| **Coordinator**     | Acurast deployment (`interval`)        | Читает Nostr, ведёт scorecard модулей, регистрирует/останавливает deployments через SDK |
-| **Business module** | Отдельный Acurast deployment на модуль | Доходная логика; реализует `IBusinessModule`                                            |
-| **Nostr relays**    | Собственный relay (`RELAY_URL` на вашем домене) | Публичный event bus: heartbeat, scorecard, registry, NIP-90 jobs |
-| **Acurast mesh**    | `_STD_.ws` (websocket-proxy Acurast)           | Прямые команды coordinator ↔ module; без своего VPS              |
+| Компонент           | Где живёт                                       | Назначение                                                                              |
+| ------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------- |
+| **Coordinator**     | Acurast deployment (`interval`)                 | Читает Nostr, ведёт scorecard модулей, регистрирует/останавливает deployments через SDK |
+| **Business module** | Отдельный Acurast deployment на модуль          | Доходная логика; реализует `IBusinessModule`                                            |
+| **Nostr relays**    | Собственный relay (`RELAY_URL` на вашем домене) | Публичный event bus: heartbeat, scorecard, registry, NIP-90 jobs                        |
+| **Acurast mesh**    | `_STD_.ws` (websocket-proxy Acurast)            | Прямые команды coordinator ↔ module; без своего VPS                                     |
 
 
 ### Гибридная координация
 
 Два канала, **одни и те же JSON-схемы** (`nhmind/*/v1`, см. [nostr-protocol.md](docs/nostr-protocol.md)):
 
-| Канал | Транспорт | Для чего | Ops |
-|-------|-----------|----------|-----|
-| **Nostr** | `RELAY_URL` → `httpGET`/`httpPOST` на processor | Replaceable state (NIP-33), внешние NIP-90 jobs, наблюдаемость | VPS + поддомен + DNS TXT `_acu.<host>` |
-| **Acurast mesh** | `_STD_.ws.open` / `send(recipient, …)` | Срочные команды, low-latency ack между deployments | Нативная инфра Acurast (не путать с Nostr relay) |
 
-**Phase 2 (сейчас):** exit criteria — на **Nostr**. **`_STD_.ws`** — Phase 3+ ([roadmap](docs/roadmap.md)).
+| Канал            | Транспорт                                       | Для чего                                                       | Ops                                              |
+| ---------------- | ----------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------ |
+| **Nostr**        | `RELAY_URL` → `httpGET`/`httpPOST` на processor | Replaceable state (NIP-33), внешние NIP-90 jobs, наблюдаемость | VPS + поддомен + DNS TXT `_acu.<host>`           |
+| **Acurast mesh** | `_STD_.ws.open` / `send(recipient, …)`          | Срочные команды, low-latency ack между deployments             | Нативная инфра Acurast (не путать с Nostr relay) |
+
+
+**Phase 2 (сейчас):** exit criteria — на **Nostr**. `**_STD_.ws`** — Phase 3+ ([roadmap](docs/roadmap.md)).
 
 Acurast P2P relays (`relay-*.canary.acurast.com`) и Substrate RPC (`public-rpc.canary.acurast.com`) — **не** `RELAY_URL`.
 
@@ -281,15 +287,15 @@ cp .env.example .env
 ### GitHub Actions
 
 
-| Workflow                                                   | Триггер             | Назначение                                           |
-| ---------------------------------------------------------- | ------------------- | ---------------------------------------------------- |
-| `[ci.yml](.github/workflows/ci.yml)`                       | push/PR → `main`    | test + bundle + smoke (hello, coordinator, template) |
-| `[deploy-canary.yml](.github/workflows/deploy-canary.yml)` | `workflow_dispatch` | canary deploy hello / coordinator (environment **canary**) |
-| `[validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml)` | `workflow_dispatch` | проверка секретов environment **relay** |
-| `[provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml)` | `workflow_dispatch` | Terraform: Selectel VM, сеть, floating IP, PTR |
+| Workflow                                                                     | Триггер             | Назначение                                                 |
+| ---------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------- |
+| `[ci.yml](.github/workflows/ci.yml)`                                         | push/PR → `main`    | test + bundle + smoke (hello, coordinator, template)       |
+| `[deploy-canary.yml](.github/workflows/deploy-canary.yml)`                   | `workflow_dispatch` | canary deploy hello / coordinator (environment **canary**) |
+| `[validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml)` | `workflow_dispatch` | проверка секретов environment **relay**                    |
+| `[provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml)`   | `workflow_dispatch` | Terraform: Selectel VM, сеть, floating IP, PTR             |
 
 
-CI и branch protection: `[docs/github-actions.md](docs/github-actions.md)`. Relay GitOps: environment **relay** — см. [relay-ops.md](docs/relay-ops.md). Canary: **canary** + `ACURAST_MNEMONIC_*`, `RELAY_URL` (после поднятия relay).
+CI и branch protection: `[docs/github-actions.md](docs/github-actions.md)`. Relay GitOps: environment **relay** — см. [relay-ops.md](docs/relay-ops.md). Canary: **canary** + `ACURAST_MNEMONIC_`*, `RELAY_URL` (после поднятия relay).
 
 ### Что остаётся вне Docker
 

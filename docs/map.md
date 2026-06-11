@@ -4,11 +4,12 @@
 
 ```
 README.md          ← корень: обзор, архитектура, dev, ссылки
-    └── roadmap.md ← план фаз, статус, checkpoint «следующая сессия»
-            └── …  ← специализированные docs (протокол, ops, CI, агенты)
+    └── AGENTS.md  ← агенты: правила, проверки, PR (после README)
+            └── roadmap.md ← план фаз, статус, checkpoint «следующая сессия»
+                    └── …  ← map.md и специализированные docs
 ```
 
-**Агентам и людям:** начинайте с [README.md](../README.md), затем [roadmap.md](roadmap.md). Остальное — по задаче, через эту карту.
+**Агентам и людям:** [README.md](../README.md) → [AGENTS.md](../AGENTS.md) → [roadmap.md](roadmap.md). Остальное — по задаче, через эту карту.
 
 ---
 
@@ -93,7 +94,7 @@ README.md          ← корень: обзор, архитектура, dev, с
 | Задача | Читать |
 |--------|--------|
 | Первое знакомство с проектом | README → roadmap |
-| Cursor Agent / Cloud Agent | README → AGENTS → roadmap → map |
+| Cursor Agent / Cloud Agent | README → **AGENTS** → roadmap → map |
 | Nostr kinds / heartbeat | nostr-protocol.md |
 | Selectel VM / relay provision | roadmap checkpoint → relay-ops → github-actions |
 | CI / deploy canary | github-actions.md |
