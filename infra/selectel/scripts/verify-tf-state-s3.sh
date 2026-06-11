@@ -38,9 +38,11 @@ export AWS_EC2_METADATA_DISABLED=true
 
 aws configure set default.s3.addressing_style path >/dev/null 2>&1 || true
 
-aws_cmd=(aws --endpoint-url "${endpoint}" --region "${s3_region}")
+# GHA runners may not trust Selectel S3 intermediate chain (CERTIFICATE_VERIFY_FAILED).
+# Skip TLS verify here only — smoke test for keys/bucket access, not CA pinning.
+aws_cmd=(aws --no-verify-ssl --endpoint-url "${endpoint}" --region "${s3_region}")
 
-echo "S3 endpoint: ${endpoint} (path-style)"
+echo "S3 endpoint: ${endpoint} (path-style, TLS verify skipped for CI)"
 echo "Bucket: ${bucket}"
 echo "State key: ${state_key}"
 

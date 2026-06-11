@@ -196,6 +196,8 @@ infra/nostr-relay/
 | **Пароль** | Пересохранить secret без пробела/переноса строки в конце |
 | **Пул** | `SELECTEL_AVAILABILITY_ZONE=ru-3a` → region `ru-3` (workflow нормализует) |
 
+| **S3 validate SSL error on GHA** | `CERTIFICATE_VERIFY_FAILED` / self-signed chain — AWS CLI on runners; verify script uses `--no-verify-ssl` (credentials check only). Terraform init uses `skip_credentials_validation`; plan may still work (Go trust store differs) |
+
 Workflow нормализует project id в **32 hex** (как в панели Облачные серверы) и вызывает Keystone **в два шага**: identity → project scope. Полный JSON ответа печатается в лог (без пароля).
 
 **Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
