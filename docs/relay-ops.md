@@ -174,7 +174,21 @@ infra/nostr-relay/
 
 **Секреты только в environment `relay`:** Settings → **Environments** → **relay** → Environment secrets (не Repository secrets).
 
-**Проверка секретов:** workflow [**Validate Relay Secrets**](../.github/workflows/validate-relay-secrets.yml) (`workflow_dispatch`, environment **relay**). Режимы: `provision` (до Terraform), `deploy` (после VM), `all`. Значения не логируются — только «пусто / неверный формат».
+**Проверка секретов:** workflow [**Validate Relay Secrets**](../.github/workflows/validate-relay-secrets.yml) (`workflow_dispatch`, environment **relay**). Режимы: `provision` (до Terraform), `deploy` (после VM), `all`. Значения не логируются — только «пусто / неверный формат». На этапе `provision` также выполняется **Keystone auth smoke test** (те же credentials, что у Terraform).
+
+### Troubleshooting: `Authentication failed` (OpenStack)
+
+Если **Provision Relay Infra** или validate падает на OpenStack/Keystone:
+
+| Проверка | Детали |
+|----------|--------|
+| **SELECTEL_ACCOUNT_ID** | Номер аккаунта (правый верх панели), не имя проекта |
+| **SELECTEL_PROJECT_ID** | **Облачные серверы → nhmind → ID** (32 hex). Не IAM → Проекты |
+| **Сервисный пользователь** | Роль **member** в scope **Проект nhmind** (тот же `SELECTEL_PROJECT_ID`) |
+| **Пароль** | Пересохранить secret без пробела/переноса строки в конце |
+| **Пул** | `SELECTEL_AVAILABILITY_ZONE=ru-3a` → region `ru-3` (workflow нормализует) |
+
+Workflow нормализует project id в UUID (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) и вызывает Keystone до `terraform plan`.
 
 **Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
 
