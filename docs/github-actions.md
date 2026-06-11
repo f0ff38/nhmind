@@ -111,7 +111,7 @@ on:
 | Workflow | Триггер | Назначение |
 |----------|---------|------------|
 | `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Проверка заполненности и формата секретов **relay** (без вывода значений) ✅ |
-| `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через `X-Token` |
+| `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через `X-Token` ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke`) | SSH → `infra/nostr-relay/` compose |
 
 **Секреты environment `relay`:**
@@ -134,6 +134,19 @@ on:
 
 После smoke: `RELAY_URL` в environment **canary** → `Deploy Canary` для hello/coordinator.
 
+### 10. Provision relay VM (Selectel)
+
+Workflow [`.github/workflows/provision-relay-infra.yml`](../.github/workflows/provision-relay-infra.yml) — environment **relay**.
+
+1. **Validate Relay Secrets** → `provision` (зелёный).
+2. **Provision Relay Infra** → `plan` — проверить diff (VM, сеть, floating IP, security group).
+3. **Provision Relay Infra** → `apply`, `set_ptr: true` — создаёт VM + PTR.
+4. Вручную: DNS **A** `RELAY_HOSTNAME` → `public_ip` из job summary.
+5. Опционально: workflow input `extra_ssh_cidr` = ваш `/32` для SSH с ноутбука.
+6. Если `plan` падает на flavor — укажите `flavor_id` из панели Selectel (pool-specific).
+
+Следующий workflow: **Deploy Relay** (ещё не реализован).
+
 ## Планируемые workflows
 
 | Workflow | Триггер | Назначение |
@@ -141,7 +154,7 @@ on:
 | `ci.yml` | push/PR → main | test + bundle + smoke ✅ |
 | `deploy-canary.yml` | `workflow_dispatch` | canary deploy hello / coordinator ✅ |
 | `validate-relay-secrets.yml` | `workflow_dispatch` | проверка секретов relay ✅ |
-| `provision-relay-infra.yml` | `workflow_dispatch` | Selectel VM + сеть 🔄 в разработке |
+| `provision-relay-infra.yml` | `workflow_dispatch` | Selectel VM + сеть ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` | relay compose на VM 🔄 в разработке |
 | `cursor-agent.yml` | issue comment / schedule | Cursor CLI (будущее) |
 

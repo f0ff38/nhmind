@@ -114,7 +114,8 @@ flowchart LR
 - [x] Programmatic deploy через SDK (canary) — `deploy-canary.yml` + `scripts/deploy-acurast-sdk.mjs`; autoscale в TEE — Phase 4
 - [ ] Canary deploy **coordinator** + smoke на processor
 - [x] Canary deploy **hello** на processor (GHA)
-- [ ] **Selectel GitOps** — Terraform: VM + cloud-init + floating IP; GHA provision + deploy relay ([relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay))
+- [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml` ([relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay))
+- [ ] **Selectel GitOps (deploy relay)** — `infra/nostr-relay/` + `deploy-relay.yml`
 
 ### Exit criteria
 

@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars for local runs only — never commit secrets.
+# In GitHub Actions, values come from environment relay secrets + workflow.
+
+selectel_account_id       = "123456"
+selectel_project_id       = "a07abc12310546f1b9291ab3013a7d75"
+selectel_service_user     = "nhmind-terraform"
+selectel_service_password = "CHANGE_ME"
+selectel_region           = "ru-3"
+availability_zone         = "ru-3a"
+deploy_ssh_public_key     = "ssh-ed25519 AAAA... user@host"
+
+# Pool-specific: openstack flavor list, or Selectel panel flavor ID
+# flavor_id = "1014"
+
+github_actions_cidrs = ["140.82.112.0/20"]
