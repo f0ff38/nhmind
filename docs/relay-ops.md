@@ -225,6 +225,7 @@ Workflow нормализует project id в **32 hex** (как в панели
 | Instance `ERROR` / `%!s(<nil>)` | частичный apply, FIP до VM, orphan volume, **или нет места в AZ** | см. строку ниже; `destroy` → сменить AZ → `apply` |
 | Панель: «не хватает свободных ресурсов» в **ru-3a** | сегмент перегружен (capacity), не баг Terraform | **destroy** → AZ **`ru-3b`**: secret `SELECTEL_AVAILABILITY_ZONE` или workflow input `availability_zone=ru-3b` → **apply** |
 | PTR API **HTTP 405** `Method Not Allowed` | старый endpoint `domains/v1/ptr` | используйте **IPAM** `ipam/v1` ([upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh)); повторный **apply** с `set_ptr=true` |
+| PTR **HTTP 409** `ptr_already_exists` на повторном apply | PTR уже указывает на `RELAY_HOSTNAME` | idempotent upsert в [upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh); повторный apply безопасен |
 | DNS A: **Keystone HTTP 401** | token script использовал UUID project id; Terraform — hex | обновите repo; повторный **apply** с `set_dns_a=true`; при необходимости secret `SELECTEL_IAM_PROJECT_NAME` (IAM → Проекты → имя) |
 
 **Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.

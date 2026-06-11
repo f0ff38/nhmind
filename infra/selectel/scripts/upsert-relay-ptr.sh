@@ -9,9 +9,17 @@ trim() {
   printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
+normalize_ptr_hostname() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/\.$//'
+}
+
+ptr_content_matches() {
+  [ "$(normalize_ptr_hostname "$1")" = "$(normalize_ptr_hostname "$2")" ]
+}
+
 token="$(trim "${SELECTEL_STATIC_TOKEN:-}")"
 public_ip="$(trim "${PUBLIC_IP:-}")"
-hostname="$(trim "${RELAY_HOSTNAME:-}")"
+hostname="$(normalize_ptr_hostname "$(trim "${RELAY_HOSTNAME:-}")")"
 
 if [ -z "${token}" ] || [ -z "${public_ip}" ] || [ -z "${hostname}" ]; then
   echo "::error::SELECTEL_STATIC_TOKEN, PUBLIC_IP, and RELAY_HOSTNAME are required"
@@ -23,12 +31,6 @@ if ! printf '%s' "${public_ip}" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
   exit 1
 fi
 
-hostname="$(printf '%s' "${hostname}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/\.$//')"
-if [ -z "${hostname}" ]; then
-  echo "::error::RELAY_HOSTNAME is empty after normalization"
-  exit 1
-fi
-
 if ! command -v jq >/dev/null 2>&1; then
   echo "::error::jq is required"
   exit 1
@@ -37,21 +39,21 @@ fi
 api_base="${PTR_API_BASE%/}"
 auth_header=(-H "X-Token: ${token}" -H "Content-Type: application/json" -H "Accept: application/json")
 
-find_ptr_id_by_ip() {
+find_ptr_record_by_ip() {
   local offset=0
   local limit=1000
   while true; do
     local payload
     payload="$(curl -sS "${auth_header[@]}" "${api_base}/?limit=${limit}&offset=${offset}")"
-    local ptr_id
-    ptr_id="$(printf '%s' "${payload}" | jq -r --arg ip "${public_ip}" '
+    local record
+    record="$(printf '%s' "${payload}" | jq -c --arg ip "${public_ip}" '
       if type == "array" then .
       elif (.result? | type) == "array" then .result
       else [] end
-      | map(select(.ip == $ip)) | .[0].id // empty
+      | map(select(.ip == $ip)) | .[0] // empty
     ')"
-    if [ -n "${ptr_id}" ] && [ "${ptr_id}" != "null" ]; then
-      printf '%s' "${ptr_id}"
+    if [ -n "${record}" ] && [ "${record}" != "null" ]; then
+      printf '%s' "${record}"
       return 0
     fi
     local count
@@ -63,22 +65,54 @@ find_ptr_id_by_ip() {
   done
 }
 
+get_ptr_record_by_id() {
+  local ptr_id="$1"
+  curl -sS "${auth_header[@]}" "${api_base}/${ptr_id}"
+}
+
+ptr_already_set_message() {
+  echo "PTR already set (${public_ip} -> ${hostname})"
+}
+
+verify_ptr_state() {
+  local record="$1"
+  local current_content
+  current_content="$(printf '%s' "${record}" | jq -r '.content // ""')"
+  if ptr_content_matches "${current_content}" "${hostname}"; then
+    ptr_already_set_message
+    return 0
+  fi
+  return 1
+}
+
 update_ptr() {
   local ptr_id="$1"
   local body
-  body="$(jq -n --arg ip "${public_ip}" --arg content "${hostname}" '{ ip: $ip, content: $content }')"
+  body="$(jq -n --arg content "${hostname}" '{ content: $content }')"
   local http_code
   http_code="$(curl -sS -o ptr-response.json -w "%{http_code}" \
     -X PUT "${auth_header[@]}" \
     "${api_base}/${ptr_id}" \
     -d "${body}")"
-  if [ "${http_code}" = "200" ]; then
-    echo "PTR updated (${public_ip} -> ${hostname}, id=${ptr_id})"
-    return 0
-  fi
-  echo "::error::PTR PUT returned HTTP ${http_code}"
-  cat ptr-response.json || true
-  return 1
+  case "${http_code}" in
+    200)
+      echo "PTR updated (${public_ip} -> ${hostname}, id=${ptr_id})"
+      return 0
+      ;;
+    409)
+      if verify_ptr_state "$(get_ptr_record_by_id "${ptr_id}")"; then
+        return 0
+      fi
+      echo "::error::PTR PUT returned HTTP 409 (conflict)"
+      cat ptr-response.json || true
+      return 1
+      ;;
+    *)
+      echo "::error::PTR PUT returned HTTP ${http_code}"
+      cat ptr-response.json || true
+      return 1
+      ;;
+  esac
 }
 
 create_ptr() {
@@ -99,7 +133,6 @@ create_ptr() {
       return 0
       ;;
     409)
-      echo "PTR already exists for ${public_ip}; updating..."
       return 2
       ;;
     405)
@@ -117,9 +150,13 @@ create_ptr() {
 
 echo "Selectel IPAM PTR: ${public_ip} -> ${hostname} (${api_base})"
 
-if ptr_id="$(find_ptr_id_by_ip)"; then
+if record="$(find_ptr_record_by_ip)"; then
+  ptr_id="$(printf '%s' "${record}" | jq -r '.id')"
+  if verify_ptr_state "${record}"; then
+    exit 0
+  fi
   update_ptr "${ptr_id}"
-  exit 0
+  exit $?
 fi
 
 if create_ptr; then
@@ -128,12 +165,15 @@ fi
 
 create_status=$?
 if [ "${create_status}" -eq 2 ]; then
-  ptr_id="$(find_ptr_id_by_ip)" || true
-  if [ -n "${ptr_id:-}" ]; then
+  if record="$(find_ptr_record_by_ip)"; then
+    ptr_id="$(printf '%s' "${record}" | jq -r '.id')"
+    if verify_ptr_state "${record}"; then
+      exit 0
+    fi
     update_ptr "${ptr_id}"
-    exit 0
+    exit $?
   fi
-  echo "::error::PTR exists (409) but could not resolve ptr_id for ${public_ip}"
+  echo "::error::PTR exists (409) but could not resolve record for ${public_ip}"
   exit 1
 fi
 
