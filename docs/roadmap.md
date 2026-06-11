@@ -11,7 +11,7 @@
 Децентрализованная сеть автономных AI-агентов:
 
 - **Исполнение** — Acurast deployments в hardware TEE
-- **Координация** — Nostr (NIP-90 / NIP-44 / NIP-33)
+- **Координация** — гибрид: Nostr (публичный слой) + Acurast mesh `_STD_.ws` (внутренний горячий путь)
 - **Экономика** — ROI-gated autoscaling, treasury ACU/USDC
 
 ```mermaid
@@ -27,22 +27,25 @@ flowchart LR
 
 ---
 
-## Текущее состояние — v0.3 (Phase 1 complete)
+## Текущее состояние — v0.4 (Phase 2 — closing)
 
 
-| Компонент                                                    | Статус                    |
-| ------------------------------------------------------------ | ------------------------- |
-| Архитектура и README                                         | ✅                         |
-| Docker-only dev (`scripts/dev`, compose, Dev Container)      | ✅                         |
-| Стартовый модуль `modules/hello`                             | ✅                         |
-| Scaffold `modules/module-template` + `scripts/new-module.sh` | ✅                         |
-| GitHub Actions CI (`verify` + scaffold job)                  | ✅                         |
-| Cursor: `AGENTS.md`, `.cursor/environment.json`, `BUGBOT.md` | ✅                         |
-| Roadmap / economics docs                                     | ✅                         |
-| **Активная фаза**                                            | **Phase 2 — Coordinator** |
-| `packages/nostr-client`                                      | ✅ Phase 1                  |
-| `modules/coordinator`                                        | 🚧 Phase 2 (in progress)   |
-| Canary deploy на processor                                   | ⬜ Phase 3 (ручной шаг)    |
+| Компонент                                                    | Статус                         |
+| ------------------------------------------------------------ | ------------------------------ |
+| Архитектура и README                                         | ✅                              |
+| Docker-only dev (`scripts/dev`, compose, Dev Container)      | ✅                              |
+| Стартовый модуль `modules/hello`                             | ✅                              |
+| Scaffold `modules/module-template` + `scripts/new-module.sh` | ✅                              |
+| GitHub Actions CI (`verify` + scaffold job)                  | ✅                              |
+| GitHub Actions `deploy-canary.yml`                           | ✅                              |
+| Cursor: `AGENTS.md`, `.cursor/environment.json`, `BUGBOT.md` | ✅                              |
+| Roadmap / economics docs                                     | ✅                              |
+| **Активная фаза**                                            | **Phase 2 — Coordinator**      |
+| `packages/nostr-client`                                      | ✅ Phase 1                       |
+| `modules/coordinator` (код)                                  | ✅                              |
+| `hello` canary на processor                                  | ✅ (deploy via GHA)              |
+| `coordinator` canary на processor                            | ⬜ следующий шаг                 |
+| Публичный relay + `RELAY_URL` в deploy                       | ⬜ блокер exit criteria Phase 2 |
 
 
 ---
@@ -108,8 +111,9 @@ flowchart LR
 - [x] Регистрация модулей (Nostr event → known module list)
 - [x] Scorecard aggregator (метрики из module events — stub metrics)
 - [x] Verdict engine: `promote` | `pause` | `kill` (правила без on-chain revenue пока — stub metrics)
-- [ ] Programmatic deploy / scale через SDK (canary only)
-- [ ] Canary deploy coordinator + smoke на processor
+- [x] Programmatic deploy через SDK (canary) — `deploy-canary.yml` + `scripts/deploy-acurast-sdk.mjs`; autoscale в TEE — Phase 4
+- [ ] Canary deploy **coordinator** + smoke на processor
+- [x] Canary deploy **hello** на processor (GHA)
 
 ### Exit criteria
 
@@ -120,6 +124,14 @@ flowchart LR
 
 - Phase 1 (nostr-client)
 - Funded canary wallet + manual first deploy
+- Собственный Nostr relay (`RELAY_URL`) — VPS, поддомен, DNS TXT `_acu.<host>` (см. [nostr-protocol.md](nostr-protocol.md#nostr-relay-на-canary-ops))
+
+### Координация (гибрид)
+
+| Слой | Статус | Заметка |
+|------|--------|---------|
+| Nostr (NIP-33/90) | ✅ код Phase 1–2 | Exit criteria Phase 2 — на этом слое |
+| `_STD_.ws` mesh | ⬜ Phase 3+ | Срочные команды coordinator ↔ module; те же `nhmind/*/v1` схемы |
 
 ---
 
@@ -129,6 +141,7 @@ flowchart LR
 
 ### Deliverables
 
+- [ ] `_STD_.ws` mesh: coordinator → module команды (`pause`/`kill` ack), env `WSS_URLS` / canary proxies
 - [ ] Выбор experimental-модуля (oracle, API relay, простой DVM job — не GameFi/MEV на старте)
 - [ ] `modules/<name>/` — `IBusinessModule`, production-shaped `acurast.json`
 - [ ] Реальные `_STD_.signers` / `httpGET` на canary processor
@@ -159,7 +172,7 @@ flowchart LR
 - [ ] ROI расчёт: `(revenue − ACU_cost − relay_fees) / ACU_cost` за окно 7d
 - [ ] Coordinator autoscaling: `promote` → `numberOfReplicas↑`, `kill` → cleanup
 - [ ] Anti-flapping (hysteresis: promote при ROI ≥ 1.1, pause при ROI < 0.9)
-- [ ] GitHub workflow `deploy-canary.yml` (`workflow_dispatch`, secrets)
+- [x] GitHub workflow `deploy-canary.yml` (`workflow_dispatch`, secrets)
 - [ ] Опционально: Deploy Agent (x402) для coordinator без ACU-аккаунта
 
 ### Exit criteria

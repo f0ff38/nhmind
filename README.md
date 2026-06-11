@@ -42,11 +42,27 @@
 
 ### Роли компонентов
 
-| Компонент | Где живёт | Назначение |
-|-----------|-----------|------------|
-| **Coordinator** | Acurast deployment (`interval`) | Читает Nostr, ведёт scorecard модулей, регистрирует/останавливает deployments через SDK |
-| **Business module** | Отдельный Acurast deployment на модуль | Доходная логика; реализует `IBusinessModule` |
-| **Nostr relays** | Публичные relays (список в конфиге) | Транспорт событий, не source of truth для финансов |
+
+| Компонент           | Где живёт                              | Назначение                                                                              |
+| ------------------- | -------------------------------------- | --------------------------------------------------------------------------------------- |
+| **Coordinator**     | Acurast deployment (`interval`)        | Читает Nostr, ведёт scorecard модулей, регистрирует/останавливает deployments через SDK |
+| **Business module** | Отдельный Acurast deployment на модуль | Доходная логика; реализует `IBusinessModule`                                            |
+| **Nostr relays**    | Собственный relay (`RELAY_URL` на вашем домене) | Публичный event bus: heartbeat, scorecard, registry, NIP-90 jobs |
+| **Acurast mesh**    | `_STD_.ws` (websocket-proxy Acurast)           | Прямые команды coordinator ↔ module; без своего VPS              |
+
+
+### Гибридная координация
+
+Два канала, **одни и те же JSON-схемы** (`nhmind/*/v1`, см. [nostr-protocol.md](docs/nostr-protocol.md)):
+
+| Канал | Транспорт | Для чего | Ops |
+|-------|-----------|----------|-----|
+| **Nostr** | `RELAY_URL` → `httpGET`/`httpPOST` на processor | Replaceable state (NIP-33), внешние NIP-90 jobs, наблюдаемость | VPS + поддомен + DNS TXT `_acu.<host>` |
+| **Acurast mesh** | `_STD_.ws.open` / `send(recipient, …)` | Срочные команды, low-latency ack между deployments | Нативная инфра Acurast (не путать с Nostr relay) |
+
+**Phase 2 (сейчас):** exit criteria — на **Nostr**. **`_STD_.ws`** — Phase 3+ ([roadmap](docs/roadmap.md)).
+
+Acurast P2P relays (`relay-*.canary.acurast.com`) и Substrate RPC (`public-rpc.canary.acurast.com`) — **не** `RELAY_URL`.
 
 ### Жизненный цикл модуля
 
@@ -64,13 +80,15 @@ register → canary (1 replica, canary network) → measure (7d) → score → p
 
 Nostr — **event log с eventual consistency**, не база данных. В проекте:
 
-| Данные | Где хранятся |
-|--------|--------------|
-| Задачи, результаты, feedback | [NIP-90](https://github.com/nostr-protocol/nips/blob/master/90.md) (kind `5000–5999` / `6000–6999` / `7000`) |
-| Статус агента, capacity, pricing | Parameterized replaceable events ([NIP-33](https://github.com/nostr-protocol/nips/blob/master/33.md)) |
-| Конфиденциальные payload | [NIP-44](https://nips.nostr.com/44) |
-| Scorecard, ROI, решения coordinator | События coordinator + on-chain метрики ACU/revenue |
-| Секреты, ключи подписи | TEE: `_STD_.signers` + `_STD_.env` |
+
+| Данные                              | Где хранятся                                                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Задачи, результаты, feedback        | [NIP-90](https://github.com/nostr-protocol/nips/blob/master/90.md) (kind `5000–5999` / `6000–6999` / `7000`) |
+| Статус агента, capacity, pricing    | Parameterized replaceable events ([NIP-33](https://github.com/nostr-protocol/nips/blob/master/33.md))        |
+| Конфиденциальные payload            | [NIP-44](https://nips.nostr.com/44)                                                                          |
+| Scorecard, ROI, решения coordinator | События coordinator + on-chain метрики ACU/revenue                                                           |
+| Секреты, ключи подписи              | TEE: `_STD_.signers` + `_STD_.env`                                                                           |
+
 
 Конфликты между relays разрешаются правилами coordinator (last-signed-wins по `created_at` + pubkey).
 
@@ -102,17 +120,19 @@ Nostr — **event log с eventual consistency**, не база данных. В 
 }
 ```
 
-| Параметр | Рекомендация |
-|----------|--------------|
-| `onlyAttestedDevices` | `true` — только attested hardware |
-| `mutability` | `Immutable` в production; `Mutable` только для dev и `reuseKeysFrom` |
-| `network` | `canary` → после валидации `mainnet` |
-| `execution.type` | `interval` для агентов; `onetime` для разовых job |
-| `maxExecutionTimeInMs` | Задавать явно под worst-case сценарий модуля |
-| `maxCostPerExecution` | Всегда лимитировать; оценка через `acurast estimate-fee` |
-| `minProcessorReputation` | Поднимать для production-модулей |
-| `processorWhitelist` | Для canary и чувствительных модулей |
-| `requiredModules` | `['DataEncryption']` при работе с секретами |
+
+| Параметр                 | Рекомендация                                                         |
+| ------------------------ | -------------------------------------------------------------------- |
+| `onlyAttestedDevices`    | `true` — только attested hardware                                    |
+| `mutability`             | `Immutable` в production; `Mutable` только для dev и `reuseKeysFrom` |
+| `network`                | `canary` → после валидации `mainnet`                                 |
+| `execution.type`         | `interval` для агентов; `onetime` для разовых job                    |
+| `maxExecutionTimeInMs`   | Задавать явно под worst-case сценарий модуля                         |
+| `maxCostPerExecution`    | Всегда лимитировать; оценка через `acurast estimate-fee`             |
+| `minProcessorReputation` | Поднимать для production-модулей                                     |
+| `processorWhitelist`     | Для canary и чувствительных модулей                                  |
+| `requiredModules`        | `['DataEncryption']` при работе с секретами                          |
+
 
 ### Секреты и подпись (вместо отдельного «vault»)
 
@@ -132,16 +152,18 @@ Nostr — **event log с eventual consistency**, не база данных. В 
 
 ### Разработка и деплой
 
-| Этап | Инструмент (в Docker через `./scripts/dev`) |
-|------|-----------------------------------------------|
-| Scaffold | `npx @acurast/cli new <module>` внутри контейнера |
-| Bundle | `./scripts/dev bundle` |
-| Локальная отладка | `./scripts/dev run`, затем `acurast live` |
-| Тесты | `./scripts/dev test` |
-| Canary | `./scripts/dev acurast deploy` |
-| Production | `network: mainnet` + deploy или [@acurast/sdk](https://docs.acurast.com/) |
+
+| Этап                    | Инструмент (в Docker через `./scripts/dev`)                                           |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| Scaffold                | `npx @acurast/cli new <module>` внутри контейнера                                     |
+| Bundle                  | `./scripts/dev bundle`                                                                |
+| Локальная отладка       | `./scripts/dev run`, затем `acurast live`                                             |
+| Тесты                   | `./scripts/dev test`                                                                  |
+| Canary                  | `./scripts/dev acurast deploy`                                                        |
+| Production              | `network: mainnet` + deploy или [@acurast/sdk](https://docs.acurast.com/)             |
 | Оплата без ACU-аккаунта | [Deploy Agent](https://docs.acurast.com/developers/deploy-agent) (x402, USDC на Base) |
-| LLM inference | `requiredModules` для LLM; confidential inference в TEE |
+| LLM inference           | `requiredModules` для LLM; confidential inference в TEE                               |
+
 
 ### Масштабирование
 
@@ -233,21 +255,28 @@ cp .env.example .env
 1. [Dashboard → Integrations → GitHub](https://cursor.com/dashboard/integrations) — подключить `f0ff38/nhmind`
 2. [Bugbot](https://cursor.com/dashboard/bugbot) — авто-ревью PR (правила: `.cursor/BUGBOT.md`)
 3. Cloud Agents — `@cursor` в issue/PR или [cursor.com/agents](https://cursor.com/agents)
-4. Инструкции для агентов: [`AGENTS.md`](AGENTS.md), окружение: [`.cursor/environment.json`](.cursor/environment.json)
+4. Инструкции для агентов: `[AGENTS.md](AGENTS.md)`, окружение: `[.cursor/environment.json](.cursor/environment.json)`
 
 ### GitHub Actions
 
-CI на каждый push/PR в `main`: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — тот же Docker-путь, что `./scripts/dev`.
 
-CI и branch protection: [`docs/github-actions.md`](docs/github-actions.md) (PR → `main`, required checks).
+| Workflow                                                   | Триггер             | Назначение                                           |
+| ---------------------------------------------------------- | ------------------- | ---------------------------------------------------- |
+| `[ci.yml](.github/workflows/ci.yml)`                       | push/PR → `main`    | test + bundle + smoke (hello, coordinator, template) |
+| `[deploy-canary.yml](.github/workflows/deploy-canary.yml)` | `workflow_dispatch` | canary deploy, если Acurast RPC недоступен локально  |
+
+
+CI и branch protection: `[docs/github-actions.md](docs/github-actions.md)`. Canary deploy: environment **canary** + secrets `ACURAST_MNEMONIC_`*, опционально `RELAY_URL`.
 
 ### Что остаётся вне Docker
 
-| Шаг | Где выполняется |
-|-----|-----------------|
-| `acurast live` | CLI в контейнере, **processor на телефоне** |
-| TEE / `_STD_.signers` | Только на Acurast processor (canary deploy) |
-| Faucet cACU | Браузер → [faucet.acurast.com](https://faucet.acurast.com) |
+
+| Шаг                   | Где выполняется                                            |
+| --------------------- | ---------------------------------------------------------- |
+| `acurast live`        | CLI в контейнере, **processor на телефоне**                |
+| TEE / `_STD_.signers` | Только на Acurast processor (canary deploy)                |
+| Faucet cACU           | Браузер → [faucet.acurast.com](https://faucet.acurast.com) |
+
 
 ---
 
@@ -255,20 +284,22 @@ CI и branch protection: [`docs/github-actions.md`](docs/github-actions.md) (PR 
 
 ```
 nhmind/
-├── AGENTS.md                   # инструкции для Cursor Cloud Agents
+├── AGENTS.md
 ├── Dockerfile / docker-compose.yml
-├── scripts/dev                 # обёртка без npm на хосте
-├── .cursor/                    # environment.json, BUGBOT.md
-├── .devcontainer/              # Cursor Dev Container
-├── .github/workflows/ci.yml    # test + bundle + smoke
-├── modules/hello/              # эталонный Acurast deployment
-├── modules/module-template/    # scaffold для новых модулей
-├── scripts/new-module.sh       # копирует template → modules/<name>
-│   ├── src/                    # TypeScript + mock _STD_
-│   ├── acurast.json            # canary, enableDevtools, Mutable (dev)
-│   └── dist/bundle.js          # артефакт deploy (после bundle)
-├── packages/nostr-client/      # Nostr coordination library (Phase 1)
-└── docs/                       # roadmap.md, economics.md, github-actions.md
+├── scripts/
+│   ├── dev                       # обёртка без npm на хосте
+│   ├── new-module.sh
+│   ├── show-acurast-address.mjs  # адрес deploy-кошелька из .env
+│   └── deploy-acurast-sdk.mjs    # programmatic deploy (CI/ops, не TEE)
+├── .github/workflows/
+│   ├── ci.yml
+│   └── deploy-canary.yml
+├── modules/
+│   ├── hello/                    # эталонный модуль (onetime)
+│   ├── coordinator/              # interval, registry + scorecard (Phase 2)
+│   └── module-template/          # scaffold для новых модулей
+├── packages/nostr-client/        # Nostr coordination library
+└── docs/                         # roadmap.md, nostr-protocol.md, github-actions.md
 ```
 
 ---
@@ -281,3 +312,4 @@ nhmind/
 - [acurast-cli](https://github.com/Acurast/acurast-cli)
 - [acurast-example-apps](https://github.com/Acurast/acurast-example-apps)
 - [Nostr NIPs](https://github.com/nostr-protocol/nips)
+

@@ -273,9 +273,40 @@ Tag `status` дублирует машиночитаемый статус NIP-90
 
 На processor: `createAcurastSigner(_STD_)` → `_STD_.signers.secp256k1.sign(eventIdHex)` (id из `getEventHash`, см. `packages/nostr-client`).
 
+### Гибридная координация (Nostr + Acurast mesh)
+
+Решение проекта — **два канала**, не замена одного другим:
+
+| Слой | API | Назначение | Фаза |
+|------|-----|------------|------|
+| **Публичный** | Nostr relay (`RELAY_URL`) | Heartbeat/scorecard/registry (NIP-33), jobs (NIP-90), мониторинг вне TEE | Phase 1–2 (реализовано) |
+| **Внутренний** | `_STD_.ws` | Команды coordinator → module, ack, срочный `pause`/`kill` | Phase 3+ (запланировано) |
+
+Payload-контракты (`nhmind/heartbeat/v1`, `nhmind/scorecard/v1`, …) **общие** для обоих транспортов; отличается только упаковка (signed Nostr event vs hex payload в `_STD_.ws.send`).
+
+**Не путать с Nostr relay:**
+
+| Endpoint | Протокол | Роль в nhmind |
+|----------|----------|---------------|
+| `wss://nostr.<ваш-домен>` (`RELAY_URL`) | Nostr (NIP-01) | Публичная шина координации |
+| `wss://websocket-proxy-*.prod.gke.acurast.com` | Acurast `_STD_.ws` | Mesh между deployment keys |
+| `relay-*.canary.acurast.com:443` | Acurast P2P/tunnel relay | NAT traversal, **не** Nostr |
+| `wss://public-rpc.canary.acurast.com` | Substrate RPC | Deploy, баланс, **не** Nostr |
+
+### Nostr relay на canary (ops)
+
+Processor ходит на relay через **HTTPS** (`wss://` → `https://` в `acurast-http` backend). Нужно:
+
+1. **Сервер** — `nostr-rs-relay` (как в compose) за reverse proxy (Caddy/nginx) на **443**.
+2. **DNS** — `A`/`AAAA` поддомена → публичный IP VPS; **PTR** того же IP → тот же hostname (для whitelist).
+3. **TXT** — `_acu.<host>` = `v=base64(sha256(deployment_source ‖ host))` для каждого deploy-кошелька ([дока Acurast](https://docs.acurast.com/developers/job-runtime-environment/#network)); `deployment_source` — Account ID из `scripts/show-acurast-address.mjs`.
+4. **Deploy** — `RELAY_URL=wss://nostr.<ваш-домен>` в GitHub environment **canary** → redeploy hello/coordinator.
+
+Локально: `ws://nostr-relay:8080` (compose profile `relay`, host port `7777`).
+
 ### `_STD_.ws` в проекте
 
-Зарезервировано для **Phase 2+** (P2P между coordinator и modules), не для Nostr relay в Phase 1.
+Реализация mesh — **Phase 3+** (после закрытия Phase 2 на Nostr). Не подставлять `_STD_.ws` вместо Nostr relay в `nostr-client`.
 
 ---
 
