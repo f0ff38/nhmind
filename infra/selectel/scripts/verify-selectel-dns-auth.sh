@@ -5,27 +5,31 @@ set -euo pipefail
 DNS_API="${SELECTEL_DNS_API:-https://api.selectel.ru/domains/v2}"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-token="$(bash "${script_dir}/get-openstack-project-token.sh")"
+token="$(bash "${script_dir}/get-selectel-dns-token.sh")"
 
 http_code="$(curl -sS -o dns-zones.json -w "%{http_code}" \
-  -X GET "${DNS_API}/zones?limit=1" \
+  -X GET "${DNS_API}/zones?limit=5" \
   -H "X-Auth-Token: ${token}" \
   -H "Accept: application/json")"
 
-if [ "${http_code}" = "200" ]; then
-  zone_count="$(jq -r '.count // ((.result // []) | length)' dns-zones.json 2>/dev/null || echo 0)"
-  echo "Selectel DNS API OK (HTTP 200, project-scoped IAM token, zones visible: ${zone_count})"
-  if [ "${zone_count}" = "0" ]; then
-    echo "::warning::DNS API returned zero zones — check project scope or set RELAY_DNS_ZONE_ID from panel URL"
-  fi
-  exit 0
+if [ "${http_code}" != "200" ]; then
+  echo "::error::Selectel DNS API rejected token (HTTP ${http_code})"
+  head -c 500 dns-zones.json || true
+  echo ""
+  echo "Checklist:"
+  echo "  - Set SELECTEL_IAM_PROJECT_NAME (IAM → Projects → name, not cloud hex id)"
+  echo "  - Service user has IAM permission for the project that owns the zone"
+  exit 1
 fi
 
-echo "::error::Selectel DNS API rejected token (HTTP ${http_code})"
-head -c 500 dns-zones.json || true
-echo ""
-echo "Checklist:"
-echo "  - DNS zone exists in panel → DNS (actual)"
-echo "  - Service user has IAM permission for the project that owns the zone"
-echo "  - If Keystone scope-by-id fails for DNS: set SELECTEL_IAM_PROJECT_NAME (IAM → Projects → name)"
-exit 1
+zone_count="$(jq -r 'if (.count? | type) == "number" then .count elif (.result? | type) == "array" then (.result | length) else 0 end' dns-zones.json 2>/dev/null || echo 0)"
+sample_names="$(jq -r '(.result // [])[:5][]?.name // empty' dns-zones.json 2>/dev/null | paste -sd ', ' - || true)"
+
+if [ "${zone_count}" = "0" ]; then
+  echo "::error::Selectel DNS API OK but zero zones visible — wrong IAM project scope"
+  echo "Set secret SELECTEL_IAM_PROJECT_NAME = IAM → Projects → project name (not SELECTEL_PROJECT_ID hex)"
+  exit 1
+fi
+
+echo "Selectel DNS API OK (HTTP 200, zones visible: ${zone_count}${sample_names:+, e.g. ${sample_names}})"
+exit 0
