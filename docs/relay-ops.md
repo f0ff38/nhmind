@@ -6,7 +6,7 @@
 
 **Статус:** **активный шаг** — GitOps-провижининг relay на **Selectel** (создание и преднастройка VM из репозитория). Провайдер выбран; ручной заказ VM в панели — fallback.
 
-**Текущая фаза работ:** проектирование `infra/selectel/` + workflows (см. [Selectel GitOps](#selectel-gitops-провижининг-relay)); код и Terraform — следующий PR.
+**Текущая фаза работ:** `infra/selectel/terraform/` + [provision-relay-infra.yml](../.github/workflows/provision-relay-infra.yml) — **plan/apply**; следующий шаг — `deploy-relay.yml` + DNS A.
 
 ---
 
@@ -159,6 +159,7 @@ infra/nostr-relay/
 | `RELAY_DEPLOY_SSH_PRIVATE_KEY` | ✅ до 1-го `apply` | Ed25519/RSA **private** key (PEM) |
 | `RELAY_DEPLOY_SSH_PUBLIC_KEY` | ✅ до 1-го `apply` | OpenSSH public key (пара к private; в TF keypair и `deploy` user) |
 | `SELECTEL_AVAILABILITY_ZONE` | ✅ до 1-го `plan` | **Зона доступности** при создании VM: `ru-3a` / `ru-3b` (не пул `ru-3` — он только для `region` в провайдере) |
+| `SELECTEL_REGION` | опционально | Пул OpenStack, напр. `ru-3`; если пусто — workflow выводит из `SELECTEL_AVAILABILITY_ZONE` |
 | `TF_STATE_S3_BUCKET` | ✅ до 1-го `init` | Бакет S3 Selectel для `terraform.tfstate` |
 | `TF_STATE_S3_ACCESS_KEY` | ✅ до 1-го `init` | Access Key S3 (ключ сервисного пользователя или отдельный) |
 | `TF_STATE_S3_SECRET_KEY` | ✅ до 1-го `init` | Secret Key S3 |
