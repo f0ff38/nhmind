@@ -2,7 +2,7 @@
 
 Спецификация событий координации для **NostrHiveMind (nhmind)**.
 
-**Связанные документы:** [README](../README.md) · [roadmap](roadmap.md) · [economics](economics.md) · [AGENTS.md](../AGENTS.md)
+**Связанные документы:** [README](../README.md) · [roadmap](roadmap.md) · [relay-ops](relay-ops.md) · [economics](economics.md) · [AGENTS.md](../AGENTS.md)
 
 **Статус:** Phase 1 (черновик v1). Изменения — через PR с обновлением `schema` в payload.
 
@@ -303,6 +303,8 @@ Processor ходит на relay через **HTTPS** (`wss://` → `https://` в
 4. **Deploy** — `RELAY_URL=wss://nostr.<ваш-домен>` в GitHub environment **canary** → redeploy hello/coordinator.
 
 Локально: `ws://nostr-relay:8080` (compose profile `relay`, host port `7777`).
+
+Полный чеклист хостинга, безопасность и уроки из Nosflare: [relay-ops.md](relay-ops.md).
 
 ### `_STD_.ws` в проекте
 

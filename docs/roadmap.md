@@ -216,6 +216,8 @@ flowchart LR
 | GameFi / MEV modules           | High-risk; только после стабильного coordinator |
 | NIP-AC / agent swarm           | Если стандартизируется в экосистеме Nostr       |
 | Multi-relay quorum             | Снижение зависимости от одного relay            |
+| Relay allowlist (kinds/tags/pubkeys) | Из практики Nosflare → `nostr-rs-relay` config + nginx rate limit; см. [relay-ops.md](relay-ops.md) |
+| `infra/nostr-relay` + `deploy-relay.yml` | VPS bootstrap из репо (ожидаем домен/IP/SSH) |
 | `packages/module-template` CLI | `npx create-nhmind-module`                      |
 | Cursor Automations             | PR opened → review; CI failed → agent fix       |
 
