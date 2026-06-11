@@ -24,6 +24,6 @@ output "flavor_id" {
 }
 
 output "flavor_name" {
-  description = "Resolved flavor name when auto-picked; empty when flavor_id override is set."
-  value       = var.flavor_id != "" ? "" : try(data.openstack_compute_flavor_v2.relay[0].name, "")
+  description = "Resolved flavor name for the relay VM."
+  value       = data.openstack_compute_flavor_v2.relay.name
 }

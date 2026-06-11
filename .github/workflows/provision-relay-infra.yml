@@ -17,7 +17,7 @@ on:
         type: boolean
         default: true
       flavor_id:
-        description: Selectel flavor ID override (pool-specific; empty = auto 2 vCPU / 4096 MB / disk 0)
+        description: Selectel flavor ID override (pool-specific; empty = auto-resolve 2 vCPU / 4096 MB / disk 0 via Nova API)
         required: false
         type: string
         default: ""
@@ -101,6 +101,13 @@ jobs:
         if: inputs.action == 'plan' || inputs.action == 'apply' || inputs.action == 'destroy'
         working-directory: ${{ github.workspace }}
         run: bash infra/selectel/scripts/verify-openstack-auth.sh
+
+      - name: Resolve relay flavor
+        if: inputs.action == 'plan' || inputs.action == 'apply' || inputs.action == 'destroy'
+        working-directory: ${{ github.workspace }}
+        env:
+          TF_VAR_flavor_id: ${{ inputs.flavor_id }}
+        run: bash infra/selectel/scripts/resolve-relay-flavor.sh
 
       - name: Terraform validate
         run: terraform validate

@@ -18,5 +18,5 @@ selectel_region           = "ru-3"
 availability_zone         = "ru-3a"
 deploy_ssh_public_key     = "ssh-ed25519 AAAA... user@host"
 
-# Pool-specific: openstack flavor list, or Selectel panel flavor ID
+# Pool-specific: openstack flavor list, Selectel panel flavor ID, or leave empty for CI auto-resolve
 # flavor_id = "1014"
