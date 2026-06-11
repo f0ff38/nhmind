@@ -31,6 +31,21 @@ if [ -z "${region}" ] && [ -n "${az}" ]; then
   region="${az%?}"
 fi
 
+if [ -z "${account_id}" ]; then
+  echo "::error::SELECTEL_ACCOUNT_ID is empty (account number, panel top-right)"
+  exit 1
+fi
+
+if [ -z "${project_id}" ]; then
+  echo "::error::SELECTEL_PROJECT_ID is empty"
+  exit 1
+fi
+
+if [ -z "${service_user}" ] || [ -z "${service_password}" ]; then
+  echo "::error::SELECTEL_SERVICE_USER or SELECTEL_SERVICE_PASSWORD is empty"
+  exit 1
+fi
+
 emit() {
   local key="$1"
   local value="$2"
