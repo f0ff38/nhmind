@@ -3,11 +3,18 @@ resource "openstack_compute_keypair_v2" "relay" {
   public_key = var.deploy_ssh_public_key
 }
 
-data "openstack_compute_flavor_v2" "relay" {
+data "openstack_compute_flavors_v2" "catalog" {
   count = var.flavor_id == "" ? 1 : 0
+}
 
-  min_ram = 2048
-  vcpus   = 2
+check "relay_flavor_resolved" {
+  assert {
+    condition = var.flavor_id != "" || try(local.relay_flavor_auto.id, "") != ""
+    error_message = join(" ", [
+      "No flavor matches 2 vCPU / 2048 MB RAM / disk 0 (boot volume).",
+      "Set workflow input flavor_id from Selectel panel (openstack flavor list).",
+    ])
+  }
 }
 
 data "openstack_images_image_v2" "ubuntu" {

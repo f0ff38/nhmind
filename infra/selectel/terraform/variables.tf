@@ -37,7 +37,7 @@ variable "deploy_ssh_public_key" {
 }
 
 variable "flavor_id" {
-  description = "Selectel flavor ID for the relay VM (pool-specific). Empty = auto-pick 2 vCPU / 2GB RAM."
+  description = "Selectel flavor ID for the relay VM (pool-specific). Empty = auto-pick 2 vCPU / 2048 MB / disk 0 (lexicographically first name if several match)."
   type        = string
   default     = ""
 }

@@ -17,3 +17,13 @@ output "server_name" {
   description = "Cloud server name."
   value       = openstack_compute_instance_v2.relay.name
 }
+
+output "flavor_id" {
+  description = "Resolved OpenStack flavor ID for the relay VM."
+  value       = local.flavor_id
+}
+
+output "flavor_name" {
+  description = "Resolved flavor name when auto-picked; empty when flavor_id override is set."
+  value       = var.flavor_id != "" ? "" : try(local.relay_flavor_auto.name, "")
+}
