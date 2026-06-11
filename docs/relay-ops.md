@@ -196,7 +196,7 @@ infra/nostr-relay/
 | **Пароль** | Пересохранить secret без пробела/переноса строки в конце |
 | **Пул** | `SELECTEL_AVAILABILITY_ZONE=ru-3a` → region `ru-3` (workflow нормализует) |
 
-Workflow нормализует project id в UUID (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) и вызывает Keystone до `terraform plan`.
+Workflow нормализует project id в **32 hex** (как в панели Облачные серверы) и вызывает Keystone **в два шага**: identity → project scope. Полный JSON ответа печатается в лог (без пароля).
 
 **Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
 

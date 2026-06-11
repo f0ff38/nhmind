@@ -10,12 +10,11 @@ normalize_project_id() {
   local raw="$1"
   local hex
   hex="$(printf '%s' "$raw" | tr 'A-Z' 'a-z' | tr -d '-' | sed 's/[^0-9a-f]//g')"
-  if [ "${#hex}" -ne 32 ]; then
-    printf '%s' "$(trim "$raw")"
+  if [ "${#hex}" -eq 32 ]; then
+    printf '%s' "${hex}"
     return
   fi
-  printf '%s-%s-%s-%s-%s' \
-    "${hex:0:8}" "${hex:8:4}" "${hex:16:4}" "${hex:20:4}" "${hex:24:12}"
+  printf '%s' "$(trim "$raw")"
 }
 
 out="${GITHUB_ENV:-}"
@@ -68,4 +67,4 @@ if [ -n "${TF_VAR_flavor_id:-}" ]; then
 fi
 
 echo "OpenStack pool (region): ${region:-<empty>}"
-echo "Project ID normalized: ${project_id:0:8}...${project_id: -4}"
+echo "Project id (32 hex): ${project_id:0:8}...${project_id: -4}"
