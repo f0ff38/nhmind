@@ -1,0 +1,16 @@
+# nostr-rs-relay — nhmind coordinator bus (Phase 2 canary).
+# Docs: https://github.com/scsibug/nostr-rs-relay
+
+[network]
+address = "0.0.0.0:8080"
+
+[database]
+data_directory = "/usr/src/app/db"
+
+[limits]
+messages_per_sec = 20
+subscriptions_per_min = 240
+
+[diagnostics]
+# NIP-11 at GET / (via nginx HTTPS); useful for smoke checks.
+enabled = true

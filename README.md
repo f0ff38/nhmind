@@ -324,7 +324,8 @@ nhmind/
 │   ├── ci.yml
 │   ├── deploy-canary.yml
 │   ├── validate-relay-secrets.yml
-│   └── provision-relay-infra.yml   # deploy-relay.yml — следующий шаг
+│   ├── provision-relay-infra.yml
+│   └── deploy-relay.yml
 ├── infra/selectel/                 # Terraform + cloud-init (Selectel relay VM)
 ├── modules/
 │   ├── hello/                    # эталонный модуль (onetime)

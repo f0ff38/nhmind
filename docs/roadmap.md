@@ -66,15 +66,14 @@ flowchart LR
 
 Результат: **`public_ip`** в job summary; PTR — шаг workflow или вручную в Selectel **IP-адреса**.
 
-### 2. DNS и secrets
+### 2. DNS и deploy smoke
 
-1. **A:** `RELAY_HOSTNAME` → `public_ip`.
-2. Environment **relay** → **`RELAY_SSH_HOST`** = IP (`deploy` user из cloud-init).
-3. **Validate Relay Secrets** → **`deploy`** (SSH smoke).
+1. **A** upsert автоматически при `apply` + `set_dns_a: true` (Selectel DNS API).
+2. **Validate Relay Secrets** → **`deploy`** (SSH smoke; IP из Terraform state).
 
 ### 3. Deploy relay
 
-Deliverable Phase 2: **`infra/nostr-relay/`** + **`deploy-relay.yml`** (ещё не в репо). До merge — временно SSH на VM (Docker уже в cloud-init).
+**Deploy Relay** (`deploy-relay.yml`, action `deploy` или `all`) — SSH на VM, compose из `infra/nostr-relay/`. IP не в secrets — читается из S3 state.
 
 ### 4. Canary (exit criteria Phase 2)
 
@@ -160,7 +159,7 @@ Deliverable Phase 2: **`infra/nostr-relay/`** + **`deploy-relay.yml`** (ещё �
 - [ ] Canary deploy **coordinator** + smoke на processor
 - [x] Canary deploy **hello** на processor (GHA)
 - [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml`; validate ✅, plan ✅, apply ⬜ (см. [checkpoint](#checkpoint--следующая-сессия))
-- [ ] **Selectel GitOps (deploy relay)** — `infra/nostr-relay/` + `deploy-relay.yml`
+- [ ] **Selectel GitOps (deploy relay)** — `infra/nostr-relay/` + `deploy-relay.yml` ✅ (IP из TF state; apply VM ⬜)
 
 ### Exit criteria
 

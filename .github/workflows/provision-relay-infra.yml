@@ -16,6 +16,11 @@ on:
         required: false
         type: boolean
         default: true
+      set_dns_a:
+        description: Upsert A record in Selectel DNS after apply (zone must exist in panel)
+        required: false
+        type: boolean
+        default: true
       flavor_id:
         description: Selectel flavor ID override (pool-specific; empty = auto-resolve 2 vCPU / 4096 MB / disk 0 via Nova API)
         required: false
@@ -51,31 +56,7 @@ jobs:
           TF_STATE_S3_REGION: ${{ secrets.TF_STATE_S3_REGION }}
           SELECTEL_REGION: ${{ secrets.SELECTEL_REGION }}
           SELECTEL_AVAILABILITY_ZONE: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
-        run: |
-          set -euo pipefail
-          umask 077
-          S3_REGION="${TF_STATE_S3_REGION:-}"
-          if [ -z "${S3_REGION}" ]; then
-            S3_REGION="${SELECTEL_REGION:-}"
-          fi
-          if [ -z "${S3_REGION}" ] && [ -n "${SELECTEL_AVAILABILITY_ZONE:-}" ]; then
-            S3_REGION="${SELECTEL_AVAILABILITY_ZONE%?}"
-          fi
-          if [ -z "${S3_REGION}" ]; then
-            echo "::error::Set TF_STATE_S3_REGION (e.g. ru-3) or SELECTEL_REGION / SELECTEL_AVAILABILITY_ZONE"
-            exit 1
-          fi
-          S3_ENDPOINT="https://s3.${S3_REGION}.storage.selcloud.ru"
-          echo "Terraform state S3 pool: ${S3_REGION} (${S3_ENDPOINT})"
-          cat > backend.ci.hcl <<EOF
-          bucket     = "${TF_STATE_S3_BUCKET}"
-          access_key = "${TF_STATE_S3_ACCESS_KEY}"
-          secret_key = "${TF_STATE_S3_SECRET_KEY}"
-          region     = "${S3_REGION}"
-          endpoints = {
-            s3 = "${S3_ENDPOINT}"
-          }
-          EOF
+        run: bash infra/selectel/scripts/write-terraform-backend-ci.sh
 
       - name: Terraform init
         run: |
@@ -152,6 +133,18 @@ jobs:
             exit 1
           fi
 
+      - name: Upsert DNS A record (Selectel DNS)
+        if: inputs.action == 'apply' && inputs.set_dns_a
+        working-directory: ${{ github.workspace }}
+        env:
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          RELAY_DNS_ZONE: ${{ secrets.RELAY_DNS_ZONE }}
+        run: |
+          set -euo pipefail
+          PUBLIC_IP="$(terraform -chdir=infra/selectel/terraform output -raw public_ip)"
+          export PUBLIC_IP
+          bash infra/selectel/scripts/upsert-relay-dns-a.sh
+
       - name: Summary
         if: inputs.action == 'apply'
         working-directory: infra/selectel/terraform
@@ -165,4 +158,10 @@ jobs:
           echo "| public_ip | \`${PUBLIC_IP}\` |" >> "${GITHUB_STEP_SUMMARY}"
           echo "| relay_hostname | \`${{ secrets.RELAY_HOSTNAME }}\` |" >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
-          echo "Next: DNS A record \`${{ secrets.RELAY_HOSTNAME }}\` -> \`${PUBLIC_IP}\`, then run **Deploy Relay** workflow." >> "${GITHUB_STEP_SUMMARY}"
+          if [ "${{ inputs.set_dns_a }}" = "true" ]; then
+            echo "DNS **A** \`${{ secrets.RELAY_HOSTNAME }}\` → \`${PUBLIC_IP}\` upserted via Selectel DNS API (if zone exists)." >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "DNS A skipped (\`set_dns_a=false\`). Upsert manually or re-run apply with \`set_dns_a=true\`." >> "${GITHUB_STEP_SUMMARY}"
+          fi
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Next: run **Deploy Relay** workflow (\`deploy\` or \`all\`)." >> "${GITHUB_STEP_SUMMARY}"

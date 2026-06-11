@@ -68,7 +68,7 @@ Nosflare полезен как **источник идей** (ниже), не к
 | Этап | Workflow | Что делает |
 |------|----------|------------|
 | 1. Инфраструктура | `provision-relay-infra.yml` | Terraform: проект (или data source существующего), сеть, VM, floating IP, cloud-init |
-| 2. Приложение | `deploy-relay.yml` | SSH: `docker compose up` из `infra/nostr-relay/`, smoke WSS/HTTP |
+| 2. Приложение | `deploy-relay.yml` | SSH (IP из Terraform state) → `infra/nostr-relay/` compose, certbot TLS, smoke WSS |
 
 Триггер: **`workflow_dispatch`** (как `deploy-canary.yml`), environment **relay** с required reviewers на `apply`.
 
@@ -92,7 +92,7 @@ Selectel использует **три типа** токенов; для GitOps 
 
 1. **Terraform** — логин/пароль **сервисного пользователя** с ролью `member` в scope **Проект** (паттерн из [Terraform quickstart](https://docs.selectel.ru/terraform/quickstart/)): провайдеры `selectel` + `openstack`, `auth_url = https://cloud.api.selcloud.ru/identity/v3`. Пароль — в GitHub Secret; IAM-токен в CI **можно** получать через Keystone POST, но проще отдать password провайдеру (он сам ходит в Keystone).
 2. **PTR** — отдельный шаг workflow: `POST` к IP API с `X-Token` (статический ключ с минимальными правами, если Selectel позволит; иначе отдельный ключ «только IP»). IAM-токены для PTR **не поддерживаются**.
-3. **DNS** (зона в Selectel DNS-хостинг) — IAM **project-scoped** или Terraform resource провайдера Selectel ([примеры DNS](https://docs.selectel.ru/terraform/)); статический токен — legacy DNS, не целевой путь.
+3. **DNS** (зона в Selectel DNS) — после `apply`: workflow upsert **A** через [DNS API v2](https://docs.selectel.ru/en/api/dns-actual/) (`X-Auth-Token` project-scoped, тот же сервисный пользователь). Зона должна **уже существовать** в панели DNS; input `set_dns_a` (default `true`).
 4. **Не хранить** статический `X-Token` в Terraform state; PTR — shell/curl или маленький script в workflow после `terraform apply`.
 
 Ограничение API по IP: в панели можно [ограничить доступ](https://docs.selectel.ru/api/authorization/) к `https://api.selectel.ru` — для GHA учесть egress GitHub Actions или не включать whitelist на первом этапе.
@@ -130,7 +130,11 @@ infra/selectel/terraform/
 infra/selectel/scripts/
 ├── prepare-openstack-env.sh
 ├── verify-openstack-auth.sh
-└── resolve-relay-flavor.sh   # Nova API auto-pick 2 vCPU / 4096 MB / disk 0 → TF_VAR_flavor_id
+├── resolve-relay-flavor.sh   # Nova API auto-pick 2 vCPU / 4096 MB / disk 0 → TF_VAR_flavor_id
+├── write-terraform-backend-ci.sh
+├── read-relay-public-ip.sh   # terraform output public_ip (deploy + validate)
+├── get-openstack-project-token.sh
+└── upsert-relay-dns-a.sh     # Selectel DNS A record after apply
 
 infra/selectel/cloud-init/
 └── relay-bootstrap.yaml  # Docker, UFW 22+443, deploy-user, /opt/nhmind-relay
@@ -142,7 +146,7 @@ infra/nostr-relay/
 └── .env.example
 
 .github/workflows/
-├── provision-relay-infra.yml   # terraform plan/apply, PTR API, опционально DNS
+├── provision-relay-infra.yml   # terraform plan/apply, PTR API, DNS A (Selectel DNS)
 └── deploy-relay.yml              # SSH deploy | smoke
 ```
 
@@ -170,8 +174,9 @@ infra/nostr-relay/
 | `TF_STATE_S3_REGION` | опционально | Пул бакета S3, напр. `ru-3` — **должен совпадать** с регионом контейнера. Если пусто — берётся `SELECTEL_REGION` или из `SELECTEL_AVAILABILITY_ZONE` (`ru-3a` → `ru-3`) |
 | `SELECTEL_STATIC_TOKEN` | после VM, до PTR | Статический ключ панели (`X-Token`), **не** сервисный пользователь — [PTR API](https://docs.selectel.ru/api/ip-addresses/) |
 | `RELAY_HOSTNAME` | до PTR/DNS/TLS | FQDN, напр. `nostr.example.com` (PTR = этот hostname) |
-| `RELAY_SSH_HOST` | после provision | Floating IP (можно не секретом — output TF; в GHA удобно для `deploy-relay`) |
-| `RELAY_SSH_USER` | после provision | `deploy` (фиксирован в cloud-init) |
+| `RELAY_DNS_ZONE` | опционально | Зона в Selectel DNS, напр. `example.com` — если не задана, выводится из `RELAY_HOSTNAME` (`nostr.example.com` → `example.com`) |
+
+**Не секрет:** floating IP relay — **`terraform output public_ip`** (S3 state). Workflow **Deploy Relay** и validate stage `deploy` читают его автоматически; ручной secret `RELAY_SSH_HOST` **не нужен**. SSH user — `deploy` (cloud-init).
 
 **Не секреты** (в `terraform.tfvars` или workflow input): pool `ru-3` (= `region` OpenStack-провайдера). **Flavor:** в CI auto-resolve через [resolve-relay-flavor.sh](../infra/selectel/scripts/resolve-relay-flavor.sh) (2 vCPU / 4096 MB / disk 0); override — workflow input `flavor_id` или `terraform.tfvars`.
 
@@ -182,7 +187,7 @@ infra/nostr-relay/
 | Режим | Формат | Live-проверки |
 |-------|--------|---------------|
 | `provision` | presence + формат | SSH keypair, S3 state bucket, Keystone (OpenStack), `X-Token` (Balance API) |
-| `deploy` | presence + формат | SSH keypair, SSH login to `RELAY_SSH_HOST` |
+| `deploy` | presence + формат | SSH keypair, Terraform state, SSH login to VM (`public_ip` из state) |
 | `all` | оба | все выше |
 
 Значения не логируются — только «пусто / неверный формат / HTTP-код / checklist».
@@ -209,7 +214,7 @@ Workflow нормализует project id в **32 hex** (как в панели
 
 ### Ручные шаги (вне Terraform или до первого apply)
 
-- Домен: NS на Selectel DNS или внешний регистратор + делегирование зоны.
+- Делегирование NS на Selectel DNS (если зона ещё не в панели) — **один раз**; сама зона должна существовать до `apply` с `set_dns_a=true`.
 - Квоты: **«Публичные IP»** ≥ 1 в выбранном пуле (не `/29`).
 - TXT `_acu.nostr.<домен>` — после известны IP и кошельки (`show-acurast-address.mjs`).
 - Баланс Selectel для pay-as-you-go.
@@ -217,7 +222,7 @@ Workflow нормализует project id в **32 hex** (как в панели
 ### Exit criteria GitOps-шага
 
 1. `workflow_dispatch` → provision создаёт VM с публичным IP и cloud-init.
-2. PTR = `RELAY_HOSTNAME`, `A` указывает на тот же IP.
+2. PTR = `RELAY_HOSTNAME`, **A** upsert через Selectel DNS API (workflow, `set_dns_a=true`).
 3. `deploy-relay` поднимает relay; smoke проходит.
 4. `RELAY_URL` в canary → redeploy hello/coordinator → heartbeat в DevTools.
 
@@ -293,15 +298,13 @@ infra/nostr-relay/
 
 1. [x] **Validate Relay Secrets** → `provision` (environment **relay**)
 2. [x] **Provision Relay Infra** → `plan` (15 to add; flavor `BL1.2-4096`)
-3. [ ] **Provision Relay Infra** → `apply`, `set_ptr: true`
-4. [ ] DNS: **A** `RELAY_HOSTNAME` → `public_ip` из job summary
-5. [ ] GitHub **relay** → `RELAY_SSH_HOST` = floating IP (для deploy-relay)
-6. [ ] **Deploy Relay** (`deploy-relay.yml` — ещё не в репо) или ручной compose на VM
-7. [ ] DNS: TXT `_acu.<RELAY_HOSTNAME>` для deploy-кошельков hello и coordinator
-8. [ ] Smoke WSS с ноутбука
-9. [ ] GitHub **canary** → `RELAY_URL=wss://<RELAY_HOSTNAME>`
-10. [ ] Redeploy hello + coordinator (`Deploy Canary`)
-11. [ ] DevTools: heartbeat и scorecard на processor
+3. [ ] **Provision Relay Infra** → `apply`, `set_ptr: true`, `set_dns_a: true` (A-запись в Selectel DNS автоматически)
+4. [ ] **Deploy Relay** → `deploy` или `all` (после propagation DNS)
+5. [ ] DNS: TXT `_acu.<RELAY_HOSTNAME>` для deploy-кошельков hello и coordinator
+6. [ ] Smoke WSS (**Deploy Relay** → `smoke`) или с ноутбука
+7. [ ] GitHub **canary** → `RELAY_URL=wss://<RELAY_HOSTNAME>`
+8. [ ] Redeploy hello + coordinator (`Deploy Canary`)
+9. [ ] DevTools: heartbeat и scorecard на processor
 
 TXT hash: формула в [Acurast Network docs](https://docs.acurast.com/developers/job-runtime-environment/#network); адреса кошельков — `node scripts/show-acurast-address.mjs modules/<name>`.
 

@@ -1,0 +1,83 @@
+name: Deploy Relay
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Deploy stack, smoke only, or both
+        required: true
+        type: choice
+        options:
+          - deploy
+          - smoke
+          - all
+
+concurrency:
+  group: deploy-relay
+  cancel-in-progress: false
+
+jobs:
+  relay:
+    name: relay-${{ inputs.action }}
+    runs-on: ubuntu-latest
+    environment: relay
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Resolve relay public IP from Terraform state
+        id: relay_host
+        env:
+          TF_STATE_S3_BUCKET: ${{ secrets.TF_STATE_S3_BUCKET }}
+          TF_STATE_S3_ACCESS_KEY: ${{ secrets.TF_STATE_S3_ACCESS_KEY }}
+          TF_STATE_S3_SECRET_KEY: ${{ secrets.TF_STATE_S3_SECRET_KEY }}
+          TF_STATE_S3_REGION: ${{ secrets.TF_STATE_S3_REGION }}
+          SELECTEL_REGION: ${{ secrets.SELECTEL_REGION }}
+          SELECTEL_AVAILABILITY_ZONE: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
+        run: |
+          set -euo pipefail
+          PUBLIC_IP="$(bash infra/selectel/scripts/read-relay-public-ip.sh)"
+          echo "public_ip=${PUBLIC_IP}" >> "${GITHUB_OUTPUT}"
+          echo "Relay SSH target: deploy@${PUBLIC_IP} (from terraform output public_ip)"
+
+      - name: Deploy relay stack on VM
+        if: inputs.action == 'deploy' || inputs.action == 'all'
+        env:
+          RELAY_SSH_HOST: ${{ steps.relay_host.outputs.public_ip }}
+          RELAY_SSH_USER: deploy
+          RELAY_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.RELAY_DEPLOY_SSH_PRIVATE_KEY }}
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+        run: |
+          set -euo pipefail
+          bash infra/nostr-relay/scripts/deploy-remote.sh \
+            "${RELAY_SSH_HOST}" \
+            "${RELAY_HOSTNAME}"
+
+      - name: Smoke relay (HTTPS + WSS)
+        if: inputs.action == 'smoke' || inputs.action == 'all'
+        env:
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+        run: |
+          set -euo pipefail
+          bash infra/nostr-relay/scripts/smoke-relay.sh \
+            "${RELAY_HOSTNAME}" \
+            "${{ steps.relay_host.outputs.public_ip }}"
+
+      - name: Summary
+        run: |
+          {
+            echo "## Relay ${{ inputs.action }}"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| public_ip | \`${{ steps.relay_host.outputs.public_ip }}\` (terraform output) |"
+            echo "| relay_hostname | \`${{ secrets.RELAY_HOSTNAME }}\` |"
+            echo "| relay_url | \`wss://${{ secrets.RELAY_HOSTNAME }}/\` |"
+            echo ""
+            echo "Next: DNS TXT \`_acu.${{ secrets.RELAY_HOSTNAME }}\`, then set \`RELAY_URL\` in environment **canary**."
+          } >> "${GITHUB_STEP_SUMMARY}"
