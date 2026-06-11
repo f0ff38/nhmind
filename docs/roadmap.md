@@ -45,7 +45,7 @@ flowchart LR
 | `modules/coordinator` (код)                                  | ✅                              |
 | `hello` canary на processor                                  | ✅ (deploy via GHA)              |
 | `coordinator` canary на processor                            | ⬜ следующий шаг                 |
-| Публичный relay + `RELAY_URL` в deploy                       | ⬜ блокер exit criteria Phase 2 |
+| Публичный relay + `RELAY_URL` в deploy                       | 🔄 **в работе** — Selectel GitOps (`infra/selectel/` + provision/deploy workflows) |
 
 
 ---
@@ -114,6 +114,7 @@ flowchart LR
 - [x] Programmatic deploy через SDK (canary) — `deploy-canary.yml` + `scripts/deploy-acurast-sdk.mjs`; autoscale в TEE — Phase 4
 - [ ] Canary deploy **coordinator** + smoke на processor
 - [x] Canary deploy **hello** на processor (GHA)
+- [ ] **Selectel GitOps** — Terraform: VM + cloud-init + floating IP; GHA provision + deploy relay ([relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay))
 
 ### Exit criteria
 
@@ -217,7 +218,8 @@ flowchart LR
 | NIP-AC / agent swarm           | Если стандартизируется в экосистеме Nostr       |
 | Multi-relay quorum             | Снижение зависимости от одного relay            |
 | Relay allowlist (kinds/tags/pubkeys) | Из практики Nosflare → `nostr-rs-relay` config + nginx rate limit; см. [relay-ops.md](relay-ops.md) |
-| `infra/nostr-relay` + `deploy-relay.yml` | VPS bootstrap из репо (ожидаем домен/IP/SSH) |
+| `infra/nostr-relay` + `deploy-relay.yml` | Деплой relay на уже созданную VM (этап 2 GitOps) |
+| Multi-pool Selectel / второй relay | Георезерв после стабильного canary |
 | `packages/module-template` CLI | `npx create-nhmind-module`                      |
 | Cursor Automations             | PR opened → review; CI failed → agent fix       |
 

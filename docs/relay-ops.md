@@ -4,7 +4,9 @@
 
 **Связанные документы:** [nostr-protocol.md](nostr-protocol.md) · [github-actions.md](github-actions.md) · [roadmap.md](roadmap.md)
 
-**Статус:** хостинг и `infra/nostr-relay/` — в подготовке (ожидаем домен, IP, SSH).
+**Статус:** **активный шаг** — GitOps-провижининг relay на **Selectel** (создание и преднастройка VM из репозитория). Провайдер выбран; ручной заказ VM в панели — fallback.
+
+**Текущая фаза работ:** проектирование `infra/selectel/` + workflows (см. [Selectel GitOps](#selectel-gitops-провижининг-relay)); код и Terraform — следующий PR.
 
 ---
 
@@ -42,7 +44,8 @@ Canary/production: `RELAY_URL=wss://nostr.<ваш-домен>` в GitHub environ
 |-----------|------------------|---------|
 | **Hetzner** (DE/FI) | Дешёвый KVM, PTR в Robot/Cloud, предсказуемый ops | Оплата: часто нужна EU-карта / PayPal; проверить актуальные способы |
 | **IHC.ru** | PTR и DNS в [my.ihc.ru](https://my.ihc.ru), российская оплата | KVM, не виртуальный хостинг; см. [KB IHC](https://support.ihc.ru/index.php?_m=knowledgebase&_a=view) |
-| Аналоги (Timeweb Cloud, Selectel, …) | Тот же чеклист: KVM + PTR + SSH | Сверять PTR **до** заказа |
+| **Selectel** (облачные серверы) | PTR в **IP-адреса**, DNS-хостинг, Terraform/OpenStack API, оплата РФ | **Выбран** для canary relay; сеть: приватная подсеть + 1 публичный IP (не `/29`) |
+| Аналоги (Timeweb Cloud, …) | Тот же чеклист: KVM + PTR + SSH | Сверять PTR **до** заказа |
 
 **Одна нода** достаточна для Phase 2. Георезерв и второй relay — [Phase 5 backlog](roadmap.md#backlog-после-phase-5) (multi-relay quorum).
 
@@ -58,9 +61,139 @@ Nosflare полезен как **источник идей** (ниже), не к
 
 ---
 
-## Планируемая схема из репозитория
+## Selectel GitOps (провижининг relay)
 
-Следующий инженерный шаг (после появления домена/IP/SSH):
+Цель: один путь из git — VM с Docker/UFW/deploy-user → DNS/PTR → relay compose → smoke → `RELAY_URL` в canary.
+
+### Два workflow (последовательность)
+
+| Этап | Workflow | Что делает |
+|------|----------|------------|
+| 1. Инфраструктура | `provision-relay-infra.yml` | Terraform: проект (или data source существующего), сеть, VM, floating IP, cloud-init |
+| 2. Приложение | `deploy-relay.yml` | SSH: `docker compose up` из `infra/nostr-relay/`, smoke WSS/HTTP |
+
+Триггер: **`workflow_dispatch`** (как `deploy-canary.yml`), environment **relay** с required reviewers на `apply`.
+
+### Сеть Selectel (важно)
+
+Для relay достаточно **приватная подсеть + облачный роутер + 1 публичный IP** (floating IP, pool `external-network`). Это обходит квоту **«Публичная подсеть /29»** и дешевле, чем заказывать блок из 5 адресов.
+
+Схема по [документации Selectel](https://docs.selectel.ru/cloud-servers/cloud-networks/public-ip-addresses/): роутер делает 1:1 NAT; PTR и `A`-запись — на внешний floating IP.
+
+### Аутентификация API ([authorization](https://docs.selectel.ru/api/authorization/))
+
+Selectel использует **три типа** токенов; для GitOps нужна **комбинация**:
+
+| Токен | Заголовок | TTL | Кто выписывает | Для чего в nhmind |
+|-------|-----------|-----|----------------|-------------------|
+| IAM, scope **проект** | `X-Auth-Token` | 24 ч | Сервисный пользователь (Keystone) | OpenStack API через Terraform: VM, сеть, floating IP |
+| IAM, scope **аккаунт** | `X-Auth-Token` | 24 ч | Сервисный пользователь | Опционально: квоты, IAM; в CI обычно не нужен |
+| **Статический** | `X-Token` | ∞ | Пользователь панели → Профиль → API-ключи | **Только** [сервис учёта IP](https://docs.selectel.ru/api/ip-addresses/) — PTR; **не** работает с OpenStack |
+
+**Рекомендация для GHA:**
+
+1. **Terraform** — логин/пароль **сервисного пользователя** с ролью `member` в scope **Проект** (паттерн из [Terraform quickstart](https://docs.selectel.ru/terraform/quickstart/)): провайдеры `selectel` + `openstack`, `auth_url = https://cloud.api.selcloud.ru/identity/v3`. Пароль — в GitHub Secret; IAM-токен в CI **можно** получать через Keystone POST, но проще отдать password провайдеру (он сам ходит в Keystone).
+2. **PTR** — отдельный шаг workflow: `POST` к IP API с `X-Token` (статический ключ с минимальными правами, если Selectel позволит; иначе отдельный ключ «только IP»). IAM-токены для PTR **не поддерживаются**.
+3. **DNS** (зона в Selectel DNS-хостинг) — IAM **project-scoped** или Terraform resource провайдера Selectel ([примеры DNS](https://docs.selectel.ru/terraform/)); статический токен — legacy DNS, не целевой путь.
+4. **Не хранить** статический `X-Token` в Terraform state; PTR — shell/curl или маленький script в workflow после `terraform apply`.
+
+Ограничение API по IP: в панели можно [ограничить доступ](https://docs.selectel.ru/api/authorization/) к `https://api.selectel.ru` — для GHA учесть egress GitHub Actions или не включать whitelist на первом этапе.
+
+### Файрвол VM: SSH только с GitHub Actions
+
+На этапе Terraform (`infra/selectel/`) ingress **TCP/22** на порт сервера ограничиваем CIDR из [GitHub Meta API](https://api.github.com/meta), поле **`actions`** (egress раннеров `ubuntu-latest`). **443** — `0.0.0.0/0` (Acurast processor и публичный WSS).
+
+| Слой Selectel | Ресурс Terraform | Зачем |
+|---------------|------------------|-------|
+| Порт сервера | [группа безопасности](https://docs.selectel.ru/cloud-servers/security-groups/about-security-groups/) + `openstack_networking_secgroup_rule_v2` | SSH (22) по CIDR `actions`; 443 для всех |
+| Роутер (опционально) | [облачный файрвол](https://docs.selectel.ru/terraform/examples/cloud-firewalls/create-firewall-and-server/) на router port | Дублирующий периметр; для MVP достаточно security group на port VM |
+
+**Реализация в workflow (позже, в коде):** перед `terraform apply` шаг `curl -s https://api.github.com/meta | jq -r '.actions[]'` → список CIDR → `TF_VAR_github_actions_cidrs` (или файл) → отдельное правило secgroup **на каждый** префикс (OpenStack — одно правило = один `remote_ip_prefix`).
+
+Замечания:
+
+- Список `actions` **меняется** — при сбое SSH после months без deploy перезапустить provision/plan (обновит правила).
+- Для ручного SSH с ноутбука: временное правило с вашим `/32` в панели или отдельный workflow input `extra_ssh_cidr` (не коммитить IP в git).
+- UFW в cloud-init — второй слой; источник истины для облака — security group.
+- API Selectel (`api.selectel.ru`) и SSH на VM — разные вещи; whitelist API в панели Selectel тоже должен включать `actions` CIDR, если включён.
+
+### Планируемая структура в репозитории
+
+```
+infra/selectel/terraform/
+├── versions.tf           # selectel ~> 7.x, openstack 2.1.0, backend s3 (Selectel Object Storage)
+├── providers.tf          # domain_name, project_id, region (pool)
+├── network.tf            # private network, subnet, router, floating IP
+├── compute.tf            # keypair, VM, user_data ← cloud-init
+├── variables.tf          # flavor, pool, az, relay_hostname
+└── outputs.tf            # public_ip, server_id
+
+infra/selectel/cloud-init/
+└── relay-bootstrap.yaml  # Docker, UFW 22+443, deploy-user, /opt/nhmind-relay
+
+infra/nostr-relay/
+├── docker-compose.yml    # nginx:1.30.2-alpine + scsibug/nostr-rs-relay:0.10.0
+├── nginx.conf
+├── config.toml
+└── .env.example
+
+.github/workflows/
+├── provision-relay-infra.yml   # terraform plan/apply, PTR API, опционально DNS
+└── deploy-relay.yml              # SSH deploy | smoke
+```
+
+**Terraform state:** remote backend в [S3 Selectel](https://docs.selectel.ru/terraform/configure-terraform-state-storage/) (`secret.backend.tfvars` только в Secrets, не в git).
+
+**cloud-init (преднастройка VM):** пакеты Docker, пользователь `deploy`, SSH authorized_keys из Terraform `selectel_vpc_keypair_v2`, UFW. TLS/certbot и relay compose — этап 2 (`deploy-relay.yml`), когда известен `RELAY_HOSTNAME`.
+
+### Секреты GitHub environment **relay**
+
+Сервисный пользователь (Terraform/OpenStack): `member` @ проект **nhmind** — достаточно для VM и сети. `iam.admin` @ аккаунт в CI **не обязателен** (оставлен у вас для bootstrap IAM/S3; позже можно сузить).
+
+| Secret | Когда нужен | Назначение |
+|--------|-------------|------------|
+| `SELECTEL_SERVICE_USER` | ✅ сейчас | Имя сервисного пользователя |
+| `SELECTEL_SERVICE_PASSWORD` | ✅ сейчас | Пароль сервисного пользователя |
+| `SELECTEL_ACCOUNT_ID` | ✅ до 1-го `plan` | Номер аккаунта (`domain_name` в провайдере) |
+| `SELECTEL_PROJECT_ID` | ✅ до 1-го `plan` | UUID проекта **nhmind** (панель → Облачные серверы → проект → ID) |
+| `RELAY_DEPLOY_SSH_PRIVATE_KEY` | ✅ до 1-го `apply` | Ed25519/RSA **private** key (PEM) |
+| `RELAY_DEPLOY_SSH_PUBLIC_KEY` | ✅ до 1-го `apply` | OpenSSH public key (пара к private; в TF keypair и `deploy` user) |
+| `SELECTEL_AVAILABILITY_ZONE` | ✅ до 1-го `plan` | AZ пула, напр. `ru-3a` |
+| `TF_STATE_S3_BUCKET` | ✅ до 1-го `init` | Бакет S3 Selectel для `terraform.tfstate` |
+| `TF_STATE_S3_ACCESS_KEY` | ✅ до 1-го `init` | Access Key S3 (ключ сервисного пользователя или отдельный) |
+| `TF_STATE_S3_SECRET_KEY` | ✅ до 1-го `init` | Secret Key S3 |
+| `SELECTEL_STATIC_TOKEN` | после VM, до PTR | Статический ключ панели (`X-Token`), **не** сервисный пользователь — [PTR API](https://docs.selectel.ru/api/ip-addresses/) |
+| `RELAY_HOSTNAME` | до PTR/DNS/TLS | FQDN, напр. `nostr.example.com` (PTR = этот hostname) |
+| `RELAY_SSH_HOST` | после provision | Floating IP (можно не секретом — output TF; в GHA удобно для `deploy-relay`) |
+| `RELAY_SSH_USER` | после provision | `deploy` (фиксирован в cloud-init) |
+
+**Не секреты** (в `terraform.tfvars` или variables репо): `SELECTEL_REGION` / pool (`ru-3`), flavor.
+
+**Проверка секретов:** workflow [**Validate Relay Secrets**](../.github/workflows/validate-relay-secrets.yml) (`workflow_dispatch`, environment **relay**). Режимы: `provision` (до Terraform), `deploy` (после VM), `all`. Значения не логируются — только «пусто / неверный формат».
+
+**Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
+
+**Bootstrap S3 state (один раз вручную):** бакет в Object Storage + S3-ключ с read/write на бакет ([настройка state](https://docs.selectel.ru/terraform/configure-terraform-state-storage/)).
+
+### Ручные шаги (вне Terraform или до первого apply)
+
+- Домен: NS на Selectel DNS или внешний регистратор + делегирование зоны.
+- Квоты: **«Публичные IP»** ≥ 1 в выбранном пуле (не `/29`).
+- TXT `_acu.nostr.<домен>` — после известны IP и кошельки (`show-acurast-address.mjs`).
+- Баланс Selectel для pay-as-you-go.
+
+### Exit criteria GitOps-шага
+
+1. `workflow_dispatch` → provision создаёт VM с публичным IP и cloud-init.
+2. PTR = `RELAY_HOSTNAME`, `A` указывает на тот же IP.
+3. `deploy-relay` поднимает relay; smoke проходит.
+4. `RELAY_URL` в canary → redeploy hello/coordinator → heartbeat в DevTools.
+
+Подробнее про workflows и секреты: [github-actions.md](github-actions.md).
+
+---
+
+## Планируемая схема приложения (relay на VM)
 
 ```
 infra/nostr-relay/
@@ -68,11 +201,7 @@ infra/nostr-relay/
 ├── nginx.conf              # TLS, WebSocket upgrade, rate limit
 ├── config.toml             # nostr-rs-relay (limits, allowlist — см. ниже)
 └── .env.example            # RELAY_HOSTNAME=nostr.example.com
-
-.github/workflows/deploy-relay.yml   # workflow_dispatch: deploy | smoke
 ```
-
-Секреты GitHub environment **relay**: `RELAY_SSH_HOST`, `RELAY_SSH_USER`, `RELAY_SSH_KEY`, `RELAY_HOSTNAME`.
 
 До появления `infra/` — ручной bootstrap по чеклисту в [nostr-protocol.md](nostr-protocol.md).
 
@@ -128,10 +257,11 @@ infra/nostr-relay/
 
 ---
 
-## Чеклист первого запуска (когда будут домен, IP, SSH)
+## Чеклист первого запуска
 
-1. [ ] VPS: Docker установлен, пользователь для deploy
-2. [ ] `my.ihc.ru` / Hetzner: **hostname** и **PTR** = `nostr.<домен>`
+1. [ ] **Selectel GitOps:** `provision-relay-infra` (или ручная VM: приватная сеть + 1 публичный IP)
+2. [ ] VM: Docker, deploy-user (cloud-init или вручную)
+3. [ ] **IP-адреса** Selectel: **PTR** = `nostr.<домен>`
 3. [ ] DNS: `A` `nostr.<домен>` → IP
 4. [ ] DNS: TXT `_acu.nostr.<домен>` для deploy-кошельков hello и coordinator
 5. [ ] Поднять relay (compose или `infra/` из репо)
@@ -152,6 +282,10 @@ TXT hash: формула в [Acurast Network docs](https://docs.acurast.com/deve
 
 ## Ссылки
 
+- [Selectel — аутентификация API](https://docs.selectel.ru/api/authorization/)
+- [Selectel — Terraform quickstart](https://docs.selectel.ru/terraform/quickstart/)
+- [Selectel — сервер с публичным IP (Terraform)](https://docs.selectel.ru/en/terraform/examples/cloud-networks/create-servers/create-server-with-public-ip/)
+- [Selectel — PTR API](https://docs.selectel.ru/api/ip-addresses/)
 - [Spl0itable/nosflare](https://github.com/Spl0itable/nosflare) — serverless relay (идеи, не primary для nhmind)
 - [scsibug/nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay) — relay в dev compose
 - [nginx stable](https://nginx.org/) — для reverse proxy pin `1.30.2+`
