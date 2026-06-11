@@ -219,7 +219,8 @@ Workflow нормализует project id в **32 hex** (как в панели
 | Симптом | Причина | Действие |
 |---------|---------|----------|
 | `SecurityGroupRuleExists` egress | Selectel уже создаёт default egress на новой SG | egress rule убран из Terraform; `destroy` → `apply` |
-| Instance `ERROR` / `%!s(<nil>)` | частичный apply, FIP до VM, или orphan volume | `destroy`, удалить ERROR VM в панели, `apply` снова |
+| Instance `ERROR` / `%!s(<nil>)` | частичный apply, FIP до VM, orphan volume, **или нет места в AZ** | см. строку ниже; `destroy` → сменить AZ → `apply` |
+| Панель: «не хватает свободных ресурсов» в **ru-3a** | сегмент перегружен (capacity), не баг Terraform | **destroy** → AZ **`ru-3b`**: secret `SELECTEL_AVAILABILITY_ZONE` или workflow input `availability_zone=ru-3b` → **apply** |
 
 **Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
 

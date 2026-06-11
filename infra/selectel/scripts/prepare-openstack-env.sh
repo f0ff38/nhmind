@@ -82,4 +82,5 @@ if [ -n "${TF_VAR_flavor_id:-}" ]; then
 fi
 
 echo "OpenStack pool (region): ${region:-<empty>}"
+echo "Availability zone (segment): ${az:-<empty>}"
 echo "Project id (32 hex): ${project_id:0:8}...${project_id: -4}"
