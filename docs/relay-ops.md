@@ -208,6 +208,19 @@ infra/nostr-relay/
 
 Workflow нормализует project id в **32 hex** (как в панели Облачные серверы) и вызывает Keystone **в два шага**: identity → project scope. Полный JSON ответа печатается в лог (без пароля).
 
+### Troubleshooting: `apply` failed (partial state)
+
+Если **apply** оборвался (VM в `ERROR`, `SecurityGroupRuleExists`, и т.п.):
+
+1. **Provision Relay Infra** → **`destroy`** (environment **relay**) — снимает ресурсы из Terraform state.
+2. В панели **Облачные серверы** удалите вручную сервер в статусе `ERROR`, если он остался после destroy.
+3. Обновите репо (fix в `security.tf` / порядок FIP) и снова **`plan`** → **`apply`**.
+
+| Симптом | Причина | Действие |
+|---------|---------|----------|
+| `SecurityGroupRuleExists` egress | Selectel уже создаёт default egress на новой SG | egress rule убран из Terraform; `destroy` → `apply` |
+| Instance `ERROR` / `%!s(<nil>)` | частичный apply, FIP до VM, или orphan volume | `destroy`, удалить ERROR VM в панели, `apply` снова |
+
 **Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
 
 **Bootstrap S3 state (один раз вручную):** бакет в Object Storage + S3-ключ с read/write на бакет ([настройка state](https://docs.selectel.ru/terraform/configure-terraform-state-storage/)).
