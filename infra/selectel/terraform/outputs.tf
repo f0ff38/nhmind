@@ -25,5 +25,5 @@ output "flavor_id" {
 
 output "flavor_name" {
   description = "Resolved flavor name when auto-picked; empty when flavor_id override is set."
-  value       = var.flavor_id != "" ? "" : try(local.relay_flavor_auto.name, "")
+  value       = var.flavor_id != "" ? "" : try(data.openstack_compute_flavor_v2.relay[0].name, "")
 }
