@@ -120,9 +120,9 @@ on:
 |--------|-------|------------|
 | `SELECTEL_SERVICE_USER` / `SELECTEL_SERVICE_PASSWORD` | ✅ | Terraform/OpenStack ([quickstart](https://docs.selectel.ru/terraform/quickstart/)) |
 | `SELECTEL_ACCOUNT_ID` | до 1-го plan | Номер аккаунта |
-| `SELECTEL_PROJECT_ID` | до 1-го plan | Проект **nhmind** |
+| `SELECTEL_PROJECT_ID` | до 1-го plan | ID из **Облачные серверы** (32 hex), не IAM → Проекты |
 | `RELAY_DEPLOY_SSH_PRIVATE_KEY` / `RELAY_DEPLOY_SSH_PUBLIC_KEY` | до 1-го apply | SSH keypair → Selectel keypair + пользователь `deploy` |
-| `SELECTEL_AVAILABILITY_ZONE` | до plan | AZ, напр. `ru-3a` |
+| `SELECTEL_AVAILABILITY_ZONE` | до plan | AZ `ru-3a` (не пул `ru-3`) |
 | `TF_STATE_S3_BUCKET`, `TF_STATE_S3_ACCESS_KEY`, `TF_STATE_S3_SECRET_KEY` | до `terraform init` | Remote state |
 | `SELECTEL_STATIC_TOKEN` | PTR-шаг | `X-Token` из **Профиль → API-ключи** (не сервисный user) |
 | `RELAY_HOSTNAME` | PTR/DNS/deploy | `nostr.<домен>` |
