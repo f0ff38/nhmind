@@ -45,4 +45,7 @@ resource "openstack_networking_floatingip_v2" "relay" {
 resource "openstack_networking_floatingip_associate_v2" "relay" {
   port_id     = openstack_networking_port_v2.relay.id
   floating_ip = openstack_networking_floatingip_v2.relay.address
+
+  # Selectel pattern: associate public IP after the VM is attached to the port.
+  depends_on = [openstack_compute_instance_v2.relay]
 }

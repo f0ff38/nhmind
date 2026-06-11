@@ -26,6 +26,11 @@ on:
         required: false
         type: string
         default: ""
+      availability_zone:
+        description: "AZ override (ru-3a / ru-3b). Empty = secret SELECTEL_AVAILABILITY_ZONE. Use ru-3b if ru-3a has no capacity."
+        required: false
+        type: string
+        default: ""
 
 concurrency:
   group: provision-relay-infra
@@ -74,7 +79,7 @@ jobs:
           SELECTEL_SERVICE_USER: ${{ secrets.SELECTEL_SERVICE_USER }}
           SELECTEL_SERVICE_PASSWORD: ${{ secrets.SELECTEL_SERVICE_PASSWORD }}
           SELECTEL_REGION: ${{ secrets.SELECTEL_REGION }}
-          SELECTEL_AVAILABILITY_ZONE: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
+          SELECTEL_AVAILABILITY_ZONE: ${{ inputs.availability_zone != '' && inputs.availability_zone || secrets.SELECTEL_AVAILABILITY_ZONE }}
           RELAY_DEPLOY_SSH_PUBLIC_KEY: ${{ secrets.RELAY_DEPLOY_SSH_PUBLIC_KEY }}
           TF_VAR_flavor_id: ${{ inputs.flavor_id }}
         run: bash infra/selectel/scripts/prepare-openstack-env.sh

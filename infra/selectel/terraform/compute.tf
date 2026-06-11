@@ -40,18 +40,20 @@ resource "openstack_compute_instance_v2" "relay" {
   }
 
   block_device {
-    uuid             = openstack_blockstorage_volume_v3.relay_boot.id
-    source_type      = "volume"
-    destination_type = "volume"
-    boot_index       = 0
+    uuid                  = openstack_blockstorage_volume_v3.relay_boot.id
+    source_type           = "volume"
+    destination_type      = "volume"
+    boot_index            = 0
+    delete_on_termination = true
+  }
+
+  lifecycle {
+    ignore_changes = [image_id]
   }
 
   vendor_options {
     ignore_resize_confirmation = true
   }
 
-  depends_on = [
-    openstack_networking_port_secgroup_associate_v2.relay,
-    openstack_networking_floatingip_associate_v2.relay,
-  ]
+  depends_on = [openstack_networking_port_secgroup_associate_v2.relay]
 }
