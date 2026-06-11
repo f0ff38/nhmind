@@ -29,7 +29,7 @@ checkout → docker compose build → install → test → bundle → smoke run
 | `ACURAST_MNEMONIC_COORDINATOR` | Deploy `coordinator` | Environment **canary** |
 | `ACURAST_MNEMONIC` | Fallback, если нет per-module secret | Environment **canary** |
 | `CURSOR_API_KEY` | Cursor CLI в Actions | Будущий workflow для авто-фиксов/docs |
-| `RELAY_URL` | Nostr relay (`wss://nostr.<ваш-домен>`) для deploy env vars | Environment **canary** (нужен для exit criteria Phase 2) |
+| `RELAY_URL` | Nostr relay (`wss://nostr.<ваш-домен>`) для deploy env vars | Environment **canary** (нужен для exit criteria Phase 2); хостинг и чеклист — [relay-ops.md](relay-ops.md) |
 
 **Не коммитить** секреты. `.env` в `.gitignore`.
 

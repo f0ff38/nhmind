@@ -299,7 +299,7 @@ nhmind/
 │   ├── coordinator/              # interval, registry + scorecard (Phase 2)
 │   └── module-template/          # scaffold для новых модулей
 ├── packages/nostr-client/        # Nostr coordination library
-└── docs/                         # roadmap.md, nostr-protocol.md, github-actions.md
+└── docs/                         # roadmap, nostr-protocol, relay-ops, github-actions
 ```
 
 ---
