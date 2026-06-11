@@ -1,0 +1,84 @@
+name: Deploy Canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: Acurast module to deploy
+        required: true
+        type: choice
+        options:
+          - hello
+          - coordinator
+      dry_run:
+        description: Dry run only (no on-chain deploy)
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-canary-${{ inputs.module }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy-${{ inputs.module }}
+    runs-on: ubuntu-latest
+    environment: canary
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build dev image
+        run: docker compose build dev
+
+      - name: Install and bundle
+        run: |
+          docker compose run --rm dev npm ci --prefix packages/nostr-client
+          docker compose run --rm dev npm run build --prefix packages/nostr-client
+          docker compose run --rm dev npm ci --prefix modules/${{ inputs.module }}
+          docker compose run --rm dev npm run bundle --prefix modules/${{ inputs.module }}
+
+      - name: Write module .env from secrets
+        env:
+          MNEMONIC_HELLO: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
+          MNEMONIC_COORDINATOR: ${{ secrets.ACURAST_MNEMONIC_COORDINATOR }}
+          MNEMONIC_FALLBACK: ${{ secrets.ACURAST_MNEMONIC }}
+          RELAY_URL: ${{ secrets.RELAY_URL }}
+        run: |
+          set -euo pipefail
+          MODULE="${{ inputs.module }}"
+          case "${MODULE}" in
+            hello) MNEMONIC="${MNEMONIC_HELLO:-${MNEMONIC_FALLBACK:-}}" ;;
+            coordinator) MNEMONIC="${MNEMONIC_COORDINATOR:-${MNEMONIC_FALLBACK:-}}" ;;
+            *) echo "Unknown module: ${MODULE}" >&2; exit 1 ;;
+          esac
+          if [ -z "${MNEMONIC}" ]; then
+            echo "Missing mnemonic secret for ${MODULE}." >&2
+            echo "Set ACURAST_MNEMONIC_${MODULE^^} or ACURAST_MNEMONIC in environment canary." >&2
+            exit 1
+          fi
+          ENV_FILE="modules/${MODULE}/.env"
+          printf 'ACURAST_MNEMONIC=%s\n' "${MNEMONIC}" > "${ENV_FILE}"
+          if [ -n "${RELAY_URL:-}" ]; then
+            printf 'RELAY_URL=%s\n' "${RELAY_URL}" >> "${ENV_FILE}"
+          fi
+          if [ "${MODULE}" = "coordinator" ]; then
+            printf 'COORDINATOR_WATCH_MODULES=hello\n' >> "${ENV_FILE}"
+          fi
+
+      - name: Estimate fee
+        run: |
+          docker compose run --rm \
+            -e ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com \
+            dev bash -lc "cd modules/${{ inputs.module }} && acurast estimate-fee"
+
+      - name: Deploy to Acurast canary
+        run: |
+          DEPLOY_FLAGS="-n"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            DEPLOY_FLAGS="${DEPLOY_FLAGS} --dry-run"
+          fi
+          docker compose run --rm \
+            -e ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com \
+            dev bash -lc "cd modules/${{ inputs.module }} && acurast deploy ${DEPLOY_FLAGS}"

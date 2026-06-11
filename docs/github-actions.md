@@ -25,30 +25,30 @@ checkout → docker compose build → install → test → bundle → smoke run
 
 | Secret | Когда добавлять | Где использовать |
 |--------|-----------------|------------------|
-| `ACURAST_MNEMONIC` | Canary deploy из CI | Отдельный `workflow_dispatch` job, **не** на каждый PR |
+| `ACURAST_MNEMONIC_HELLO` | Deploy `hello` из Actions | Environment **canary** |
+| `ACURAST_MNEMONIC_COORDINATOR` | Deploy `coordinator` | Environment **canary** |
+| `ACURAST_MNEMONIC` | Fallback, если нет per-module secret | Environment **canary** |
 | `CURSOR_API_KEY` | Cursor CLI в Actions | Будущий workflow для авто-фиксов/docs |
-| `RELAY_URL` | Интеграционные тесты с внешним relay | Optional override |
+| `RELAY_URL` | Relay для deploy env vars | Environment **canary** (optional) |
 
 **Не коммитить** секреты. `.env` в `.gitignore`.
 
-### 4. Deploy в CI — отложить
+### 4. Deploy canary из GitHub Actions
 
-`acurast deploy` в PR/push **не рекомендуется**:
+Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-canary.yml) — **только `workflow_dispatch`**, не на каждый PR.
 
-- тратит cACU/ACU;
-- требует funded wallet;
-- TEE-поведение не валидируется unit-тестами.
+**Настройка (один раз):**
 
-Когда понадобится — отдельный workflow:
+1. GitHub → **Settings → Environments** → создать `canary` (опционально: required reviewers).
+2. В environment **canary** добавить secrets:
+   - `ACURAST_MNEMONIC_HELLO` — mnemonic из `modules/hello/.env`
+   - `ACURAST_MNEMONIC_COORDINATOR` — mnemonic из `modules/coordinator/.env`
+   - `RELAY_URL` — `wss://…` (когда relay будет)
+3. Actions → **Deploy Canary** → Run workflow → module `hello` → сначала `dry_run: true`, затем реальный deploy.
 
-```yaml
-on:
-  workflow_dispatch:
-  push:
-    tags: ['v*']
-```
+Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com) на адреса deploy-кошельков (локально: `node scripts/show-acurast-address.mjs modules/hello`).
 
-с `environment: canary` (GitHub Environments + required reviewers).
+`acurast deploy` в PR/push по-прежнему **не** запускается автоматически.
 
 ### 5. Кэширование (следующий шаг)
 
@@ -100,7 +100,7 @@ on:
 | Workflow | Триггер | Назначение |
 |----------|---------|------------|
 | `ci.yml` | push/PR → main | test + bundle + smoke ✅ |
-| `deploy-canary.yml` | manual / tag | canary deploy с `ACURAST_MNEMONIC` |
+| `deploy-canary.yml` | `workflow_dispatch` | canary deploy hello / coordinator ✅ |
 | `cursor-agent.yml` | issue comment / schedule | Cursor CLI (будущее) |
 
 ## Cursor Dashboard
