@@ -31,7 +31,7 @@ fi
 
 echo "::error::SSH to ${user}@${host} failed (timeout, key rejected, or port 22 blocked)"
 echo "Checklist:"
-echo "  - RELAY_SSH_HOST is floating IP from terraform output"
+echo "  - Run Provision Relay Infra apply first (terraform output public_ip)"
 echo "  - Security group allows 0.0.0.0/0:22 and deploy user has RELAY_DEPLOY_SSH_PUBLIC_KEY"
 echo "  - VM finished cloud-init (wait a few minutes after apply)"
 exit 1

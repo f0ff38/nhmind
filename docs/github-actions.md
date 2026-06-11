@@ -114,9 +114,9 @@ on:
 
 | Workflow | Триггер | Назначение |
 |----------|---------|------------|
-| `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Формат + live-проверки секретов **relay** (Keystone, S3, SSH keys, X-Token; deploy: SSH to VM) ✅ |
+| `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Формат + live-проверки секретов **relay** (Keystone, S3, SSH keys, X-Token; deploy: SSH to VM via TF `public_ip`) ✅ |
 | `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через `X-Token` ✅ |
-| `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke`) | SSH → `infra/nostr-relay/` compose |
+| `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke` \| `all`) | SSH → `infra/nostr-relay/` compose; IP из Terraform state ✅ |
 
 **Секреты environment `relay`:**
 
@@ -131,7 +131,9 @@ on:
 | `TF_STATE_S3_REGION` | опционально | Пул S3 бакета (`ru-3`); иначе из `SELECTEL_REGION` / AZ |
 | `SELECTEL_STATIC_TOKEN` | PTR-шаг | `X-Token` из **Профиль → API-ключи** (не сервисный user) |
 | `RELAY_HOSTNAME` | PTR/DNS/deploy | `nostr.<домен>` |
-| `RELAY_SSH_HOST`, `RELAY_SSH_USER` | deploy-relay | IP и `deploy` (host можно брать из TF output) |
+| `RELAY_DNS_ZONE` | опционально | Зона Selectel DNS (`example.com`), если не выводится из hostname |
+
+Floating IP для SSH/deploy — **`terraform output public_ip`**. **A-запись** — автоматически в **Provision Relay Infra** (`set_dns_a`, default `true`).
 
 **Файрвол:** SG `0.0.0.0/0:22` (key-only) + `0.0.0.0/0:443`. Подробнее: [relay-ops.md — файрвол VM](relay-ops.md#файрвол-vm-canary-ssh-key-only-https-public).
 
@@ -145,11 +147,12 @@ Workflow [`.github/workflows/provision-relay-infra.yml`](../.github/workflows/pr
 
 1. **Validate Relay Secrets** → `provision` (зелёный).
 2. **Provision Relay Infra** → `plan` — проверить diff (VM, сеть, floating IP, security group).
-3. **Provision Relay Infra** → `apply`, `set_ptr: true` — создаёт VM + PTR.
-4. Вручную: DNS **A** `RELAY_HOSTNAME` → `public_ip` из job summary.
-5. Если `plan`/`apply` не находит flavor — workflow auto-resolve через [resolve-relay-flavor.sh](../infra/selectel/scripts/resolve-relay-flavor.sh); override: input **`flavor_id`** (pool-specific, напр. `1003` для `BL1.2-4096` в ru-3).
+3. **Provision Relay Infra** → `apply`, `set_ptr: true`, `set_dns_a: true` — VM + PTR + DNS A.
+4. **Deploy Relay** → `deploy` (после propagation DNS) или `smoke`.
 
-Следующий workflow: **Deploy Relay** (ещё не реализован).
+Если `plan`/`apply` не находит flavor — auto-resolve через [resolve-relay-flavor.sh](../infra/selectel/scripts/resolve-relay-flavor.sh); override: input **`flavor_id`** (напр. `1003`).
+
+Workflow **Deploy Relay**: [`.github/workflows/deploy-relay.yml`](../.github/workflows/deploy-relay.yml) — SSH на VM, IP из Terraform state, compose в `infra/nostr-relay/`.
 
 ## Планируемые workflows
 
@@ -159,7 +162,7 @@ Workflow [`.github/workflows/provision-relay-infra.yml`](../.github/workflows/pr
 | `deploy-canary.yml` | `workflow_dispatch` | canary deploy hello / coordinator ✅ |
 | `validate-relay-secrets.yml` | `workflow_dispatch` | проверка секретов relay ✅ |
 | `provision-relay-infra.yml` | `workflow_dispatch` | Selectel VM + сеть ✅ |
-| `deploy-relay.yml` | `workflow_dispatch` | relay compose на VM 🔄 в разработке |
+| `deploy-relay.yml` | `workflow_dispatch` | relay compose на VM ✅ |
 | `cursor-agent.yml` | issue comment / schedule | Cursor CLI (будущее) |
 
 ## Cursor Dashboard
