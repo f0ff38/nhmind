@@ -179,7 +179,7 @@ infra/nostr-relay/
 | `SELECTEL_STATIC_TOKEN` | после VM, до PTR | Статический ключ панели (`X-Token`), **не** сервисный пользователь — [PTR API](https://docs.selectel.ru/api/ip-addresses/) |
 | `RELAY_HOSTNAME` | до PTR/DNS/TLS | FQDN, напр. `nostr.example.com` (PTR = этот hostname) |
 | `RELAY_DNS_ZONE` | опционально | Зона в Selectel DNS, напр. `example.com` — если не задана, выводится из `RELAY_HOSTNAME` (`nostr.example.com` → `example.com`) |
-| `RELAY_DNS_ZONE_ID` | опционально | UUID зоны из URL панели: `.../dns/<project>/registrar/<zone-uuid>/` — если lookup по имени не находит зону |
+| `RELAY_DNS_ZONE_ID` | **до DNS A**, если list API пустой | UUID зоны из URL панели: `.../dns/<project>/registrar/<zone-uuid>/` |
 | `SELECTEL_IAM_PROJECT_NAME` | опционально | Override имени проекта для DNS API; иначе резолвится из `SELECTEL_PROJECT_ID` |
 
 **Не секрет:** floating IP relay — **`terraform output public_ip`** (S3 state). Workflow **Deploy Relay** и validate stage `deploy` читают его автоматически; ручной secret `RELAY_SSH_HOST` **не нужен**. SSH user — `deploy` (cloud-init).
@@ -230,7 +230,7 @@ Workflow нормализует project id в **32 hex** (как в панели
 | PTR API **HTTP 405** `Method Not Allowed` | старый endpoint `domains/v1/ptr` | используйте **IPAM** `ipam/v1` ([upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh)); повторный **apply** с `set_ptr=true` |
 | PTR **HTTP 409** `ptr_already_exists` на повторном apply | PTR уже указывает на `RELAY_HOSTNAME` | idempotent upsert в [upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh); повторный apply безопасен |
 | DNS A: **Keystone HTTP 401** | token script использовал UUID project id; Terraform — hex | обновите repo; повторный **apply** с `set_dns_a=true`; при необходимости secret `SELECTEL_IAM_PROJECT_NAME` (IAM → Проекты → имя) |
-| DNS A: **zone not found** / **zero zones** | Keystone scope по project id не видит DNS | auto-resolve имени из `SELECTEL_PROJECT_ID`; override `SELECTEL_IAM_PROJECT_NAME`; `RELAY_DNS_ZONE_ID` |
+| DNS A: **zone not found** / **zero zones** | zone list API пустой (registrar UI) | secret **`RELAY_DNS_ZONE_ID`** = UUID из `.../registrar/<uuid>/` |
 
 **Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
 

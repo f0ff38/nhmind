@@ -4,6 +4,12 @@ set -euo pipefail
 
 DNS_API="${SELECTEL_DNS_API:-https://api.selectel.ru/domains/v2}"
 
+trim() {
+  printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+zone_id="$(trim "${RELAY_DNS_ZONE_ID:-}")"
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 token="$(bash "${script_dir}/get-selectel-dns-token.sh")"
 
@@ -26,8 +32,21 @@ zone_count="$(jq -r 'if (.count? | type) == "number" then .count elif (.result? 
 sample_names="$(jq -r '(.result // [])[:5][]?.name // empty' dns-zones.json 2>/dev/null | paste -sd ', ' - || true)"
 
 if [ "${zone_count}" = "0" ]; then
-  echo "::error::Selectel DNS API OK but zero zones visible — wrong IAM project scope"
-  echo "Set SELECTEL_IAM_PROJECT_NAME only if auto-resolve from SELECTEL_PROJECT_ID failed"
+  if [ -n "${zone_id}" ]; then
+    zone_http="$(curl -sS -o dns-zone.json -w "%{http_code}" \
+      -X GET "${DNS_API}/zones/${zone_id}" \
+      -H "X-Auth-Token: ${token}" \
+      -H "Accept: application/json")"
+    if [ "${zone_http}" = "200" ]; then
+      zone_name="$(jq -r '.name // empty' dns-zone.json 2>/dev/null || true)"
+      echo "Selectel DNS API OK (zone list empty; RELAY_DNS_ZONE_ID resolves: ${zone_name:-${zone_id}})"
+      exit 0
+    fi
+    echo "::error::RELAY_DNS_ZONE_ID not accessible (HTTP ${zone_http})"
+    exit 1
+  fi
+  echo "::error::Selectel DNS API OK but zero zones in list — set RELAY_DNS_ZONE_ID secret"
+  echo "Copy UUID from panel URL: .../dns/<project>/registrar/<zone-uuid>/"
   exit 1
 fi
 

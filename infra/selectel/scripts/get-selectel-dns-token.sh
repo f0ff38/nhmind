@@ -123,16 +123,12 @@ dns_token_can_manage_zones() {
     fi
   fi
 
-  local payload zone_count
-  payload="$(curl -sS \
+  local http_code
+  http_code="$(curl -sS -o /dev/null -w "%{http_code}" \
     -X GET "${DNS_API}/zones?limit=1" \
     -H "X-Auth-Token: ${token}" \
     -H "Accept: application/json")"
-  zone_count="$(printf '%s' "${payload}" | jq -r 'if (.count? | type) == "number" then .count elif (.result? | type) == "array" then (.result | length) else 0 end')"
-  if [ "${zone_count:-0}" -gt 0 ] 2>/dev/null; then
-    return 0
-  fi
-  return 1
+  [ "${http_code}" = "200" ]
 }
 
 declare -a scope_modes=("name")
@@ -159,22 +155,23 @@ for i in "${!scope_modes[@]}"; do
   keystone_ok=1
   if dns_token_can_manage_zones "${token}"; then
     echo "Selectel DNS token scope: ${label}" >&2
+    if [ -z "${zone_id_probe}" ]; then
+      echo "::warning::DNS zone list may be empty — set RELAY_DNS_ZONE_ID from panel .../registrar/<uuid>/" >&2
+    fi
     printf '%s' "${token}"
     exit 0
   fi
-  echo "::warning::Keystone OK (${label}) but DNS API sees zero zones for this scope" >&2
+  echo "::warning::Keystone OK (${label}) but DNS API rejected token (non-200)" >&2
 done
 
 if [ "${keystone_ok}" -eq 0 ]; then
   echo "::error::Keystone project token failed for DNS (no scope accepted credentials)" >&2
 else
-  echo "::error::Keystone token obtained but Selectel DNS API returned zero zones for every scope" >&2
+  echo "::error::Keystone token obtained but Selectel DNS API rejected every scope" >&2
 fi
 
 echo "Checklist:" >&2
 echo "  - SELECTEL_PROJECT_ID is the same project id as IAM → Projects (correct)" >&2
-echo "  - DNS API needs Keystone scope by project name — auto-resolved from project id" >&2
-echo "  - If resolve failed: set SELECTEL_IAM_PROJECT_NAME = name column in IAM → Projects" >&2
-echo "  - Optional: RELAY_DNS_ZONE_ID from panel .../registrar/<uuid>/" >&2
-echo "  - Service user IAM permission must include this project (DNS hosting)" >&2
+echo "  - Set RELAY_DNS_ZONE_ID from panel .../dns/<project>/registrar/<zone-uuid>/" >&2
+echo "  - Service user IAM permission must include DNS hosting on this project" >&2
 exit 1

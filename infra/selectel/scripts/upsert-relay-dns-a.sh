@@ -203,7 +203,7 @@ print_zone_lookup_help() {
   if [ -n "${sample_names}" ]; then
     echo "  - Sample zone names from API: ${sample_names}"
   else
-    echo "  - API returned zero zones for this project token (wrong scope or empty project)"
+    echo "  - API zone list is empty — set secret RELAY_DNS_ZONE_ID (panel .../registrar/<uuid>/)"
   fi
 }
 
