@@ -92,7 +92,7 @@ Selectel использует **три типа** токенов; для GitOps 
 
 1. **Terraform** — логин/пароль **сервисного пользователя** с ролью `member` в scope **Проект** (паттерн из [Terraform quickstart](https://docs.selectel.ru/terraform/quickstart/)): провайдеры `selectel` + `openstack`, `auth_url = https://cloud.api.selcloud.ru/identity/v3`. Пароль — в GitHub Secret; IAM-токен в CI **можно** получать через Keystone POST, но проще отдать password провайдеру (он сам ходит в Keystone).
 2. **PTR** — [upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh): `POST`/`PUT` к **IPAM API** `https://api.selectel.ru/ipam/v1/` с `X-Token` (не `domains/v1/ptr` — legacy, HTTP 405). IAM-токены для PTR **не поддерживаются**.
-3. **DNS** (зона в Selectel DNS) — после `apply`: workflow upsert **A** через [DNS API v2](https://docs.selectel.ru/en/api/dns-actual/) (`X-Auth-Token` **project-scoped IAM**, тот же сервисный пользователь). Keystone scope: сначала **32 hex project id** (как Terraform), опционально `SELECTEL_IAM_PROJECT_NAME` для scope по имени IAM-проекта. Зона должна **уже существовать** в панели DNS; input `set_dns_a` (default `true`).
+3. **DNS** (зона в Selectel DNS) — после `apply`: upsert **A** через [DNS API v2](https://docs.selectel.ru/en/api/dns-actual/). **`SELECTEL_PROJECT_ID`** тот же, что в IAM → Projects и Облачные серверы; для DNS Keystone нужен scope по **имени** проекта — [resolve-selectel-project-name.sh](../infra/selectel/scripts/resolve-selectel-project-name.sh) резолвит имя по id автоматически. Override: `SELECTEL_IAM_PROJECT_NAME`. Опционально `RELAY_DNS_ZONE_ID`.
 4. **Не хранить** статический `X-Token` в Terraform state; PTR — shell/curl или маленький script в workflow после `terraform apply`.
 
 Ограничение API по IP: в панели можно [ограничить доступ](https://docs.selectel.ru/api/authorization/) к `https://api.selectel.ru` — для GHA учесть egress GitHub Actions или не включать whitelist на первом этапе.
@@ -134,6 +134,8 @@ infra/selectel/scripts/
 ├── write-terraform-backend-ci.sh
 ├── read-relay-public-ip.sh   # terraform output public_ip (deploy + validate)
 ├── get-openstack-project-token.sh
+├── get-selectel-dns-token.sh    # DNS API: name scope from SELECTEL_PROJECT_ID
+├── resolve-selectel-project-name.sh
 ├── upsert-relay-dns-a.sh     # Selectel DNS A record after apply
 ├── upsert-relay-ptr.sh       # Selectel IPAM PTR (ipam/v1)
 └── verify-selectel-dns-auth.sh
@@ -178,7 +180,7 @@ infra/nostr-relay/
 | `RELAY_HOSTNAME` | до PTR/DNS/TLS | FQDN, напр. `nostr.example.com` (PTR = этот hostname) |
 | `RELAY_DNS_ZONE` | опционально | Зона в Selectel DNS, напр. `example.com` — если не задана, выводится из `RELAY_HOSTNAME` (`nostr.example.com` → `example.com`) |
 | `RELAY_DNS_ZONE_ID` | опционально | UUID зоны из URL панели: `.../dns/<project>/registrar/<zone-uuid>/` — если lookup по имени не находит зону |
-| `SELECTEL_IAM_PROJECT_NAME` | опционально | IAM → Проекты → имя; для DNS API, если scope по project id не проходит |
+| `SELECTEL_IAM_PROJECT_NAME` | опционально | Override имени проекта для DNS API; иначе резолвится из `SELECTEL_PROJECT_ID` |
 
 **Не секрет:** floating IP relay — **`terraform output public_ip`** (S3 state). Workflow **Deploy Relay** и validate stage `deploy` читают его автоматически; ручной secret `RELAY_SSH_HOST` **не нужен**. SSH user — `deploy` (cloud-init).
 
@@ -228,7 +230,7 @@ Workflow нормализует project id в **32 hex** (как в панели
 | PTR API **HTTP 405** `Method Not Allowed` | старый endpoint `domains/v1/ptr` | используйте **IPAM** `ipam/v1` ([upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh)); повторный **apply** с `set_ptr=true` |
 | PTR **HTTP 409** `ptr_already_exists` на повторном apply | PTR уже указывает на `RELAY_HOSTNAME` | idempotent upsert в [upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh); повторный apply безопасен |
 | DNS A: **Keystone HTTP 401** | token script использовал UUID project id; Terraform — hex | обновите repo; повторный **apply** с `set_dns_a=true`; при необходимости secret `SELECTEL_IAM_PROJECT_NAME` (IAM → Проекты → имя) |
-| DNS A: **zone not found** | lookup по имени не совпал / 0 zones в API | secret `RELAY_DNS_ZONE_ID` = UUID из URL `.../registrar/<uuid>/`; проверьте `RELAY_DNS_ZONE` и IAM scope |
+| DNS A: **zone not found** / **zero zones** | Keystone scope по project id не видит DNS | auto-resolve имени из `SELECTEL_PROJECT_ID`; override `SELECTEL_IAM_PROJECT_NAME`; `RELAY_DNS_ZONE_ID` |
 
 **Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
 

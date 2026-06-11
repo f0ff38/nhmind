@@ -69,7 +69,7 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-token="$(bash "${script_dir}/get-openstack-project-token.sh")"
+token="$(bash "${script_dir}/get-selectel-dns-token.sh")"
 
 auth_header=(-H "X-Auth-Token: ${token}" -H "Content-Type: application/json" -H "Accept: application/json")
 
@@ -191,9 +191,9 @@ print_zone_lookup_help() {
   echo "Checklist:"
   echo "  - Zone exists in panel → DNS (actual/registrar) for project ${OS_PROJECT_ID:-<unknown>}"
   echo "  - Set RELAY_DNS_ZONE if hostname uses a nested subdomain"
+  echo "  - SELECTEL_IAM_PROJECT_NAME override if auto-resolve from SELECTEL_PROJECT_ID fails"
   echo "  - Set RELAY_DNS_ZONE_ID from panel URL: .../dns/<project>/registrar/<zone-uuid>/"
   echo "  - Service user IAM permission must include this DNS project"
-  echo "  - Optional: SELECTEL_IAM_PROJECT_NAME (IAM → Projects → name) for token scope"
   if [ -n "${TOTAL_ZONES_REPORT:-}" ]; then
     echo "  - Token sees ${TOTAL_ZONES_REPORT} zone(s) in API; none matched ${zone_fqdn}"
   fi
