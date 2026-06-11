@@ -13,7 +13,11 @@ http_code="$(curl -sS -o dns-zones.json -w "%{http_code}" \
   -H "Accept: application/json")"
 
 if [ "${http_code}" = "200" ]; then
-  echo "Selectel DNS API OK (HTTP 200, project-scoped IAM token)"
+  zone_count="$(jq -r '.count // ((.result // []) | length)' dns-zones.json 2>/dev/null || echo 0)"
+  echo "Selectel DNS API OK (HTTP 200, project-scoped IAM token, zones visible: ${zone_count})"
+  if [ "${zone_count}" = "0" ]; then
+    echo "::warning::DNS API returned zero zones — check project scope or set RELAY_DNS_ZONE_ID from panel URL"
+  fi
   exit 0
 fi
 
