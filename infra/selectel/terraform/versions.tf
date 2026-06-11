@@ -11,6 +11,7 @@ terraform {
   # bucket, region, endpoints, credentials — via -backend-config in CI (pool must match bucket location)
   backend "s3" {
     key                         = "nhmind-relay/terraform.tfstate"
+    use_path_style              = true
     skip_region_validation      = true
     skip_credentials_validation = true
     skip_requesting_account_id  = true
