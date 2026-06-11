@@ -263,10 +263,12 @@ cp .env.example .env
 | Workflow                                                   | Триггер             | Назначение                                           |
 | ---------------------------------------------------------- | ------------------- | ---------------------------------------------------- |
 | `[ci.yml](.github/workflows/ci.yml)`                       | push/PR → `main`    | test + bundle + smoke (hello, coordinator, template) |
-| `[deploy-canary.yml](.github/workflows/deploy-canary.yml)` | `workflow_dispatch` | canary deploy, если Acurast RPC недоступен локально  |
+| `[deploy-canary.yml](.github/workflows/deploy-canary.yml)` | `workflow_dispatch` | canary deploy hello / coordinator (environment **canary**) |
+| `[validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml)` | `workflow_dispatch` | проверка секретов environment **relay** |
+| `[provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml)` | `workflow_dispatch` | Terraform: Selectel VM, сеть, floating IP, PTR |
 
 
-CI и branch protection: `[docs/github-actions.md](docs/github-actions.md)`. Canary deploy: environment **canary** + secrets `ACURAST_MNEMONIC_`*, опционально `RELAY_URL`.
+CI и branch protection: `[docs/github-actions.md](docs/github-actions.md)`. Relay GitOps: environment **relay** — см. [relay-ops.md](docs/relay-ops.md). Canary: **canary** + `ACURAST_MNEMONIC_*`, `RELAY_URL` (после поднятия relay).
 
 ### Что остаётся вне Docker
 
@@ -293,7 +295,10 @@ nhmind/
 │   └── deploy-acurast-sdk.mjs    # programmatic deploy (CI/ops, не TEE)
 ├── .github/workflows/
 │   ├── ci.yml
-│   └── deploy-canary.yml
+│   ├── deploy-canary.yml
+│   ├── validate-relay-secrets.yml
+│   └── provision-relay-infra.yml   # deploy-relay.yml — следующий шаг
+├── infra/selectel/                 # Terraform + cloud-init (Selectel relay VM)
 ├── modules/
 │   ├── hello/                    # эталонный модуль (onetime)
 │   ├── coordinator/              # interval, registry + scorecard (Phase 2)

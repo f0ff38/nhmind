@@ -45,7 +45,7 @@ flowchart LR
 | `modules/coordinator` (код)                                  | ✅                              |
 | `hello` canary на processor                                  | ✅ (deploy via GHA)              |
 | `coordinator` canary на processor                            | ⬜ следующий шаг                 |
-| Публичный relay + `RELAY_URL` в deploy                       | 🔄 **в работе** — Selectel GitOps (`infra/selectel/` + provision/deploy workflows) |
+| Публичный relay + `RELAY_URL` в deploy                       | 🔄 plan ✅, apply ⬜ — Selectel GitOps (`infra/selectel/` + provision/deploy workflows) |
 
 
 ---
@@ -114,7 +114,7 @@ flowchart LR
 - [x] Programmatic deploy через SDK (canary) — `deploy-canary.yml` + `scripts/deploy-acurast-sdk.mjs`; autoscale в TEE — Phase 4
 - [ ] Canary deploy **coordinator** + smoke на processor
 - [x] Canary deploy **hello** на processor (GHA)
-- [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml` ([relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay))
+- [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml`; validate ✅, plan ✅, apply ⬜ ([relay-ops.md](relay-ops.md#следующая-сессия-checkpoint))
 - [ ] **Selectel GitOps (deploy relay)** — `infra/nostr-relay/` + `deploy-relay.yml`
 
 ### Exit criteria

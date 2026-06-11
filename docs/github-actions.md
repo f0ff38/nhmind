@@ -143,7 +143,7 @@ Workflow [`.github/workflows/provision-relay-infra.yml`](../.github/workflows/pr
 2. **Provision Relay Infra** → `plan` — проверить diff (VM, сеть, floating IP, security group).
 3. **Provision Relay Infra** → `apply`, `set_ptr: true` — создаёт VM + PTR.
 4. Вручную: DNS **A** `RELAY_HOSTNAME` → `public_ip` из job summary.
-5. Если `plan` падает на flavor — укажите `flavor_id` из панели Selectel (pool-specific).
+5. Если `plan`/`apply` не находит flavor — workflow auto-resolve через [resolve-relay-flavor.sh](../infra/selectel/scripts/resolve-relay-flavor.sh); override: input **`flavor_id`** (pool-specific, напр. `1003` для `BL1.2-4096` в ru-3).
 
 Следующий workflow: **Deploy Relay** (ещё не реализован).
 

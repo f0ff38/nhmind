@@ -10,14 +10,17 @@
 
 ```
 modules/hello/          # стартовый Acurast deployment (TypeScript → dist/bundle.js)
+modules/coordinator/    # interval coordinator (Phase 2)
+packages/nostr-client/  # Nostr coordination library
+infra/selectel/         # Selectel relay VM (Terraform + cloud-init)
 scripts/dev             # Docker-обёртка (основной dev/CI путь)
 .cursor/                # Cloud Agent environment + Bugbot rules
-.github/workflows/      # GitHub Actions CI
+.github/workflows/      # CI, canary deploy, relay validate/provision
 ```
 
 Новые business-модули — в `modules/<name>/`, каждый со своим `acurast.json`.
 
-**Текущая фаза:** Phase 1 (Nostr layer) — см. [docs/roadmap.md](docs/roadmap.md). Phase 0 завершена.
+**Текущая фаза:** Phase 2 (Coordinator + relay на Selectel) — см. [docs/roadmap.md](docs/roadmap.md). Phase 0–1 завершены.
 
 Новый модуль: `./scripts/new-module.sh <name>` → `NHIND_MODULE_DIR=modules/<name> ./scripts/dev test`
 
@@ -110,6 +113,8 @@ docker compose build dev
 ## GitHub Actions
 
 CI: [.github/workflows/ci.yml](.github/workflows/ci.yml) — `install → test → bundle → smoke run` в Docker.
+
+Relay (environment **relay**): [validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml), [provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml). Ops: [docs/relay-ops.md](docs/relay-ops.md).
 
 При добавлении workflows:
 
