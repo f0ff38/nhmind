@@ -155,10 +155,10 @@ infra/nostr-relay/
 | `SELECTEL_SERVICE_USER` | ✅ сейчас | Имя сервисного пользователя |
 | `SELECTEL_SERVICE_PASSWORD` | ✅ сейчас | Пароль сервисного пользователя |
 | `SELECTEL_ACCOUNT_ID` | ✅ до 1-го `plan` | Номер аккаунта (`domain_name` в провайдере) |
-| `SELECTEL_PROJECT_ID` | ✅ до 1-го `plan` | UUID проекта **nhmind** (панель → Облачные серверы → проект → ID) |
+| `SELECTEL_PROJECT_ID` | ✅ до 1-го `plan` | ID проекта облачной платформы **nhmind**: **Продукты → Облачные серверы** → меню проектов → скопировать ID (32 hex, **без** дефисов). Не путать с IAM → Проекты — там другой идентификатор |
 | `RELAY_DEPLOY_SSH_PRIVATE_KEY` | ✅ до 1-го `apply` | Ed25519/RSA **private** key (PEM) |
 | `RELAY_DEPLOY_SSH_PUBLIC_KEY` | ✅ до 1-го `apply` | OpenSSH public key (пара к private; в TF keypair и `deploy` user) |
-| `SELECTEL_AVAILABILITY_ZONE` | ✅ до 1-го `plan` | AZ пула, напр. `ru-3a` |
+| `SELECTEL_AVAILABILITY_ZONE` | ✅ до 1-го `plan` | **Зона доступности** при создании VM: `ru-3a` / `ru-3b` (не пул `ru-3` — он только для `region` в провайдере) |
 | `TF_STATE_S3_BUCKET` | ✅ до 1-го `init` | Бакет S3 Selectel для `terraform.tfstate` |
 | `TF_STATE_S3_ACCESS_KEY` | ✅ до 1-го `init` | Access Key S3 (ключ сервисного пользователя или отдельный) |
 | `TF_STATE_S3_SECRET_KEY` | ✅ до 1-го `init` | Secret Key S3 |
@@ -167,7 +167,9 @@ infra/nostr-relay/
 | `RELAY_SSH_HOST` | после provision | Floating IP (можно не секретом — output TF; в GHA удобно для `deploy-relay`) |
 | `RELAY_SSH_USER` | после provision | `deploy` (фиксирован в cloud-init) |
 
-**Не секреты** (в `terraform.tfvars` или variables репо): `SELECTEL_REGION` / pool (`ru-3`), flavor.
+**Не секреты** (в `terraform.tfvars` или variables репо): pool `ru-3` (= `region` OpenStack-провайдера), flavor.
+
+**Секреты только в environment `relay`:** Settings → **Environments** → **relay** → Environment secrets (не Repository secrets).
 
 **Проверка секретов:** workflow [**Validate Relay Secrets**](../.github/workflows/validate-relay-secrets.yml) (`workflow_dispatch`, environment **relay**). Режимы: `provision` (до Terraform), `deploy` (после VM), `all`. Значения не логируются — только «пусто / неверный формат».
 
