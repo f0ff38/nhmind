@@ -156,7 +156,7 @@ for i in "${!scope_modes[@]}"; do
   if dns_token_can_manage_zones "${token}"; then
     echo "Selectel DNS token scope: ${label}" >&2
     if [ -z "${zone_id_probe}" ]; then
-      echo "::warning::DNS zone list may be empty — set RELAY_DNS_ZONE_ID from panel .../registrar/<uuid>/" >&2
+      echo "::warning::DNS zone list may be empty — upsert-relay-dns-a.sh will POST /zones if needed" >&2
     fi
     printf '%s' "${token}"
     exit 0
@@ -172,6 +172,6 @@ fi
 
 echo "Checklist:" >&2
 echo "  - SELECTEL_PROJECT_ID is the same project id as IAM → Projects (correct)" >&2
-echo "  - Set RELAY_DNS_ZONE_ID from panel .../dns/<project>/registrar/<zone-uuid>/" >&2
+echo "  - Empty zone list is OK — provision creates DNS hosting zone via POST /zones" >&2
 echo "  - Service user IAM permission must include DNS hosting on this project" >&2
 exit 1

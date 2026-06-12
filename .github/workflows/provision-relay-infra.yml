@@ -17,7 +17,7 @@ on:
         type: boolean
         default: true
       set_dns_a:
-        description: Upsert A record in Selectel DNS after apply (zone must exist in panel)
+        description: Create DNS zone if missing and upsert A record (Selectel DNS API v2)
         required: false
         type: boolean
         default: true
@@ -161,7 +161,7 @@ jobs:
           echo "| relay_hostname | \`${{ secrets.RELAY_HOSTNAME }}\` |" >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           if [ "${{ inputs.set_dns_a }}" = "true" ]; then
-            echo "DNS **A** \`${{ secrets.RELAY_HOSTNAME }}\` → \`${PUBLIC_IP}\` upserted via Selectel DNS API (if zone exists)." >> "${GITHUB_STEP_SUMMARY}"
+            echo "DNS zone (if missing) + **A** \`${{ secrets.RELAY_HOSTNAME }}\` → \`${PUBLIC_IP}\` via Selectel DNS API v2." >> "${GITHUB_STEP_SUMMARY}"
           else
             echo "DNS A skipped (\`set_dns_a=false\`). Upsert manually or re-run apply with \`set_dns_a=true\`." >> "${GITHUB_STEP_SUMMARY}"
           fi

@@ -92,7 +92,7 @@ Selectel использует **три типа** токенов; для GitOps 
 
 1. **Terraform** — логин/пароль **сервисного пользователя** с ролью `member` в scope **Проект** (паттерн из [Terraform quickstart](https://docs.selectel.ru/terraform/quickstart/)): провайдеры `selectel` + `openstack`, `auth_url = https://cloud.api.selcloud.ru/identity/v3`. Пароль — в GitHub Secret; IAM-токен в CI **можно** получать через Keystone POST, но проще отдать password провайдеру (он сам ходит в Keystone).
 2. **PTR** — [upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh): `POST`/`PUT` к **IPAM API** `https://api.selectel.ru/ipam/v1/` с `X-Token` (не `domains/v1/ptr` — legacy, HTTP 405). IAM-токены для PTR **не поддерживаются**.
-3. **DNS** (зона в Selectel DNS) — после `apply`: upsert **A** через [DNS API v2](https://docs.selectel.ru/en/api/dns-actual/). **`SELECTEL_PROJECT_ID`** тот же, что в IAM → Projects и Облачные серверы; для DNS Keystone нужен scope по **имени** проекта — [resolve-selectel-project-name.sh](../infra/selectel/scripts/resolve-selectel-project-name.sh) резолвит имя по id автоматически. Override: `SELECTEL_IAM_PROJECT_NAME`. Опционально `RELAY_DNS_ZONE_ID`.
+3. **DNS** (DNS hosting actual) — после `apply`: при отсутствии зоны `POST /zones`, затем upsert **A** через [DNS API v2](https://docs.selectel.ru/en/api/dns-actual/). **`SELECTEL_PROJECT_ID`** тот же, что в IAM → Projects и Облачные серверы; для DNS Keystone нужен scope по **имени** проекта — [resolve-selectel-project-name.sh](../infra/selectel/scripts/resolve-selectel-project-name.sh) резолвит имя по id автоматически. Override: `SELECTEL_IAM_PROJECT_NAME`. Опционально `RELAY_DNS_ZONE_ID`.
 4. **Не хранить** статический `X-Token` в Terraform state; PTR — shell/curl или маленький script в workflow после `terraform apply`.
 
 Ограничение API по IP: в панели можно [ограничить доступ](https://docs.selectel.ru/api/authorization/) к `https://api.selectel.ru` — для GHA учесть egress GitHub Actions или не включать whitelist на первом этапе.
@@ -179,7 +179,7 @@ infra/nostr-relay/
 | `SELECTEL_STATIC_TOKEN` | после VM, до PTR | Статический ключ панели (`X-Token`), **не** сервисный пользователь — [PTR API](https://docs.selectel.ru/api/ip-addresses/) |
 | `RELAY_HOSTNAME` | до PTR/DNS/TLS | FQDN, напр. `nostr.example.com` (PTR = этот hostname) |
 | `RELAY_DNS_ZONE` | опционально | Зона в Selectel DNS, напр. `example.com` — если не задана, выводится из `RELAY_HOSTNAME` (`nostr.example.com` → `example.com`) |
-| `RELAY_DNS_ZONE_ID` | **до DNS A**, если list API пустой | UUID зоны из URL панели: `.../dns/<project>/registrar/<zone-uuid>/` |
+| `RELAY_DNS_ZONE_ID` | опционально | UUID **доменной зоны** DNS hosting (actual); не UUID из `/registrar/` |
 | `SELECTEL_IAM_PROJECT_NAME` | опционально | Override имени проекта для DNS API; иначе резолвится из `SELECTEL_PROJECT_ID` |
 
 **Не секрет:** floating IP relay — **`terraform output public_ip`** (S3 state). Workflow **Deploy Relay** и validate stage `deploy` читают его автоматически; ручной secret `RELAY_SSH_HOST` **не нужен**. SSH user — `deploy` (cloud-init).
@@ -230,7 +230,7 @@ Workflow нормализует project id в **32 hex** (как в панели
 | PTR API **HTTP 405** `Method Not Allowed` | старый endpoint `domains/v1/ptr` | используйте **IPAM** `ipam/v1` ([upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh)); повторный **apply** с `set_ptr=true` |
 | PTR **HTTP 409** `ptr_already_exists` на повторном apply | PTR уже указывает на `RELAY_HOSTNAME` | idempotent upsert в [upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh); повторный apply безопасен |
 | DNS A: **Keystone HTTP 401** | token script использовал UUID project id; Terraform — hex | обновите repo; повторный **apply** с `set_dns_a=true`; при необходимости secret `SELECTEL_IAM_PROJECT_NAME` (IAM → Проекты → имя) |
-| DNS A: **zone not found** / **zero zones** | zone list API пустой (registrar UI) | secret **`RELAY_DNS_ZONE_ID`** = UUID из `.../registrar/<uuid>/` |
+| DNS A: **zero zones** | **Доменные зоны = 0** (есть только **Домены** registrar) | повторный **apply** с `set_dns_a=true` — [upsert-relay-dns-a.sh](../infra/selectel/scripts/upsert-relay-dns-a.sh) создаёт зону через `POST /zones`; затем NS на Selectel |
 
 **Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
 
@@ -238,7 +238,8 @@ Workflow нормализует project id в **32 hex** (как в панели
 
 ### Ручные шаги (вне Terraform или до первого apply)
 
-- Делегирование NS на Selectel DNS (если зона ещё не в панели) — **один раз**; сама зона должна существовать до `apply` с `set_dns_a=true`.
+- **Доменная зона** в DNS hosting (actual): создаётся автоматически при `set_dns_a=true` (`POST /zones`), если в панели **Доменные зоны: 0** (registrar **Домены** — отдельный продукт).
+- Делегирование NS на Selectel (`a/b/c/d.ns.selectel.ru`) — **один раз** после появления зоны (вручную у регистратора).
 - Квоты: **«Публичные IP»** ≥ 1 в выбранном пуле (не `/29`).
 - TXT `_acu.nostr.<домен>` — после известны IP и кошельки (`show-acurast-address.mjs`).
 - Баланс Selectel для pay-as-you-go.

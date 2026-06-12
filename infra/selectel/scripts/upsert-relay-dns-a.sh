@@ -166,6 +166,43 @@ find_zone_id_by_name() {
   done
 }
 
+create_zone_if_missing() {
+  local want_zone="$1"
+  local create_body http_code zone_id
+
+  echo "Selectel DNS: creating zone ${want_zone} (DNS hosting actual)"
+  create_body="$(jq -n --arg name "${want_zone}" '{ name: $name }')"
+  http_code="$(curl -sS -o dns-zone-create.json -w "%{http_code}" \
+    -X POST \
+    "${auth_header[@]}" \
+    "${DNS_API}/zones" \
+    -d "${create_body}")"
+
+  case "${http_code}" in
+    200)
+      zone_id="$(jq -r '.id // empty' dns-zone-create.json)"
+      if [ -n "${zone_id}" ] && [ "${zone_id}" != "null" ]; then
+        echo "DNS zone created: ${want_zone} (id=${zone_id})"
+        printf '%s' "${zone_id}"
+        return 0
+      fi
+      echo "::error::DNS zone POST returned 200 but response missing id"
+      cat dns-zone-create.json || true
+      return 1
+      ;;
+    409)
+      echo "DNS zone already exists (409); resolving by name"
+      find_zone_id_by_name "${want_zone}"
+      return $?
+      ;;
+    *)
+      echo "::error::DNS zone POST returned HTTP ${http_code}"
+      cat dns-zone-create.json || true
+      return 1
+      ;;
+  esac
+}
+
 resolve_zone_id() {
   if [ -n "${zone_id_override}" ]; then
     local payload http_code
@@ -192,8 +229,8 @@ print_zone_lookup_help() {
   echo "  - Zone exists in panel → DNS (actual/registrar) for project ${OS_PROJECT_ID:-<unknown>}"
   echo "  - Set RELAY_DNS_ZONE if hostname uses a nested subdomain"
   echo "  - SELECTEL_IAM_PROJECT_NAME override if auto-resolve from SELECTEL_PROJECT_ID fails"
-  echo "  - Set RELAY_DNS_ZONE_ID from panel URL: .../dns/<project>/registrar/<zone-uuid>/"
-  echo "  - Service user IAM permission must include this DNS project"
+  echo "  - Registrar Домены != DNS hosting Доменные зоны; script auto-creates zone via POST /zones"
+  echo "  - Service user IAM permission must include DNS hosting on this project"
   if [ -n "${TOTAL_ZONES_REPORT:-}" ]; then
     echo "  - Token sees ${TOTAL_ZONES_REPORT} zone(s) in API; none matched ${zone_fqdn}"
   fi
@@ -203,14 +240,17 @@ print_zone_lookup_help() {
   if [ -n "${sample_names}" ]; then
     echo "  - Sample zone names from API: ${sample_names}"
   else
-    echo "  - API zone list is empty — set secret RELAY_DNS_ZONE_ID (panel .../registrar/<uuid>/)"
+    echo "  - Доменные зоны = 0: will attempt POST /zones (same API as A record upsert)"
   fi
 }
 
 TOTAL_ZONES_REPORT=""
 zone_id="$(resolve_zone_id || true)"
 if [ -z "${zone_id}" ] || [ "${zone_id}" = "null" ]; then
-  echo "::error::DNS zone ${zone_fqdn} not found in Selectel DNS for this project"
+  zone_id="$(create_zone_if_missing "${zone_fqdn}" || true)"
+fi
+if [ -z "${zone_id}" ] || [ "${zone_id}" = "null" ]; then
+  echo "::error::DNS zone ${zone_fqdn} not found and could not be created in Selectel DNS"
   print_zone_lookup_help
   exit 1
 fi

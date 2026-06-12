@@ -45,9 +45,9 @@ if [ "${zone_count}" = "0" ]; then
     echo "::error::RELAY_DNS_ZONE_ID not accessible (HTTP ${zone_http})"
     exit 1
   fi
-  echo "::error::Selectel DNS API OK but zero zones in list — set RELAY_DNS_ZONE_ID secret"
-  echo "Copy UUID from panel URL: .../dns/<project>/registrar/<zone-uuid>/"
-  exit 1
+  echo "::warning::Selectel DNS API OK but zero domain zones (Доменные зоны); provision will POST /zones on apply"
+  echo "Registrar Домены != DNS hosting actual. Delegate NS to Selectel after first apply."
+  exit 0
 fi
 
 echo "Selectel DNS API OK (HTTP 200, zones visible: ${zone_count}${sample_names:+, e.g. ${sample_names}})"
