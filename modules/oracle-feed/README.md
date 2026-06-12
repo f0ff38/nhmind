@@ -11,8 +11,8 @@ Pull-oracle business module for NostrHiveMind (Phase 3).
 
 | `feed_id` | Sources |
 |-----------|---------|
-| `btc-usd` | Coinbase, Kraken, Binance spot |
-| `eth-usd` | Coinbase, Kraken, Binance spot |
+| `btc-usd` | Coinbase, Kraken (USD spot) |
+| `eth-usd` | Coinbase, Kraken (USD spot) |
 
 ## Env
 
@@ -22,6 +22,7 @@ Pull-oracle business module for NostrHiveMind (Phase 3).
 | `ORACLE_LIST_PRICE_MSATS` | `100` | Minimum job price |
 | `ORACLE_MSAT_TO_ACU_RATE` | `10` | Scorecard conversion |
 | `ORACLE_JOB_LOOKBACK_SEC` | `3600` | Job poll window |
+| `ORACLE_MIN_SOURCES` | `2` | Minimum successful price APIs per job |
 
 ## Local dev
 
@@ -35,5 +36,10 @@ NHIND_MODULE_DIR=modules/oracle-feed ./scripts/dev run
 ## Job flow
 
 1. Client publishes `5900` with `bid` ≥ list price and `input.feed_id`.
-2. Client publishes `7000` with `status: paid`.
-3. Module fetches sources, median-aggregates, signs result, publishes `6900`.
+2. Client publishes `7000` with `status: paid` **from the requester pubkey** (same key as step 1).
+3. Module whitelists price API hosts, fetches ≥2 sources, median-aggregates, signs result, publishes `6900`.
+4. On failure, module publishes `6900` with `status: error`. Existing `6900` for the same `job_id` is not re-executed.
+
+## Acurast deploy
+
+Before canary deploy, upsert DNS TXT `_acu.<host>` for `api.coinbase.com` and `api.kraken.com` (same pattern as relay whitelist).

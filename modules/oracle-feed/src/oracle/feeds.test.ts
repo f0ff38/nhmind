@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregateSourcePrices,
+  fetchOracleQuote,
   medianOf,
   mockOracleQuote,
   parsePriceFromSource,
+  priceApiHostnames,
+  whitelistPriceApiHosts,
 } from "./feeds";
 
 describe("oracle feeds — collective median", () => {
@@ -26,9 +29,46 @@ describe("oracle feeds — collective median", () => {
   });
 
   it("builds mock quote for local dev", () => {
-    const quote = mockOracleQuote("btc-usd", [67000.12, 67010.5, 66995.0]);
+    const quote = mockOracleQuote("btc-usd", [67000.12, 67010.5, 66995.0], 2);
     expect(quote.feedId).toBe("btc-usd");
     expect(Number(quote.value)).toBeGreaterThan(66990);
     expect(quote.sourcesUsed).toBe(3);
+  });
+
+  it("rejects insufficient sources", () => {
+    expect(() => mockOracleQuote("btc-usd", [67000.12], 2)).toThrow(
+      /insufficient sources/,
+    );
+  });
+
+  it("lists price API hostnames for Acurast whitelist", () => {
+    expect(priceApiHostnames()).toEqual(
+      expect.arrayContaining(["api.coinbase.com", "api.kraken.com"]),
+    );
+  });
+
+  it("whitelists price API hosts when network is available", () => {
+    const whitelisted: string[] = [];
+    whitelistPriceApiHosts({
+      whitelist: (hosts) => {
+        whitelisted.push(...(Array.isArray(hosts) ? hosts : [hosts]));
+      },
+    });
+    expect(whitelisted).toContain("api.coinbase.com");
+  });
+
+  it("requires min sources from http responses", async () => {
+    let calls = 0;
+    const httpGet = async () => {
+      calls += 1;
+      if (calls === 1) {
+        return JSON.stringify({ data: { amount: "67000.00" } });
+      }
+      throw new Error("source down");
+    };
+
+    await expect(
+      fetchOracleQuote("btc-usd", 60, httpGet, 2),
+    ).rejects.toThrow(/insufficient sources/);
   });
 });

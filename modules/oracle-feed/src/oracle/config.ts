@@ -7,12 +7,14 @@ export const SCHEMA_ORACLE_RESULT = "nhmind/oracle-result/v1";
 export const DEFAULT_LIST_PRICE_MSATS = 100n;
 export const DEFAULT_MSAT_TO_ACU_RATE = 10n;
 export const DEFAULT_JOB_LOOKBACK_SEC = 3600;
+export const DEFAULT_MIN_SOURCES = 2;
 export const METRICS_WINDOW_SEC = 7 * 24 * 3600;
 
 export interface OracleConfig {
   listPriceMsats: bigint;
   msatToAcuRate: bigint;
   jobLookbackSec: number;
+  minSources: number;
 }
 
 export function loadOracleConfig(): OracleConfig {
@@ -29,6 +31,10 @@ export function loadOracleConfig(): OracleConfig {
     jobLookbackSec: parsePositiveInt(
       std.env.ORACLE_JOB_LOOKBACK_SEC,
       DEFAULT_JOB_LOOKBACK_SEC,
+    ),
+    minSources: parsePositiveInt(
+      std.env.ORACLE_MIN_SOURCES,
+      DEFAULT_MIN_SOURCES,
     ),
   };
 }

@@ -1,6 +1,7 @@
-import type { Event } from "@nhmind/nostr-client";
+import { KIND_JOB_FEEDBACK, type Event } from "@nhmind/nostr-client";
 import {
   JOB_TYPE_ORACLE,
+  MODULE_ID,
   SCHEMA_ORACLE_RESULT,
   type OracleConfig,
 } from "./config";
@@ -80,13 +81,31 @@ export function parseOracleJobRequest(event: Event): PendingOracleJob | null {
   };
 }
 
-export function isPaidFeedback(event: Event, jobId: string): boolean {
-  if (event.kind !== 7000) {
+export function isPaidFeedback(
+  event: Event,
+  job: Pick<PendingOracleJob, "jobId" | "requesterPubkey">,
+): boolean {
+  if (event.kind !== KIND_JOB_FEEDBACK) {
+    return false;
+  }
+  if (event.pubkey !== job.requesterPubkey) {
     return false;
   }
   const request = tagValue(event.tags, "request");
   const status = tagValue(event.tags, "status");
-  return request === jobId && status === "paid";
+  return request === job.jobId && status === "paid";
+}
+
+export function hasExistingJobResult(
+  results: Event[],
+  jobId: string,
+  workerPubkey: string,
+): boolean {
+  return results.some(
+    (event) =>
+      event.pubkey === workerPubkey &&
+      event.tags.some((tag) => tag[0] === "request" && tag[1] === jobId),
+  );
 }
 
 export function validateBid(
@@ -94,6 +113,26 @@ export function validateBid(
   listPriceMsats: bigint,
 ): boolean {
   return bidMillisats >= listPriceMsats;
+}
+
+export function buildOracleSignPayload(
+  quote: OracleQuote,
+  jobId: string,
+  settledMsats: bigint,
+  modulePubkey: string,
+): Record<string, unknown> {
+  return {
+    schema: SCHEMA_ORACLE_RESULT,
+    job_id: jobId,
+    feed_id: quote.feedId,
+    value: quote.value,
+    source_fetched_at: quote.fetchedAt,
+    sources_used: quote.sourcesUsed,
+    module_id: MODULE_ID,
+    module_pubkey: modulePubkey,
+    settled_msats: settledMsats.toString(),
+    ts: quote.fetchedAt,
+  };
 }
 
 export function buildOracleResultOutput(
@@ -104,35 +143,31 @@ export function buildOracleResultOutput(
   attestation: { processor: string; signature: string },
 ): Record<string, unknown> {
   return {
-    schema: SCHEMA_ORACLE_RESULT,
-    job_id: jobId,
-    feed_id: quote.feedId,
-    value: quote.value,
-    source_fetched_at: quote.fetchedAt,
-    sources_used: quote.sourcesUsed,
-    module_id: "oracle-feed",
-    module_pubkey: modulePubkey,
-    settled_msats: settledMsats.toString(),
+    ...buildOracleSignPayload(quote, jobId, settledMsats, modulePubkey),
     attestation,
-    ts: quote.fetchedAt,
   };
 }
 
 export async function resolveOracleQuote(
   input: OracleJobInput,
+  minSources: number,
   httpGet?: HttpGetFn,
 ): Promise<OracleQuote> {
   const maxAgeSec = input.max_age_sec ?? 60;
 
   if (!isAcurastProcessor()) {
-    return mockOracleQuote(input.feed_id, [67000.12, 67010.5, 66995.0]);
+    return mockOracleQuote(
+      input.feed_id,
+      [67000.12, 67010.5, 66995.0],
+      minSources,
+    );
   }
 
   if (!httpGet) {
     throw new Error("httpGET adapter is required on Acurast processor");
   }
 
-  return fetchOracleQuote(input.feed_id, maxAgeSec, httpGet);
+  return fetchOracleQuote(input.feed_id, maxAgeSec, httpGet, minSources);
 }
 
 export interface ExecutedOracleJob {
@@ -156,14 +191,19 @@ export async function executePaidOracleJob(
   }
 
   const started = Date.now();
-  const quote = await resolveOracleQuote(job.input, httpGet);
+  const quote = await resolveOracleQuote(job.input, config.minSources, httpGet);
   const latencyMs = Date.now() - started;
 
+  const signPayload = buildOracleSignPayload(
+    quote,
+    job.jobId,
+    job.bidMillisats,
+    modulePubkey,
+  );
   const std = getStd();
-  const payloadHex = Buffer.from(
-    JSON.stringify({ job_id: job.jobId, value: quote.value }),
-    "utf8",
-  ).toString("hex");
+  const payloadHex = Buffer.from(JSON.stringify(signPayload), "utf8").toString(
+    "hex",
+  );
   const signature = std.signers.secp256k1.sign(payloadHex);
 
   settleJob(

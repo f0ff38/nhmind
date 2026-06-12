@@ -5,11 +5,13 @@ import {
   NHMIND_CLIENT_TAG,
   buildJobFeedbackTemplate,
   buildJobRequestTemplate,
+  buildJobResultTemplate,
 } from "@nhmind/nostr-client";
 import { createEphemeralSigner } from "@nhmind/nostr-client";
 import { loadOracleConfig } from "./config";
 import {
   executePaidOracleJob,
+  hasExistingJobResult,
   isPaidFeedback,
   parseOracleJobRequest,
   validateBid,
@@ -42,17 +44,37 @@ describe("oracle jobs", () => {
     });
   });
 
-  it("detects paid feedback", () => {
-    const signer = createEphemeralSigner();
-    const template = buildJobFeedbackTemplate({
+  it("detects paid feedback from requester", () => {
+    const requester = createEphemeralSigner();
+    const job = {
       jobId: "job-abc",
+      requesterPubkey: requester.getPublicKey(),
+    };
+    const template = buildJobFeedbackTemplate({
+      jobId: job.jobId,
       status: "paid",
       message: "preimage:deadbeef",
       createdAt: 1_718_000_010,
     });
-    const signed = signer.signEvent(template);
-    expect(isPaidFeedback(signed, "job-abc")).toBe(true);
-    expect(isPaidFeedback(signed, "other")).toBe(false);
+    const signed = requester.signEvent(template);
+    expect(isPaidFeedback(signed, job)).toBe(true);
+    expect(isPaidFeedback(signed, { ...job, jobId: "other" })).toBe(false);
+  });
+
+  it("rejects paid feedback from non-requester", () => {
+    const requester = createEphemeralSigner();
+    const impostor = createEphemeralSigner();
+    const job = {
+      jobId: "job-abc",
+      requesterPubkey: requester.getPublicKey(),
+    };
+    const template = buildJobFeedbackTemplate({
+      jobId: job.jobId,
+      status: "paid",
+      createdAt: 1_718_000_010,
+    });
+    const signed = impostor.signEvent(template);
+    expect(isPaidFeedback(signed, job)).toBe(false);
   });
 
   it("executes paid job locally and records revenue", async () => {
@@ -95,6 +117,24 @@ describe("oracle jobs", () => {
     expect(parseOracleJobRequest(signed)).toBeNull();
     expect(signed.kind).toBe(KIND_JOB_REQUEST);
     expect(signed.tags[0]).toEqual(["client", NHMIND_CLIENT_TAG]);
+  });
+
+  it("detects existing job result on relay", () => {
+    const worker = createEphemeralSigner();
+    const template = buildJobResultTemplate({
+      jobId: "job-done",
+      jobType: "oracle",
+      requesterPubkey: "aa".repeat(32),
+      status: "success",
+      output: { value: "67000.00" },
+    });
+    const signed = worker.signEvent(template);
+    expect(
+      hasExistingJobResult([signed], "job-done", worker.getPublicKey()),
+    ).toBe(true);
+    expect(
+      hasExistingJobResult([signed], "job-other", worker.getPublicKey()),
+    ).toBe(false);
   });
 
   it("paid feedback kind is 7000", () => {

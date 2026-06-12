@@ -10,7 +10,6 @@ export const SUPPORTED_FEEDS: Record<string, FeedDefinition> = {
     sources: [
       "https://api.coinbase.com/v2/prices/BTC-USD/spot",
       "https://api.kraken.com/0/public/Ticker?pair=XBTUSD",
-      "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
     ],
     maxAgeSec: 120,
   },
@@ -19,11 +18,33 @@ export const SUPPORTED_FEEDS: Record<string, FeedDefinition> = {
     sources: [
       "https://api.coinbase.com/v2/prices/ETH-USD/spot",
       "https://api.kraken.com/0/public/Ticker?pair=ETHUSD",
-      "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT",
     ],
     maxAgeSec: 120,
   },
 };
+
+export function priceApiHostnames(): string[] {
+  const hosts = new Set<string>();
+  for (const feed of Object.values(SUPPORTED_FEEDS)) {
+    for (const sourceUrl of feed.sources) {
+      hosts.add(new URL(sourceUrl).hostname);
+    }
+  }
+  return [...hosts];
+}
+
+export interface PriceApiWhitelistNetwork {
+  whitelist: (hosts: string | string[]) => void;
+}
+
+export function whitelistPriceApiHosts(
+  network: PriceApiWhitelistNetwork | undefined,
+): void {
+  if (!network?.whitelist) {
+    return;
+  }
+  network.whitelist(priceApiHostnames());
+}
 
 export interface HttpGetFn {
   (url: string, headers: Record<string, string>): Promise<string>;
@@ -77,17 +98,26 @@ export function parsePriceFromSource(body: string, sourceUrl: string): number {
     const pair = Object.values(result ?? {})[0];
     return parseFloat(String(pair?.c?.[0] ?? ""));
   }
-  if (sourceUrl.includes("binance.com")) {
-    return parseFloat(String(json.price ?? ""));
-  }
-
   throw new Error(`unsupported source parser: ${sourceUrl}`);
+}
+
+function assertMinSources(
+  feedId: string,
+  sourceValues: number[],
+  minSources: number,
+): void {
+  if (sourceValues.length < minSources) {
+    throw new Error(
+      `insufficient sources for ${feedId}: got ${sourceValues.length}, need ${minSources}`,
+    );
+  }
 }
 
 export async function fetchOracleQuote(
   feedId: string,
   maxAgeSec: number,
   httpGet: HttpGetFn,
+  minSources: number,
   nowSec = Math.floor(Date.now() / 1000),
 ): Promise<OracleQuote> {
   const feed = SUPPORTED_FEEDS[feedId];
@@ -108,13 +138,11 @@ export async function fetchOracleQuote(
       }
       sourceValues.push(price);
     } catch {
-      // tolerate single-source failure; median needs ≥2 in production
+      // tolerate single-source failure until minSources is met
     }
   }
 
-  if (sourceValues.length === 0) {
-    throw new Error(`all sources failed for ${feedId}`);
-  }
+  assertMinSources(feedId, sourceValues, minSources);
 
   const aggregated = aggregateSourcePrices(sourceValues);
   return {
@@ -130,8 +158,10 @@ export async function fetchOracleQuote(
 export function mockOracleQuote(
   feedId: string,
   sourceValues: number[],
+  minSources: number,
   nowSec = Math.floor(Date.now() / 1000),
 ): OracleQuote {
+  assertMinSources(feedId, sourceValues, minSources);
   const aggregated = aggregateSourcePrices(sourceValues);
   return {
     feedId,

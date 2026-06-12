@@ -220,6 +220,54 @@ Content — **UTF-8 JSON** в поле `content` события, если не �
 
 При `output_encoding: "nip44"` поле `output` опускается; `content` — ciphertext для requester pubkey.
 
+### `nhmind/oracle-result/v1` (oracle job output, nested in `6900`)
+
+Pull-oracle modules publish this schema inside `nhmind/job-result/v1` → `output` when `job_type: oracle`.
+
+```json
+{
+  "schema": "nhmind/oracle-result/v1",
+  "job_id": "a1b2c3d4e5f6",
+  "feed_id": "btc-usd",
+  "value": "67234.12",
+  "source_fetched_at": 1718000060,
+  "sources_used": 2,
+  "module_id": "oracle-feed",
+  "module_pubkey": "<worker-pubkey-hex>",
+  "settled_msats": "100",
+  "attestation": {
+    "processor": "<acurast-device-address>",
+    "signature": "<secp256k1-signature-hex>"
+  },
+  "ts": 1718000060
+}
+```
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `feed_id` | string | Supported feed (`btc-usd`, `eth-usd`, …) |
+| `value` | string | Median price (2 decimal places) |
+| `sources_used` | number | Successful API responses (≥ `ORACLE_MIN_SOURCES`) |
+| `settled_msats` | string | Job bid settled for this execution |
+| `attestation.signature` | string | `_STD_.signers.secp256k1.sign(hex(JSON canonical payload))` over all fields **except** `attestation` |
+
+Canonical signed payload (UTF-8 JSON, stable key order as emitted by worker):
+
+```json
+{
+  "schema": "nhmind/oracle-result/v1",
+  "job_id": "...",
+  "feed_id": "...",
+  "value": "...",
+  "source_fetched_at": 1718000060,
+  "sources_used": 2,
+  "module_id": "oracle-feed",
+  "module_pubkey": "...",
+  "settled_msats": "...",
+  "ts": 1718000060
+}
+```
+
 ### `nhmind/job-feedback/v1` (kind `7000`)
 
 ```json

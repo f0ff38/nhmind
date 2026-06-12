@@ -1,6 +1,7 @@
 import {
   KIND_JOB_FEEDBACK,
   KIND_JOB_REQUEST,
+  KIND_JOB_RESULT,
   NostrClient,
   buildHeartbeatTemplate,
   buildJobResultTemplate,
@@ -10,11 +11,13 @@ import type { Event } from "@nhmind/nostr-client";
 import {
   JOB_TYPE_ORACLE,
   MODULE_ID,
+  SCHEMA_ORACLE_RESULT,
   loadOracleConfig,
 } from "./oracle/config";
-import { SUPPORTED_FEEDS } from "./oracle/feeds";
+import { SUPPORTED_FEEDS, whitelistPriceApiHosts } from "./oracle/feeds";
 import {
   executePaidOracleJob,
+  hasExistingJobResult,
   isPaidFeedback,
   parseOracleJobRequest,
 } from "./oracle/jobs";
@@ -164,6 +167,7 @@ export async function processOracleJobs(): Promise<number> {
 
   try {
     whitelistRelayHost(std.network, relayUrl);
+    whitelistPriceApiHosts(std.network);
     client = new NostrClient({
       relays: [relayUrl],
       signer: createModuleSigner(),
@@ -185,13 +189,20 @@ export async function processOracleJobs(): Promise<number> {
       since,
     );
 
+    const results = await fetchRecentEvents(client, [KIND_JOB_RESULT], since);
+
     for (const event of requests) {
       const job = parseOracleJobRequest(event);
       if (!job || processedJobs.has(job.jobId)) {
         continue;
       }
 
-      const paid = feedback.some((fb) => isPaidFeedback(fb, job.jobId));
+      if (hasExistingJobResult(results, job.jobId, modulePubkey)) {
+        processedJobs.add(job.jobId);
+        continue;
+      }
+
+      const paid = feedback.some((fb) => isPaidFeedback(fb, job));
       if (!paid) {
         continue;
       }
@@ -219,11 +230,24 @@ export async function processOracleJobs(): Promise<number> {
         completed += 1;
         console.log("oracle job completed:", job.jobId, resultOutput.value);
       } catch (error) {
-        console.warn(
-          "oracle job failed:",
-          job.jobId,
-          error instanceof Error ? error.message : String(error),
+        const message =
+          error instanceof Error ? error.message : String(error);
+        console.warn("oracle job failed:", job.jobId, message);
+
+        await client.publish(
+          buildJobResultTemplate({
+            jobId: job.jobId,
+            jobType: JOB_TYPE_ORACLE,
+            requesterPubkey: job.requesterPubkey,
+            status: "error",
+            output: {
+              schema: SCHEMA_ORACLE_RESULT,
+              job_id: job.jobId,
+              message,
+            },
+          }),
         );
+        processedJobs.add(job.jobId);
       }
     }
 

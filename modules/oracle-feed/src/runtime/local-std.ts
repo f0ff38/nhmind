@@ -13,6 +13,7 @@ export function createLocalStd(
       ORACLE_LIST_PRICE_MSATS: env.ORACLE_LIST_PRICE_MSATS ?? "100",
       ORACLE_MSAT_TO_ACU_RATE: env.ORACLE_MSAT_TO_ACU_RATE ?? "10",
       ORACLE_JOB_LOOKBACK_SEC: env.ORACLE_JOB_LOOKBACK_SEC ?? "3600",
+      ORACLE_MIN_SOURCES: env.ORACLE_MIN_SOURCES ?? "2",
       ...env,
     },
     job: {
@@ -35,6 +36,9 @@ export function createLocalStd(
       secp256k1: {
         sign: (payload: string) => `mock-sig:${payload.slice(0, 16)}`,
       },
+    },
+    network: {
+      whitelist: () => {},
     },
   };
 }

@@ -29,7 +29,8 @@
         "RELAY_URL",
         "ORACLE_LIST_PRICE_MSATS",
         "ORACLE_MSAT_TO_ACU_RATE",
-        "ORACLE_JOB_LOOKBACK_SEC"
+        "ORACLE_JOB_LOOKBACK_SEC",
+        "ORACLE_MIN_SOURCES"
       ],
       "processorWhitelist": [],
       "mutability": "Mutable"

@@ -1,8 +1,6 @@
 import {
   METRICS_WINDOW_SEC,
-  loadOracleConfig,
   MODULE_ID,
-  type OracleConfig,
 } from "./oracle/config";
 import type { OracleModuleMetrics, RevenueLedger } from "./oracle/ledger";
 import { getStd } from "./runtime/types";
@@ -33,11 +31,8 @@ export function healthCheck(): HealthCheckResult {
 
 export function createBusinessModule(deps: {
   ledger: RevenueLedger;
-  config?: OracleConfig;
   costAcu?: bigint;
 }): IBusinessModule {
-  const config = deps.config ?? loadOracleConfig();
-
   return {
     healthCheck,
     async getMetrics() {
