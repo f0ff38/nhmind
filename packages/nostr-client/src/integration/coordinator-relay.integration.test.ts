@@ -11,12 +11,13 @@ import { parseScorecardEvent } from "../events/scorecard";
 import { resetRelayBackend } from "../transport";
 
 const relayUrl = process.env.RELAY_URL?.trim();
+const smokeEnabled = process.env.SMOKE_COORDINATOR_RELAY === "1";
 const watchModule = process.env.SMOKE_MODULE?.trim() || "hello";
 const coordinatorPubkey = process.env.COORDINATOR_PUBKEY?.trim();
 const maxWaitMs = Number(process.env.SMOKE_TIMEOUT_MS ?? "120000");
 const maxAgeSec = Number(process.env.SMOKE_MAX_AGE_SEC ?? "180");
 
-const integration = describe.skipIf(!relayUrl);
+const integration = describe.skipIf(!relayUrl || !smokeEnabled);
 
 function assertRecent(createdAt: number, label: string): void {
   const ageSec = Math.floor(Date.now() / 1000) - createdAt;
