@@ -1,6 +1,7 @@
 services:
   relay:
     image: scsibug/nostr-rs-relay:0.10.0
+    user: "100:100"
     restart: unless-stopped
     volumes:
       - relay-data:/usr/src/app/db
