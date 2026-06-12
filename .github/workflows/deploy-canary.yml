@@ -99,4 +99,6 @@ jobs:
           COORDINATOR_PUBKEY: ${{ secrets.COORDINATOR_PUBKEY }}
         run: |
           set -euo pipefail
+          echo "Waiting 75s for first coordinator interval cycle (60s)..."
+          sleep 75
           bash scripts/smoke-coordinator-relay.sh "${RELAY_HOSTNAME}" hello
