@@ -28,7 +28,7 @@ ssh_opts=(
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 relay_root="$(cd "${script_dir}/.." && pwd)"
 
-ssh "${ssh_opts[@]}" "${ssh_user}@${host}" "mkdir -p ${install_dir}"
+ssh "${ssh_opts[@]}" "${ssh_user}@${host}" "sudo mkdir -p ${install_dir} && sudo chown ${ssh_user}:${ssh_user} ${install_dir}"
 
 tar -C "${relay_root}" \
   --exclude='./scripts/deploy-remote.sh' \
