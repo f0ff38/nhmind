@@ -52,8 +52,17 @@ jobs:
           RELAY_SSH_USER: deploy
           RELAY_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.RELAY_DEPLOY_SSH_PRIVATE_KEY }}
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          RELAY_TLS_KNOX_CERT_ID: ${{ secrets.RELAY_TLS_KNOX_CERT_ID }}
+          SELECTEL_ACCOUNT_ID: ${{ secrets.SELECTEL_ACCOUNT_ID }}
+          SELECTEL_PROJECT_ID: ${{ secrets.SELECTEL_PROJECT_ID }}
+          SELECTEL_SERVICE_USER: ${{ secrets.SELECTEL_SERVICE_USER }}
+          SELECTEL_SERVICE_PASSWORD: ${{ secrets.SELECTEL_SERVICE_PASSWORD }}
+          SELECTEL_IAM_PROJECT_NAME: ${{ secrets.SELECTEL_IAM_PROJECT_NAME }}
         run: |
           set -euo pipefail
+          export PREPARE_OPENSTACK_EXPORT=1
+          # shellcheck disable=SC1091
+          source infra/selectel/scripts/prepare-openstack-env.sh
           bash infra/nostr-relay/scripts/deploy-remote.sh \
             "${RELAY_SSH_HOST}" \
             "${RELAY_HOSTNAME}"
@@ -79,5 +88,6 @@ jobs:
             echo "| relay_hostname | \`${{ secrets.RELAY_HOSTNAME }}\` |"
             echo "| relay_url | \`wss://${{ secrets.RELAY_HOSTNAME }}/\` |"
             echo ""
+            echo "TLS: Selectel LE (DNS-01) → Knox pull-on-deploy; port :80 closed."
             echo "Next: DNS TXT \`_acu.${{ secrets.RELAY_HOSTNAME }}\`, then set \`RELAY_URL\` in environment **canary**."
           } >> "${GITHUB_STEP_SUMMARY}"

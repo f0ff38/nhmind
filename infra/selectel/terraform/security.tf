@@ -1,6 +1,6 @@
 resource "openstack_networking_secgroup_v2" "relay" {
   name        = "${local.name_prefix}-sg"
-  description = "nhmind relay canary: SSH key-only (0.0.0.0/0), HTTP for ACME, HTTPS public"
+  description = "nhmind relay canary: SSH key-only (0.0.0.0/0), HTTPS public (TLS via Selectel LE)"
 }
 
 resource "openstack_networking_secgroup_rule_v2" "ssh_ingress" {
@@ -9,16 +9,6 @@ resource "openstack_networking_secgroup_rule_v2" "ssh_ingress" {
   protocol          = "tcp"
   port_range_min    = 22
   port_range_max    = 22
-  remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = openstack_networking_secgroup_v2.relay.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "http_ingress" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 80
-  port_range_max    = 80
   remote_ip_prefix  = "0.0.0.0/0"
   security_group_id = openstack_networking_secgroup_v2.relay.id
 }

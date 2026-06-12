@@ -116,7 +116,7 @@ on:
 |----------|---------|------------|
 | `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Формат + live-проверки секретов **relay** (Keystone, S3, SSH keys, X-Token; deploy: SSH to VM via TF `public_ip`) ✅ |
 | `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через IPAM `ipam/v1` + `X-Token` ✅ |
-| `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke` \| `all`) | SSH → `infra/nostr-relay/` compose; IP из Terraform state ✅ |
+| `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke` \| `all`) | Selectel LE + Knox PEM → SSH → `infra/nostr-relay/` compose; IP из Terraform state ✅ |
 
 **Секреты environment `relay`:**
 
@@ -134,10 +134,13 @@ on:
 | `RELAY_DNS_ZONE` | опционально | Зона Selectel DNS (`example.com`), если не выводится из hostname |
 | `RELAY_DNS_ZONE_ID` | если zone list API пустой | UUID из панели `.../registrar/<uuid>/` |
 | `SELECTEL_IAM_PROJECT_NAME` | опционально | Override имени IAM-проекта для DNS; иначе из `SELECTEL_PROJECT_ID` |
+| `RELAY_TLS_KNOX_CERT_ID` | опционально | Knox UUID LE-серта; иначе авто по `RELAY_HOSTNAME` |
 
 Floating IP для SSH/deploy — **`terraform output public_ip`**. **A-запись** — автоматически в **Provision Relay Infra** (`set_dns_a`, default `true`).
 
-**Файрвол:** SG `0.0.0.0/0:22` (key-only) + `0.0.0.0/0:443`. Подробнее: [relay-ops.md — файрвол VM](relay-ops.md#файрвол-vm-canary-ssh-key-only-https-public).
+**TLS:** deploy тянет LE из Selectel (DNS-01), private key — pull-on-deploy из Knox, не в secrets. См. [relay-ops.md — TLS](relay-ops.md#tls-selectel-certificate-manager-dns-01).
+
+**Файрвол:** SG `0.0.0.0/0:22` (key-only) + `0.0.0.0/0:443` (**:80 закрыт**). Подробнее: [relay-ops.md — файрвол VM](relay-ops.md#файрвол-vm-canary-ssh-key-only-https-public).
 
 **Аутентификация:** OpenStack/Terraform — пароль сервисного пользователя; PTR — `X-Token`. См. [authorization](https://docs.selectel.ru/api/authorization/).
 

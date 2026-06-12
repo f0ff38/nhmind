@@ -68,7 +68,7 @@ Nosflare полезен как **источник идей** (ниже), не к
 | Этап | Workflow | Что делает |
 |------|----------|------------|
 | 1. Инфраструктура | `provision-relay-infra.yml` | Terraform: проект (или data source существующего), сеть, VM, floating IP, cloud-init |
-| 2. Приложение | `deploy-relay.yml` | SSH (IP из Terraform state) → `infra/nostr-relay/` compose, certbot TLS, smoke WSS |
+| 2. Приложение | `deploy-relay.yml` | SSH (IP из Terraform state) → Selectel LE (DNS-01) → Knox PEM → compose, smoke WSS |
 
 Триггер: **`workflow_dispatch`** (как `deploy-canary.yml`), environment **relay** с required reviewers на `apply`.
 
@@ -104,8 +104,9 @@ Selectel использует **три типа** токенов; для GitOps 
 | Порт | Источник | Зачем |
 |------|----------|--------|
 | **443/tcp** | `0.0.0.0/0` | Acurast processor, WSS-клиенты |
-| **80/tcp** | `0.0.0.0/0` | Let's Encrypt HTTP-01 (certbot); после выпуска сертификата можно сузить |
 | **22/tcp** | `0.0.0.0/0` | SSH для GHA deploy и ops; **только по ключу** (нет паролей) |
+
+**:80 закрыт** — LE выпускается в Selectel Certificate Manager (DNS-01), не на VM.
 
 Почему не [Meta API `actions`](https://docs.github.com/ru/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses): ~7000+ динамических CIDR, лимит Selectel 200 правил, список меняется — GitHub не рекомендует жёсткий allowlist для hosted runners.
 
@@ -139,7 +140,10 @@ infra/selectel/scripts/
 ├── resolve-selectel-project-name.sh
 ├── upsert-relay-dns-a.sh     # Selectel DNS A record after apply
 ├── upsert-relay-ptr.sh       # Selectel IPAM PTR (ipam/v1)
-└── verify-selectel-dns-auth.sh
+├── issue-relay-le-cert.sh    # LE issue/list (DNS-01, dnsv2)
+├── fetch-relay-tls-pem.sh    # Knox → fullchain.pem + privkey.pem
+├── verify-selectel-dns-auth.sh
+└── verify-selectel-le-auth.sh
 
 infra/selectel/cloud-init/
 └── relay-bootstrap.yaml  # Docker, UFW 22+443, deploy-user, /opt/nhmind-relay
@@ -157,7 +161,25 @@ infra/nostr-relay/
 
 **Terraform state:** remote backend в [S3 Selectel](https://docs.selectel.ru/terraform/configure-terraform-state-storage/) (`secret.backend.tfvars` только в Secrets, не в git).
 
-**cloud-init (преднастройка VM):** пакеты Docker, пользователь `deploy`, SSH authorized_keys из Terraform `selectel_vpc_keypair_v2`, UFW. TLS/certbot и relay compose — этап 2 (`deploy-relay.yml`), когда известен `RELAY_HOSTNAME`.
+**cloud-init (преднастройка VM):** пакеты Docker, пользователь `deploy`, SSH authorized_keys из Terraform `selectel_vpc_keypair_v2`, UFW 22+443. TLS (Selectel LE → Knox) и relay compose — этап 2 (`deploy-relay.yml`), когда известен `RELAY_HOSTNAME`.
+
+### TLS: Selectel Certificate Manager (DNS-01)
+
+Сертификат на **один FQDN** (`RELAY_HOSTNAME`, напр. `nostr.example.com`) — без wildcard.
+
+| Этап | Где | Что |
+|------|-----|-----|
+| Выпуск / продление | Selectel | [LE API](https://docs.selectel.ru/api/lets-encrypt-certificates/) `POST /issue?dnsv2=true`; авто-renew ~30 дней до expiry |
+| Приватный ключ | Knox (Selectel) | Не в git и не в GitHub Secrets; скачивается на deploy |
+| Установка на VM | `deploy-relay.yml` | [fetch-relay-tls-pem.sh](../infra/selectel/scripts/fetch-relay-tls-pem.sh) → `/opt/nhmind-relay/certs/` → nginx `:443` |
+
+**Pull-on-deploy:** каждый `deploy-relay` вызывает [issue-relay-le-cert.sh](../infra/selectel/scripts/issue-relay-le-cert.sh) (idempotent: найти по `RELAY_HOSTNAME` или выпустить) и тянет актуальный PEM из [Certificate Manager API](https://docs.selectel.ru/api/certificates-manager/) (`knox_cert_id`).
+
+Опциональный secret **`RELAY_TLS_KNOX_CERT_ID`** — UUID Knox, если в проекте несколько сертов; иначе резолв по домену из LE list API.
+
+**Требования DNS-01:** зона в DNS hosting (actual), NS на Selectel (`a/b/c/d.ns.selectel.ru`), **A** на floating IP relay.
+
+**Миграция с certbot:** **Deploy Relay** с новым кодом (UFW `:80` снимается в `bootstrap-relay.sh`); затем **Provision → apply** убирает правило SG `:80`.
 
 ### Секреты GitHub environment **relay**
 
@@ -182,6 +204,7 @@ infra/nostr-relay/
 | `RELAY_DNS_ZONE` | опционально | Зона в Selectel DNS, напр. `example.com` — если не задана, выводится из `RELAY_HOSTNAME` (`nostr.example.com` → `example.com`) |
 | `RELAY_DNS_ZONE_ID` | опционально | UUID **доменной зоны** DNS hosting (actual); не UUID из `/registrar/` |
 | `SELECTEL_IAM_PROJECT_NAME` | опционально | Override имени проекта для DNS API; иначе резолвится из `SELECTEL_PROJECT_ID` |
+| `RELAY_TLS_KNOX_CERT_ID` | опционально | UUID Knox-серта; если пусто — авто по `RELAY_HOSTNAME` в LE list API |
 
 **Не секрет:** floating IP relay — **`terraform output public_ip`** (S3 state). Workflow **Deploy Relay** и validate stage `deploy` читают его автоматически; ручной secret `RELAY_SSH_HOST` **не нужен**. SSH user — `deploy` (cloud-init).
 
@@ -194,7 +217,7 @@ infra/nostr-relay/
 | Режим | Формат | Live-проверки |
 |-------|--------|---------------|
 | `provision` | presence + формат | SSH keypair, S3 state bucket, Keystone (OpenStack), `X-Token` (Balance API) |
-| `deploy` | presence + формат | SSH keypair, Terraform state, SSH login to VM (`public_ip` из state) |
+| `deploy` | presence + формат | SSH keypair, Terraform state, Selectel LE API, SSH login to VM (`public_ip` из state) |
 | `all` | оба | все выше |
 
 Значения не логируются — только «пусто / неверный формат / HTTP-код / checklist».
@@ -313,7 +336,7 @@ infra/nostr-relay/
 2. **Firewall:** SG `22`/`443` + SSH key-only (canary: `0.0.0.0/0:22`).
 3. **nginx stable ≥ 1.30.2** в Docker (pin в compose), не полагаться на версию панели хостера.
 4. **Relay не на публичном :8080** — только через nginx `:443`.
-5. **TLS:** Let's Encrypt (certbot/Caddy) или ISPmanager LE — на выбор; автообновление.
+5. **TLS:** Selectel Certificate Manager LE (DNS-01); ключ в Knox, pull-on-deploy; продление на стороне Selectel.
 6. **Canary write policy:** pubkey allowlist в `nostr-rs-relay` — снижает спам на открытом relay.
 7. **Секреты:** SSH key только в GitHub environment **relay**; `RELAY_URL` в **canary**.
 8. **Без CF proxy** на hostname processor (серое DNS / прямой `A`).
