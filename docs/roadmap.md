@@ -185,7 +185,7 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 - [x] `modules/oracle-feed/` — `IBusinessModule`, multi-source median, revenue ledger
 - [x] `oracle-feed` canary hardening — price API `_STD_.network.whitelist`, `ORACLE_MIN_SOURCES`, requester-only `paid` feedback, skip duplicate `6900`, error results, canonical TEE sign payload ([PR #54](https://github.com/f0ff38/nhmind/pull/54))
 - [x] `docs/nostr-protocol.md` — schema `nhmind/oracle-result/v1` (oracle job output)
-- [ ] `_acu` TXT для price API hosts (`api.coinbase.com`, `api.kraken.com`) — перед canary deploy (см. [oracle-feed README](../modules/oracle-feed/README.md))
+- [ ] Price proxy на своём домене (`prices.<zone>`) + `_acu` TXT — внешние API напрямую недоступны (см. [oracle-feed README](../modules/oracle-feed/README.md))
 - [ ] Canary deploy **`oracle-feed`** + smoke NIP-90 job (5900 → paid → 6900)
 - [ ] Реальные `_STD_.signers` / `httpGET` на canary processor
 - [ ] DevTools-enabled deploy, логи проверены
@@ -200,7 +200,7 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 
 ### Риски
 
-- DNS TXT whitelist для внешних API — `_acu.api.coinbase.com`, `_acu.api.kraken.com` (oracle-feed); relay hostname уже в Deploy Canary
+- DNS TXT whitelist только для своего hostname — price proxy `prices.<zone>` + `_acu` TXT (oracle-feed); relay hostname уже в Deploy Canary; Coinbase/Kraken напрямую недоступны
 - `acurast live` + телефон для отладки до canary deploy
 
 ---

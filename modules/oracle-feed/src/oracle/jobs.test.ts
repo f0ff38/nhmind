@@ -6,8 +6,10 @@ import {
   buildJobFeedbackTemplate,
   buildJobRequestTemplate,
   buildJobResultTemplate,
+  createPrivateKeySigner,
 } from "@nhmind/nostr-client";
 import { createEphemeralSigner } from "@nhmind/nostr-client";
+import { generateSecretKey } from "nostr-tools";
 import { loadOracleConfig } from "./config";
 import {
   executePaidOracleJob,
@@ -45,7 +47,7 @@ describe("oracle jobs", () => {
   });
 
   it("detects paid feedback from requester", () => {
-    const requester = createEphemeralSigner();
+    const requester = createPrivateKeySigner(generateSecretKey());
     const job = {
       jobId: "job-abc",
       requesterPubkey: requester.getPublicKey(),
@@ -62,8 +64,8 @@ describe("oracle jobs", () => {
   });
 
   it("rejects paid feedback from non-requester", () => {
-    const requester = createEphemeralSigner();
-    const impostor = createEphemeralSigner();
+    const requester = createPrivateKeySigner(generateSecretKey());
+    const impostor = createPrivateKeySigner(generateSecretKey());
     const job = {
       jobId: "job-abc",
       requesterPubkey: requester.getPublicKey(),
