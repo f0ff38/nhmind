@@ -91,3 +91,12 @@ jobs:
           docker compose run --rm \
             -e ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com \
             dev bash -lc "cd modules/${{ inputs.module }} && acurast deploy ${DEPLOY_FLAGS}"
+
+      - name: Smoke coordinator on relay (registry + scorecard)
+        if: inputs.module == 'coordinator' && inputs.dry_run == false
+        env:
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          COORDINATOR_PUBKEY: ${{ secrets.COORDINATOR_PUBKEY }}
+        run: |
+          set -euo pipefail
+          bash scripts/smoke-coordinator-relay.sh "${RELAY_HOSTNAME}" hello
