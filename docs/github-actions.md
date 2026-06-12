@@ -51,7 +51,7 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
 3. Actions → **Deploy Canary** → Run workflow:
    - `hello` — ✅ уже задеплоен (canary)
    - `coordinator` — следующий шаг (`dry_run: true`, затем deploy)
-4. После deploy: `acurast devtools <deployment-id>` или Hub → логи execution.
+4. После deploy **coordinator**: workflow ждёт на relay `30092` (registry) и `30091` (scorecard) — [smoke-coordinator-relay.sh](../scripts/smoke-coordinator-relay.sh) (до 120 с, interval 60 с). Ручной fallback: `acurast devtools <deployment-id>` или Hub.
 
 Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com). Адрес кошелька:
 

@@ -353,7 +353,7 @@ infra/nostr-relay/
 6. [ ] Smoke WSS (**Deploy Relay** → `smoke`) или с ноутбука
 7. [ ] GitHub **canary** → secret `RELAY_HOSTNAME` (тот же FQDN, что relay)
 8. [ ] Redeploy hello + coordinator (`Deploy Canary`)
-9. [ ] DevTools: heartbeat и scorecard на processor
+9. [ ] Авто-smoke после **Deploy Canary** → coordinator: registry `30092` + scorecard `30091` на relay (или DevTools вручную)
 
 TXT hash: формула в [Acurast Network docs](https://docs.acurast.com/developers/job-runtime-environment/#network); адреса кошельков — `node scripts/show-acurast-address.mjs modules/<name>`.
 
