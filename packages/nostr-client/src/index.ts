@@ -14,6 +14,11 @@ export {
   SCHEMA_SCORECARD,
 } from "./constants";
 
+export {
+  relayHostnameFromUrl,
+  whitelistRelayHost,
+  type RelayWhitelistNetwork,
+} from "./acurast-relay";
 export { NostrClient, type NostrClientOptions, type SubscribeHandlers } from "./client";
 export {
   createAcurastSigner,

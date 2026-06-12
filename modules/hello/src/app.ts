@@ -1,4 +1,8 @@
-import { NostrClient, buildHeartbeatTemplate } from "@nhmind/nostr-client";
+import {
+  NostrClient,
+  buildHeartbeatTemplate,
+  whitelistRelayHost,
+} from "@nhmind/nostr-client";
 import { createModuleSigner } from "./runtime/nostr-signer";
 import { getStd } from "./runtime/types";
 
@@ -32,6 +36,7 @@ export async function publishHeartbeat(): Promise<boolean> {
   let client: NostrClient | undefined;
 
   try {
+    whitelistRelayHost(std.network, relayUrl);
     client = new NostrClient({
       relays: [relayUrl],
       signer: createModuleSigner(),

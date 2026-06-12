@@ -33,7 +33,7 @@ docker compose run --rm "${compose_env[@]}" dev bash -lc '
   set -euo pipefail
   npm ci --prefix packages/nostr-client
   npm run build --prefix packages/nostr-client
-  npm run test:integration --prefix packages/nostr-client -- -t "coordinator-relay"
+  npm run test:integration --prefix packages/nostr-client -- -t "finds fresh registry and scorecard"
 '
 
 echo "Coordinator relay smoke passed (registry + scorecard on ${RELAY_URL})"
