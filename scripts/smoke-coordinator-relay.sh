@@ -8,6 +8,7 @@ watch_module="${2:-hello}"
 
 relay_hostname="$(printf '%s' "${relay_hostname}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s|/$||')"
 export RELAY_URL="wss://${relay_hostname}/"
+export SMOKE_COORDINATOR_RELAY=1
 export SMOKE_MODULE="${watch_module}"
 export SMOKE_TIMEOUT_MS="${SMOKE_TIMEOUT_MS:-120000}"
 export SMOKE_MAX_AGE_SEC="${SMOKE_MAX_AGE_SEC:-180}"
@@ -19,6 +20,7 @@ echo "Smoke coordinator relay: RELAY_URL=${RELAY_URL} module=${SMOKE_MODULE} tim
 
 compose_env=(
   -e "RELAY_URL=${RELAY_URL}"
+  -e "SMOKE_COORDINATOR_RELAY=${SMOKE_COORDINATOR_RELAY}"
   -e "SMOKE_MODULE=${SMOKE_MODULE}"
   -e "SMOKE_TIMEOUT_MS=${SMOKE_TIMEOUT_MS}"
   -e "SMOKE_MAX_AGE_SEC=${SMOKE_MAX_AGE_SEC}"
