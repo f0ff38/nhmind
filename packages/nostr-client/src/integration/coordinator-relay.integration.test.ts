@@ -19,6 +19,22 @@ const maxAgeSec = Number(process.env.SMOKE_MAX_AGE_SEC ?? "180");
 
 const integration = describe.skipIf(!relayUrl || !smokeEnabled);
 
+async function waitForEvent(
+  client: NostrClient,
+  filter: Parameters<NostrClient["get"]>[0],
+  timeoutMs: number,
+): Promise<NonNullable<Awaited<ReturnType<NostrClient["get"]>>>> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const event = await client.get(filter, 5_000);
+    if (event) {
+      return event;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+  throw new Error(`timed out after ${timeoutMs}ms waiting for relay event`);
+}
+
 function assertRecent(createdAt: number, label: string): void {
   const ageSec = Math.floor(Date.now() / 1000) - createdAt;
   expect(ageSec).toBeGreaterThanOrEqual(0);
@@ -44,21 +60,21 @@ integration("coordinator-relay integration", () => {
     };
 
     try {
-      const registryEvent = await client.get(
+      const registryEvent = await waitForEvent(
+        client,
         { kinds: [KIND_REGISTRY], ...baseFilter },
         maxWaitMs,
       );
-      expect(registryEvent).not.toBeNull();
       const registry = parseRegistryEvent(registryEvent!);
       expect(registry.module_id).toBe(watchModule);
       expect(registry.schema).toBe("nhmind/registry/v1");
       assertRecent(registryEvent!.created_at, "registry");
 
-      const scorecardEvent = await client.get(
+      const scorecardEvent = await waitForEvent(
+        client,
         { kinds: [KIND_SCORECARD], ...baseFilter },
         maxWaitMs,
       );
-      expect(scorecardEvent).not.toBeNull();
       const scorecard = parseScorecardEvent(scorecardEvent!);
       expect(scorecard.module_id).toBe(watchModule);
       expect(scorecard.schema).toBe("nhmind/scorecard/v1");
