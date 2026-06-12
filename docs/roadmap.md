@@ -69,7 +69,7 @@ Coordinator deploy и smoke registry/scorecard **не запускать**, по
 ### Диагностика (ручная, deploy-кошелёк)
 
 1. **Hub** [hub.acurast.com](https://hub.acurast.com/) — сеть Canary, кошелёк = адрес из `ACURAST_MNEMONIC_HELLO`; последний execution hello: ошибки publish / network / whitelist.
-2. **DevTools** execution hello — логи `heartbeat published` vs `heartbeat publish skipped`.
+2. **DevTools** execution hello — логи `heartbeat published` vs `heartbeat publish skipped` (из GHA: workflow **Inspect Canary DevTools** или шаг в **Deploy Canary**; локально `api.devtools.acurast.com` может быть 502).
 3. **Relay с ноутбука** — WSS `REQ` kind `30090`, `#client=nhmind`, `#module=hello` (см. [preflight-hello-heartbeat.sh](../scripts/preflight-hello-heartbeat.sh)).
 4. **Acurast whitelist** — TXT `_acu.<RELAY_HOSTNAME>` (upsert в GHA); **PTR** IP relay = hostname; reverse DNS + TXT `_acu.<ptr>` ([дока](https://docs.acurast.com/developers/job-runtime-environment/#network)).
 5. **HTTP processor → relay** — на processor транспорт `httpPOST`, не WSS; nginx на VM должен принимать POST на `https://<host>/` ([relay-ops — риск HTTP](relay-ops.md#известный-риск-http-на-processor)).

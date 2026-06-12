@@ -1,0 +1,77 @@
+name: Inspect Canary DevTools
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: Acurast module (uses modules/<name>/.env mnemonic)
+        required: true
+        type: choice
+        options:
+          - hello
+          - coordinator
+      job_id:
+        description: Deployment job ID (e.g. 378412 from Hub or deploy log)
+        required: true
+        type: string
+      wait_seconds:
+        description: Wait before fetching logs (0 = immediate; use ~360 after fresh hello deploy)
+        required: false
+        type: string
+        default: "0"
+
+jobs:
+  inspect:
+    name: inspect-devtools-${{ inputs.module }}
+    runs-on: ubuntu-latest
+    environment: canary
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build dev image
+        run: docker compose build dev
+
+      - name: Write module .env from secrets
+        env:
+          MNEMONIC_HELLO: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
+          MNEMONIC_COORDINATOR: ${{ secrets.ACURAST_MNEMONIC_COORDINATOR }}
+          MNEMONIC_FALLBACK: ${{ secrets.ACURAST_MNEMONIC }}
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+        run: |
+          set -euo pipefail
+          MODULE="${{ inputs.module }}"
+          case "${MODULE}" in
+            hello) MNEMONIC="${MNEMONIC_HELLO:-${MNEMONIC_FALLBACK:-}}" ;;
+            coordinator) MNEMONIC="${MNEMONIC_COORDINATOR:-${MNEMONIC_FALLBACK:-}}" ;;
+            *) echo "Unknown module: ${MODULE}" >&2; exit 1 ;;
+          esac
+          if [ -z "${MNEMONIC}" ]; then
+            echo "Missing mnemonic secret for ${MODULE}." >&2
+            exit 1
+          fi
+          ENV_FILE="modules/${MODULE}/.env"
+          printf 'ACURAST_MNEMONIC=%s\n' "${MNEMONIC}" > "${ENV_FILE}"
+          if [ -n "${RELAY_HOSTNAME:-}" ]; then
+            relay_hostname="$(printf '%s' "${RELAY_HOSTNAME}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s|/$||')"
+            printf 'RELAY_URL=wss://%s/\n' "${relay_hostname}" >> "${ENV_FILE}"
+          fi
+
+      - name: Probe DevTools API
+        run: docker compose run --rm dev node scripts/probe-devtools-api.mjs
+
+      - name: Fetch DevTools logs
+        env:
+          DEVTOOLS_TIMEOUT_MS: "180000"
+          POLL_MS: "15000"
+        run: |
+          set -euo pipefail
+          wait_ms=$(( ${{ inputs.wait_seconds }} * 1000 ))
+          bash scripts/inspect-canary-devtools.sh "${{ inputs.module }}" "${{ inputs.job_id }}" "${wait_ms}"
+
+      - name: Preflight hello heartbeat on relay
+        if: inputs.module == 'hello'
+        env:
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          PREFLIGHT_TIMEOUT_MS: "180000"
+        run: bash scripts/preflight-hello-heartbeat.sh "${RELAY_HOSTNAME}" hello
