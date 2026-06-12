@@ -21,8 +21,73 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  compute-acu-txt:
+    name: compute-acu-txt
+    if: inputs.dry_run == false
+    runs-on: ubuntu-latest
+    environment: canary
+    outputs:
+      acu_txt_v: ${{ steps.compute.outputs.acu_txt_v }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build dev image
+        run: docker compose build dev
+
+      - name: Compute Acurast TXT values
+        id: compute
+        env:
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          ACURAST_MNEMONIC_HELLO: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
+          ACURAST_MNEMONIC_COORDINATOR: ${{ secrets.ACURAST_MNEMONIC_COORDINATOR }}
+          ACURAST_MNEMONIC: ${{ secrets.ACURAST_MNEMONIC }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELAY_HOSTNAME:-}" ]; then
+            echo "::error::Missing RELAY_HOSTNAME in environment canary"
+            exit 1
+          fi
+          values="$(bash scripts/compute-relay-acu-txt-values.sh)"
+          {
+            echo "acu_txt_v<<EOF"
+            printf '%s' "${values}"
+            echo
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+  upsert-acu-txt:
+    name: upsert-acu-txt
+    if: inputs.dry_run == false
+    needs: compute-acu-txt
+    runs-on: ubuntu-latest
+    environment: relay
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Upsert _acu TXT in Selectel DNS
+        env:
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          ACURAST_TXT_V: ${{ needs.compute-acu-txt.outputs.acu_txt_v }}
+          SELECTEL_SERVICE_USER: ${{ secrets.SELECTEL_SERVICE_USER }}
+          SELECTEL_SERVICE_PASSWORD: ${{ secrets.SELECTEL_SERVICE_PASSWORD }}
+          SELECTEL_ACCOUNT_ID: ${{ secrets.SELECTEL_ACCOUNT_ID }}
+          SELECTEL_PROJECT_ID: ${{ secrets.SELECTEL_PROJECT_ID }}
+          SELECTEL_IAM_PROJECT_NAME: ${{ secrets.SELECTEL_IAM_PROJECT_NAME }}
+          RELAY_DNS_ZONE: ${{ secrets.RELAY_DNS_ZONE }}
+          RELAY_DNS_ZONE_ID: ${{ secrets.RELAY_DNS_ZONE_ID }}
+        run: |
+          set -euo pipefail
+          export PREPARE_OPENSTACK_EXPORT=1
+          # shellcheck disable=SC1091
+          source infra/selectel/scripts/prepare-openstack-env.sh
+          bash infra/selectel/scripts/upsert-relay-acu-txt.sh
+
   deploy:
     name: deploy-${{ inputs.module }}
+    needs: upsert-acu-txt
+    if: always() && (inputs.dry_run == true || needs.upsert-acu-txt.result == 'success')
     runs-on: ubuntu-latest
     environment: canary
     steps:
@@ -76,22 +141,6 @@ jobs:
             printf 'COORDINATOR_WATCH_MODULES=hello\n' >> "${ENV_FILE}"
           fi
 
-      - name: Upsert Acurast relay TXT whitelist
-        if: inputs.dry_run == false
-        env:
-          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
-          SELECTEL_SERVICE_USER: ${{ secrets.SELECTEL_SERVICE_USER }}
-          SELECTEL_SERVICE_PASSWORD: ${{ secrets.SELECTEL_SERVICE_PASSWORD }}
-          SELECTEL_ACCOUNT_ID: ${{ secrets.SELECTEL_ACCOUNT_ID }}
-          SELECTEL_PROJECT_ID: ${{ secrets.SELECTEL_PROJECT_ID }}
-          SELECTEL_IAM_PROJECT_NAME: ${{ secrets.SELECTEL_IAM_PROJECT_NAME }}
-          RELAY_DNS_ZONE: ${{ secrets.RELAY_DNS_ZONE }}
-          RELAY_DNS_ZONE_ID: ${{ secrets.RELAY_DNS_ZONE_ID }}
-          ACURAST_MNEMONIC_HELLO: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
-          ACURAST_MNEMONIC_COORDINATOR: ${{ secrets.ACURAST_MNEMONIC_COORDINATOR }}
-          ACURAST_MNEMONIC: ${{ secrets.ACURAST_MNEMONIC }}
-        run: bash scripts/upsert-relay-acu-txt-canary.sh
-
       - name: Preflight hello heartbeat (coordinator deploy)
         if: inputs.module == 'coordinator' && inputs.dry_run == false
         env:
@@ -119,11 +168,11 @@ jobs:
         if: inputs.module == 'hello' && inputs.dry_run == false
         env:
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
-          PREFLIGHT_TIMEOUT_MS: "120000"
+          PREFLIGHT_TIMEOUT_MS: "180000"
         run: |
           set -euo pipefail
-          echo "Waiting 90s for hello onetime execution on processor..."
-          sleep 90
+          echo "Waiting 360s for Acurast processor match + hello onetime execution (~5 min schedule)..."
+          sleep 360
           bash scripts/preflight-hello-heartbeat.sh "${RELAY_HOSTNAME}" hello
 
       - name: Smoke coordinator on relay (registry + scorecard)
@@ -133,6 +182,7 @@ jobs:
           COORDINATOR_PUBKEY: ${{ secrets.COORDINATOR_PUBKEY }}
         run: |
           set -euo pipefail
-          echo "Waiting 75s for first coordinator interval cycle (60s)..."
+          echo "Waiting 360s for processor match + 75s for first coordinator interval..."
+          sleep 360
           sleep 75
           bash scripts/smoke-coordinator-relay.sh "${RELAY_HOSTNAME}" hello
