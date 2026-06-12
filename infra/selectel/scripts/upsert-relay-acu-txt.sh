@@ -148,7 +148,7 @@ fi
 records_json="$(printf '%s\n' "${desired_values[@]}" | jq -R -s '
   split("\n")
   | map(select(length > 0))
-  | map({ content: ., disabled: false })
+  | map({ content: ("\"" + . + "\""), disabled: false })
 ')"
 
 patch_body="$(jq -n \
