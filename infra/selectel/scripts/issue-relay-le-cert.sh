@@ -74,103 +74,124 @@ status_failed() {
   esac
 }
 
-find_le_cert_for_host() {
+pick_le_cert_for_host() {
   local list_json="$1"
-  jq -r --arg host "${relay_hostname}" '
+  jq -c --arg host "${relay_hostname}" '
     [.items[]?
       | select((.deleted_at // null) == null)
       | select(.domains[]? == $host)
-      | select(.knox_cert_id != null and .knox_cert_id != "")
+      | select((.status // "" | ascii_downcase) as $s | ($s != "error" and $s != "invalid" and $s != "failed"))
     ]
     | sort_by(.updated_at // .created_at // "")
-    | last
-    | .knox_cert_id // empty
+    | last // empty
   ' <<< "${list_json}"
 }
 
-find_le_cert_by_knox() {
+pick_le_cert_by_knox() {
   local list_json="$1"
   local knox_id="$2"
-  jq -r --arg knox "${knox_id}" '
+  jq -c --arg knox "${knox_id}" '
     [.items[]?
       | select((.deleted_at // null) == null)
       | select(.knox_cert_id == $knox)
     ]
-    | last
-    | .knox_cert_id // empty
+    | last // empty
   ' <<< "${list_json}"
 }
 
 wait_for_ready() {
-  local knox_id="$1"
+  local le_cert_id="$1"
   local deadline=$((SECONDS + POLL_TIMEOUT))
+  local knox_cert_id=""
 
   while [ "${SECONDS}" -lt "${deadline}" ]; do
     list_json="$(le_request GET "/")"
-    item="$(jq -r --arg knox "${knox_id}" '
-      [.items[]? | select(.knox_cert_id == $knox)] | last // empty
+    item="$(jq -c --arg id "${le_cert_id}" '
+      [.items[]? | select(.id == $id)] | last // empty
     ' <<< "${list_json}")"
 
     if [ -z "${item}" ] || [ "${item}" = "null" ]; then
-      echo "::error::LE certificate ${knox_id} disappeared from list API" >&2
+      echo "::error::LE certificate id=${le_cert_id} disappeared from list API" >&2
       exit 1
     fi
 
     status="$(jq -r '.status // "unknown"' <<< "${item}")"
-    echo "LE cert ${knox_id}: status=${status}" >&2
+    knox_cert_id="$(jq -r '.knox_cert_id // empty' <<< "${item}")"
+    echo "LE cert id=${le_cert_id}: status=${status} knox_cert_id=${knox_cert_id:-pending}" >&2
 
-    if status_ready "${status}"; then
-      return 0
-    fi
     if status_failed "${status}"; then
       err="$(jq -r '.error_description // empty' <<< "${item}")"
-      echo "::error::LE certificate ${knox_id} status=${status} ${err}" >&2
+      echo "::error::LE certificate id=${le_cert_id} status=${status} ${err}" >&2
       echo "Check NS delegation to Selectel (a/b/c/d.ns.selectel.ru) for DNS-01." >&2
       exit 1
+    fi
+
+    if [ -n "${knox_cert_id}" ] && [ "${knox_cert_id}" != "null" ] && status_ready "${status}"; then
+      printf '%s' "${knox_cert_id}"
+      return 0
     fi
 
     sleep "${POLL_INTERVAL}"
   done
 
-  echo "::error::Timed out after ${POLL_TIMEOUT}s waiting for LE cert ${knox_id} (DNS-01)" >&2
+  echo "::error::Timed out after ${POLL_TIMEOUT}s waiting for LE cert id=${le_cert_id} (DNS-01)" >&2
   exit 1
 }
 
 list_json="$(le_request GET "/")"
+le_cert_id=""
+knox_cert_id=""
 
 if [ -n "${knox_override}" ]; then
-  knox_cert_id="$(find_le_cert_by_knox "${list_json}" "${knox_override}")"
-  if [ -z "${knox_cert_id}" ]; then
-    echo "::warning::RELAY_TLS_KNOX_CERT_ID not found in LE list; using override as-is" >&2
+  item="$(pick_le_cert_by_knox "${list_json}" "${knox_override}")"
+  if [ -n "${item}" ] && [ "${item}" != "null" ]; then
+    le_cert_id="$(jq -r '.id' <<< "${item}")"
+    knox_cert_id="$(jq -r '.knox_cert_id // empty' <<< "${item}")"
+    echo "Using LE certificate from RELAY_TLS_KNOX_CERT_ID: le_id=${le_cert_id}" >&2
+  else
+    echo "::warning::RELAY_TLS_KNOX_CERT_ID not in LE list; will poll Knox directly after issue lookup" >&2
     knox_cert_id="${knox_override}"
   fi
 else
-  knox_cert_id="$(find_le_cert_for_host "${list_json}")"
+  item="$(pick_le_cert_for_host "${list_json}")"
+  if [ -n "${item}" ] && [ "${item}" != "null" ]; then
+    le_cert_id="$(jq -r '.id' <<< "${item}")"
+    knox_cert_id="$(jq -r '.knox_cert_id // empty' <<< "${item}")"
+    echo "Using existing LE certificate for ${relay_hostname}: le_id=${le_cert_id}" >&2
+  fi
 fi
 
-if [ -z "${knox_cert_id}" ]; then
+if [ -z "${le_cert_id}" ]; then
+  if [ -n "${knox_cert_id}" ]; then
+    echo "Knox id provided without LE list match — cannot poll issue status" >&2
+    if [ -n "${GITHUB_OUTPUT:-}" ]; then
+      echo "knox_cert_id=${knox_cert_id}" >> "${GITHUB_OUTPUT}"
+    fi
+    printf '%s' "${knox_cert_id}"
+    exit 0
+  fi
+
   cert_name="nhmind-relay-${relay_hostname}"
   echo "Issuing Selectel LE certificate for ${relay_hostname} (DNS-01, dnsv2)..." >&2
   issue_json="$(le_request POST "/issue?dnsv2=true" "$(jq -n \
     --arg name "${cert_name}" \
     --arg host "${relay_hostname}" \
     '{name: $name, domains: [$host]}')")"
-  knox_cert_id="$(jq -r '.knox_cert_id // empty' <<< "${issue_json}")"
-  if [ -z "${knox_cert_id}" ]; then
-    echo "::error::LE issue response missing knox_cert_id" >&2
+  le_cert_id="$(jq -r '.id // empty' <<< "${issue_json}")"
+  if [ -z "${le_cert_id}" ]; then
+    echo "::error::LE issue response missing id" >&2
     jq . <<< "${issue_json}" >&2
     exit 1
   fi
-  echo "LE issue started: knox_cert_id=${knox_cert_id}" >&2
-else
-  echo "Using existing LE certificate: knox_cert_id=${knox_cert_id}" >&2
+  echo "LE issue started: id=${le_cert_id} (knox_cert_id pending)" >&2
 fi
 
-wait_for_ready "${knox_cert_id}"
+knox_cert_id="$(wait_for_ready "${le_cert_id}")"
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
   {
     echo "knox_cert_id=${knox_cert_id}"
+    echo "le_cert_id=${le_cert_id}"
   } >> "${GITHUB_OUTPUT}"
 fi
 
