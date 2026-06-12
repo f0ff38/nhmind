@@ -1,0 +1,8 @@
+{
+  "name": "@nhmind/scripts",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@polkadot/util-crypto": "^13.5.3"
+  }
+}

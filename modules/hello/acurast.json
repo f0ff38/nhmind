@@ -16,7 +16,7 @@
       "maxAllowedStartDelayInMs": 10000,
       "usageLimit": {
         "maxMemory": 0,
-        "maxNetworkRequests": 0,
+        "maxNetworkRequests": 10,
         "maxStorage": 0
       },
       "numberOfReplicas": 1,

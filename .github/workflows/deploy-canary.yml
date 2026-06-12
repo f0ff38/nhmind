@@ -76,6 +76,29 @@ jobs:
             printf 'COORDINATOR_WATCH_MODULES=hello\n' >> "${ENV_FILE}"
           fi
 
+      - name: Upsert Acurast relay TXT whitelist
+        if: inputs.dry_run == false
+        env:
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          SELECTEL_SERVICE_USER: ${{ secrets.SELECTEL_SERVICE_USER }}
+          SELECTEL_SERVICE_PASSWORD: ${{ secrets.SELECTEL_SERVICE_PASSWORD }}
+          SELECTEL_ACCOUNT_ID: ${{ secrets.SELECTEL_ACCOUNT_ID }}
+          SELECTEL_PROJECT_ID: ${{ secrets.SELECTEL_PROJECT_ID }}
+          SELECTEL_IAM_PROJECT_NAME: ${{ secrets.SELECTEL_IAM_PROJECT_NAME }}
+          RELAY_DNS_ZONE: ${{ secrets.RELAY_DNS_ZONE }}
+          RELAY_DNS_ZONE_ID: ${{ secrets.RELAY_DNS_ZONE_ID }}
+          ACURAST_MNEMONIC_HELLO: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
+          ACURAST_MNEMONIC_COORDINATOR: ${{ secrets.ACURAST_MNEMONIC_COORDINATOR }}
+          ACURAST_MNEMONIC: ${{ secrets.ACURAST_MNEMONIC }}
+        run: bash scripts/upsert-relay-acu-txt-canary.sh
+
+      - name: Preflight hello heartbeat (coordinator deploy)
+        if: inputs.module == 'coordinator' && inputs.dry_run == false
+        env:
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          PREFLIGHT_TIMEOUT_MS: "120000"
+        run: bash scripts/preflight-hello-heartbeat.sh "${RELAY_HOSTNAME}" hello
+
       - name: Estimate fee
         run: |
           docker compose run --rm \
@@ -91,6 +114,17 @@ jobs:
           docker compose run --rm \
             -e ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com \
             dev bash -lc "cd modules/${{ inputs.module }} && acurast deploy ${DEPLOY_FLAGS}"
+
+      - name: Smoke hello heartbeat on relay
+        if: inputs.module == 'hello' && inputs.dry_run == false
+        env:
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          PREFLIGHT_TIMEOUT_MS: "120000"
+        run: |
+          set -euo pipefail
+          echo "Waiting 90s for hello onetime execution on processor..."
+          sleep 90
+          bash scripts/preflight-hello-heartbeat.sh "${RELAY_HOSTNAME}" hello
 
       - name: Smoke coordinator on relay (registry + scorecard)
         if: inputs.module == 'coordinator' && inputs.dry_run == false

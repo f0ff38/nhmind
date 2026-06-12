@@ -1,4 +1,4 @@
-import { NostrClient } from "@nhmind/nostr-client";
+import { NostrClient, whitelistRelayHost } from "@nhmind/nostr-client";
 import {
   parseWatchModules,
   runCoordinatorCycle,
@@ -50,6 +50,7 @@ export async function runCycle(): Promise<void> {
   let client: NostrClient | undefined;
 
   try {
+    whitelistRelayHost(std.network, config.relayUrl);
     client = new NostrClient({
       relays: [config.relayUrl],
       signer: createCoordinatorSigner(),
