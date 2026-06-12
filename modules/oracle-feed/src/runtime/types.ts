@@ -1,0 +1,52 @@
+export interface AcurastJobId {
+  origin: { kind: string; source: string };
+  id: string;
+}
+
+export interface AcurastPublicKeys {
+  p256: string;
+  secp256k1: string;
+  ed25519: string;
+}
+
+export interface AcurastStd {
+  app_info: { version: string };
+  env: Record<string, string | undefined>;
+  job: {
+    getId: () => AcurastJobId;
+    getSlot: () => number;
+    getPublicKeys: () => AcurastPublicKeys;
+  };
+  device: {
+    getPublicKey: () => string;
+    getAddress: () => string;
+  };
+  signers: {
+    secp256k1: {
+      sign: (payloadHex: string) => string;
+    };
+  };
+  network?: {
+    whitelist: (hosts: string | string[]) => void;
+  };
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var _STD_: AcurastStd;
+
+  function httpGET(
+    url: string,
+    headers: Record<string, string>,
+    success: (payload: string, certificate: string) => void,
+    error: (message: string) => void,
+  ): void;
+}
+
+export function getStd(): AcurastStd {
+  return globalThis._STD_;
+}
+
+export function isAcurastProcessor(): boolean {
+  return getStd().job.getId().origin.kind !== "local";
+}
