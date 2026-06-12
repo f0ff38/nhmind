@@ -22,8 +22,12 @@ if [ -z "${relay_hostname}" ]; then
 fi
 
 if [ -z "${certbot_email}" ]; then
-  domain="${relay_hostname#*.}"
-  certbot_email="ops@${domain}"
+  label_count="$(printf '%s' "${relay_hostname}" | tr -cd '.' | wc -c | tr -d ' ')"
+  if [ "${label_count}" -le 1 ]; then
+    certbot_email="ops@${relay_hostname}"
+  else
+    certbot_email="ops@${relay_hostname#*.}"
+  fi
 fi
 
 export RELAY_HOSTNAME="${relay_hostname}"
