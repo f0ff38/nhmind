@@ -33,7 +33,7 @@ checkout → docker compose build → install → test → bundle → smoke run
 | `ACURAST_MNEMONIC_COORDINATOR` | Deploy `coordinator` | Environment **canary** |
 | `ACURAST_MNEMONIC` | Fallback, если нет per-module secret | Environment **canary** |
 | `CURSOR_API_KEY` | Cursor CLI в Actions | Будущий workflow для авто-фиксов/docs |
-| `RELAY_URL` | Nostr relay (`wss://nostr.<ваш-домен>`) для deploy env vars | Environment **canary** (нужен для exit criteria Phase 2); хостинг и чеклист — [relay-ops.md](relay-ops.md) |
+| `RELAY_HOSTNAME` | FQDN relay (`nostr.<домен>`); workflow собирает `RELAY_URL=wss://<host>/` | Environment **canary** (тот же hostname, что в **relay**); хостинг — [relay-ops.md](relay-ops.md) |
 
 **Не коммитить** секреты. `.env` в `.gitignore`.
 
@@ -47,7 +47,7 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
 2. В environment **canary** добавить secrets:
    - `ACURAST_MNEMONIC_HELLO` — mnemonic из `modules/hello/.env`
    - `ACURAST_MNEMONIC_COORDINATOR` — mnemonic из `modules/coordinator/.env`
-   - `RELAY_URL` — `wss://nostr.<ваш-домен>` (собственный Nostr relay; не Acurast P2P/RPC — см. [nostr-protocol.md](nostr-protocol.md#nostr-relay-на-canary-ops))
+   - `RELAY_HOSTNAME` — `nostr.<ваш-домен>` (без схемы); `deploy-canary.yml` пишет в `.env` модульный `RELAY_URL=wss://<RELAY_HOSTNAME>/` (не Acurast P2P/RPC — см. [nostr-protocol.md](nostr-protocol.md#nostr-relay-на-canary-ops))
 3. Actions → **Deploy Canary** → Run workflow:
    - `hello` — ✅ уже задеплоен (canary)
    - `coordinator` — следующий шаг (`dry_run: true`, затем deploy)
@@ -144,7 +144,7 @@ Floating IP для SSH/deploy — **`terraform output public_ip`**. **A-запи
 
 **Аутентификация:** OpenStack/Terraform — пароль сервисного пользователя; PTR — `X-Token`. См. [authorization](https://docs.selectel.ru/api/authorization/).
 
-После smoke: `RELAY_URL` в environment **canary** → `Deploy Canary` для hello/coordinator.
+После smoke: `RELAY_HOSTNAME` в environment **canary** → `Deploy Canary` для hello/coordinator (`RELAY_URL` собирается в workflow).
 
 ### 10. Provision relay VM (Selectel)
 

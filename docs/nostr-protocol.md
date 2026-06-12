@@ -300,7 +300,7 @@ Processor ходит на relay через **HTTPS** (`wss://` → `https://` в
 1. **Сервер** — `nostr-rs-relay` (как в compose) за reverse proxy (Caddy/nginx) на **443**.
 2. **DNS** — `A`/`AAAA` поддомена → публичный IP VPS; **PTR** того же IP → тот же hostname (для whitelist).
 3. **TXT** — `_acu.<host>` = `v=base64(sha256(deployment_source ‖ host))` для каждого deploy-кошелька ([дока Acurast](https://docs.acurast.com/developers/job-runtime-environment/#network)); `deployment_source` — Account ID из `scripts/show-acurast-address.mjs`.
-4. **Deploy** — `RELAY_URL=wss://nostr.<ваш-домен>` в GitHub environment **canary** → redeploy hello/coordinator.
+4. **Deploy** — `RELAY_HOSTNAME` в GitHub environment **canary** → [deploy-canary.yml](../.github/workflows/deploy-canary.yml) пишет `RELAY_URL=wss://<host>/` в `.env` модуля.
 
 Локально: `ws://nostr-relay:8080` (compose profile `relay`, host port `7777`).
 

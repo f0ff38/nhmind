@@ -44,7 +44,7 @@ jobs:
           MNEMONIC_HELLO: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
           MNEMONIC_COORDINATOR: ${{ secrets.ACURAST_MNEMONIC_COORDINATOR }}
           MNEMONIC_FALLBACK: ${{ secrets.ACURAST_MNEMONIC }}
-          RELAY_URL: ${{ secrets.RELAY_URL }}
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
         run: |
           set -euo pipefail
           MODULE="${{ inputs.module }}"
@@ -58,11 +58,20 @@ jobs:
             echo "Set ACURAST_MNEMONIC_${MODULE^^} or ACURAST_MNEMONIC in environment canary." >&2
             exit 1
           fi
+          relay_hostname="$(printf '%s' "${RELAY_HOSTNAME:-}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s|/$||')"
+          if [ -z "${relay_hostname}" ]; then
+            echo "::error::Missing RELAY_HOSTNAME in environment canary (FQDN without scheme)" >&2
+            exit 1
+          fi
+          if ! printf '%s' "${relay_hostname}" | grep -Eq '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'; then
+            echo "::error::Invalid RELAY_HOSTNAME format (expected lowercase FQDN)" >&2
+            exit 1
+          fi
+          relay_url="wss://${relay_hostname}/"
           ENV_FILE="modules/${MODULE}/.env"
           printf 'ACURAST_MNEMONIC=%s\n' "${MNEMONIC}" > "${ENV_FILE}"
-          if [ -n "${RELAY_URL:-}" ]; then
-            printf 'RELAY_URL=%s\n' "${RELAY_URL}" >> "${ENV_FILE}"
-          fi
+          printf 'RELAY_URL=%s\n' "${relay_url}" >> "${ENV_FILE}"
+          echo "RELAY_URL derived from RELAY_HOSTNAME (wss://<host>/)" >&2
           if [ "${MODULE}" = "coordinator" ]; then
             printf 'COORDINATOR_WATCH_MODULES=hello\n' >> "${ENV_FILE}"
           fi

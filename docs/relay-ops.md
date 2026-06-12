@@ -18,7 +18,7 @@
 
 Локально: `docker compose --profile relay` → `ws://nostr-relay:8080` (порт `7777` на хосте).
 
-Canary/production: `RELAY_URL=wss://nostr.<ваш-домен>` в GitHub environment **canary** → redeploy через [deploy-canary.yml](../.github/workflows/deploy-canary.yml).
+Canary/production: `RELAY_HOSTNAME` в GitHub environment **canary** → [deploy-canary.yml](../.github/workflows/deploy-canary.yml) собирает `RELAY_URL=wss://<RELAY_HOSTNAME>/` в `.env` модуля.
 
 ---
 
@@ -256,7 +256,7 @@ Workflow нормализует project id в **32 hex** (как в панели
 | DNS A: **Keystone HTTP 401** | token script использовал UUID project id; Terraform — hex | обновите repo; повторный **apply** с `set_dns_a=true`; при необходимости secret `SELECTEL_IAM_PROJECT_NAME` (IAM → Проекты → имя) |
 | DNS A: **zero zones** | **Доменные зоны = 0** (есть только **Домены** registrar) | повторный **apply** с `set_dns_a=true` — [upsert-relay-dns-a.sh](../infra/selectel/scripts/upsert-relay-dns-a.sh) создаёт зону через `POST /zones`; затем NS на Selectel |
 
-**Environment canary** (отдельно): `RELAY_URL` = `wss://<RELAY_HOSTNAME>` — после smoke relay.
+**Environment canary** (отдельно): secret **`RELAY_HOSTNAME`** (тот же FQDN, что в **relay**); отдельный `RELAY_URL` не нужен — workflow собирает `wss://<host>/`.
 
 **Bootstrap S3 state (один раз вручную):** бакет в Object Storage + S3-ключ с read/write на бакет ([настройка state](https://docs.selectel.ru/terraform/configure-terraform-state-storage/)).
 
@@ -273,7 +273,7 @@ Workflow нормализует project id в **32 hex** (как в панели
 1. `workflow_dispatch` → provision создаёт VM с публичным IP и cloud-init.
 2. PTR = `RELAY_HOSTNAME`, **A** upsert через Selectel DNS API (workflow, `set_dns_a=true`).
 3. `deploy-relay` поднимает relay; smoke проходит.
-4. `RELAY_URL` в canary → redeploy hello/coordinator → heartbeat в DevTools.
+4. `RELAY_HOSTNAME` в canary → **Deploy Canary** → heartbeat в DevTools.
 
 Подробнее про workflows и секреты: [github-actions.md](github-actions.md).
 
@@ -338,7 +338,7 @@ infra/nostr-relay/
 4. **Relay не на публичном :8080** — только через nginx `:443`.
 5. **TLS:** Selectel Certificate Manager LE (DNS-01); ключ в Knox, pull-on-deploy; продление на стороне Selectel.
 6. **Canary write policy:** pubkey allowlist в `nostr-rs-relay` — снижает спам на открытом relay.
-7. **Секреты:** SSH key только в GitHub environment **relay**; `RELAY_URL` в **canary**.
+7. **Секреты:** SSH key только в GitHub environment **relay**; `RELAY_HOSTNAME` в **canary** (→ `RELAY_URL` в workflow).
 8. **Без CF proxy** на hostname processor (серое DNS / прямой `A`).
 
 ---
@@ -351,7 +351,7 @@ infra/nostr-relay/
 4. [ ] **Deploy Relay** → `deploy` или `all` (после propagation DNS)
 5. [ ] DNS: TXT `_acu.<RELAY_HOSTNAME>` для deploy-кошельков hello и coordinator
 6. [ ] Smoke WSS (**Deploy Relay** → `smoke`) или с ноутбука
-7. [ ] GitHub **canary** → `RELAY_URL=wss://<RELAY_HOSTNAME>`
+7. [ ] GitHub **canary** → secret `RELAY_HOSTNAME` (тот же FQDN, что relay)
 8. [ ] Redeploy hello + coordinator (`Deploy Canary`)
 9. [ ] DevTools: heartbeat и scorecard на processor
 

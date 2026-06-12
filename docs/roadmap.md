@@ -78,7 +78,7 @@ flowchart LR
 ### 4. Canary (exit criteria Phase 2)
 
 1. TXT **`_acu.<hostname>`** (hello + coordinator wallets).
-2. **canary** → **`RELAY_URL=wss://<RELAY_HOSTNAME>`**.
+2. **canary** → secret **`RELAY_HOSTNAME`** (workflow собирает `RELAY_URL`).
 3. **Deploy Canary** → coordinator.
 4. DevTools: heartbeat `30090`, scorecard `30091`.
 
