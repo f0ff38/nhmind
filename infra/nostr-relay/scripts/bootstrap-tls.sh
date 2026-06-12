@@ -117,4 +117,9 @@ fi
 
 activate_https_nginx
 docker compose ps
+if ! docker compose ps relay 2>/dev/null | grep -qE 'Up [0-9]'; then
+  echo "::warning::nostr-rs-relay is not healthy — container logs:"
+  docker compose logs relay --tail 40 2>/dev/null || true
+  exit 1
+fi
 echo "Relay stack is up for ${relay_hostname}"
