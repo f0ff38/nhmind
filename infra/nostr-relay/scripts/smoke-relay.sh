@@ -20,7 +20,18 @@ if [ -n "${expected_ip}" ]; then
 fi
 
 echo "Checking HTTPS / NIP-11..."
-http_code="$(curl -fsS -o /tmp/nhmind-relay-nip11.json -w '%{http_code}' "https://${relay_hostname}/" || true)"
+http_code=""
+attempt=1
+max_attempts=12
+while [ "${attempt}" -le "${max_attempts}" ]; do
+  http_code="$(curl -4fsS -o /tmp/nhmind-relay-nip11.json -w '%{http_code}' "https://${relay_hostname}/" 2>/dev/null || true)"
+  if [ "${http_code}" = "200" ]; then
+    break
+  fi
+  echo "HTTPS not ready (HTTP ${http_code:-000}), retry ${attempt}/${max_attempts}..."
+  sleep 5
+  attempt=$((attempt + 1))
+done
 if [ "${http_code}" != "200" ]; then
   echo "::error::HTTPS GET https://${relay_hostname}/ returned HTTP ${http_code:-000}"
   exit 1
@@ -32,7 +43,7 @@ fi
 echo "HTTPS OK"
 
 echo "Checking WebSocket upgrade..."
-ws_status="$(curl -sS -i -N --max-time 15 \
+ws_status="$(curl -4sS -i -N --max-time 15 \
   -H "Connection: Upgrade" \
   -H "Upgrade: websocket" \
   -H "Sec-WebSocket-Version: 13" \

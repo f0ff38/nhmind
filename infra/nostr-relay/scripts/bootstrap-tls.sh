@@ -73,6 +73,13 @@ ensure_acme_http_ingress() {
 ensure_docker_compose
 ensure_acme_http_ingress
 
+init_relay_data_dir() {
+  docker compose run --rm --user root --entrypoint sh relay \
+    -c 'mkdir -p /usr/src/app/db && chown -R 100:100 /usr/src/app/db'
+}
+
+init_relay_data_dir
+
 cert_exists() {
   docker compose --profile certbot run --rm --entrypoint sh certbot \
     -c "test -f /etc/letsencrypt/live/${relay_hostname}/fullchain.pem"
