@@ -28,11 +28,46 @@ fi
 
 export RELAY_HOSTNAME="${relay_hostname}"
 
-if ! docker compose version >/dev/null 2>&1; then
-  echo "Installing docker compose plugin..."
-  sudo apt-get update -qq
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-compose-plugin
-fi
+ensure_docker_compose() {
+  if docker compose version >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Installing Docker Compose v2 plugin (docker.io has no compose plugin package)..."
+  local version="v2.32.4"
+  local arch
+  arch="$(uname -m)"
+  case "${arch}" in
+    x86_64) arch="x86_64" ;;
+    aarch64 | arm64) arch="aarch64" ;;
+    *)
+      echo "::error::Unsupported architecture for Docker Compose: ${arch}"
+      exit 1
+      ;;
+  esac
+
+  local plugin_dir="/usr/local/lib/docker/cli-plugins"
+  sudo mkdir -p "${plugin_dir}"
+  sudo curl -fsSL \
+    "https://github.com/docker/compose/releases/download/${version}/docker-compose-linux-${arch}" \
+    -o "${plugin_dir}/docker-compose"
+  sudo chmod +x "${plugin_dir}/docker-compose"
+  docker compose version
+}
+
+ensure_acme_http_ingress() {
+  if ! command -v ufw >/dev/null 2>&1; then
+    return 0
+  fi
+  if sudo ufw status | grep -Eq '^80/tcp'; then
+    return 0
+  fi
+  echo "Opening UFW port 80 for ACME HTTP-01..."
+  sudo ufw allow 80/tcp comment 'certbot HTTP-01'
+}
+
+ensure_docker_compose
+ensure_acme_http_ingress
 
 cert_exists() {
   docker compose --profile certbot run --rm --entrypoint sh certbot \

@@ -104,6 +104,7 @@ Selectel использует **три типа** токенов; для GitOps 
 | Порт | Источник | Зачем |
 |------|----------|--------|
 | **443/tcp** | `0.0.0.0/0` | Acurast processor, WSS-клиенты |
+| **80/tcp** | `0.0.0.0/0` | Let's Encrypt HTTP-01 (certbot); после выпуска сертификата можно сузить |
 | **22/tcp** | `0.0.0.0/0` | SSH для GHA deploy и ops; **только по ключу** (нет паролей) |
 
 Почему не [Meta API `actions`](https://docs.github.com/ru/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses): ~7000+ динамических CIDR, лимит Selectel 200 правил, список меняется — GitHub не рекомендует жёсткий allowlist для hosted runners.

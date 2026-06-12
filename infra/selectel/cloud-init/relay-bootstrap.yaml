@@ -28,6 +28,9 @@ write_files:
       PermitRootLogin prohibit-password
 
 runcmd:
+  - mkdir -p /usr/local/lib/docker/cli-plugins
+  - curl -fsSL https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+  - chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
   - systemctl enable docker
   - systemctl start docker
   - mkdir -p /opt/nhmind-relay
@@ -36,6 +39,7 @@ runcmd:
   - ufw default deny incoming
   - ufw default allow outgoing
   - ufw allow 22/tcp
+  - ufw allow 80/tcp
   - ufw allow 443/tcp
   - ufw --force enable
   - systemctl restart ssh
