@@ -39,7 +39,7 @@ README.md          ← корень: обзор, архитектура, dev, с
 | [nostr-protocol.md](nostr-protocol.md) | Kinds, tags, JSON-схемы, Acurast transport (`httpGET`/`httpPOST`, не `_STD_.ws` для relay) |
 | [relay-ops.md](relay-ops.md) | Хостинг relay, Selectel GitOps, секреты environment **relay**, troubleshooting OpenStack |
 | [github-actions.md](github-actions.md) | CI, canary deploy, validate/provision relay, branch protection, секреты **canary** / **relay** |
-| [economics.md](economics.md) | ROI, treasury, autoscaling (Phase 3–4; черновик формул) |
+| [economics.md](economics.md) | ROI, treasury, cost/revenue attribution; модели **pull-oracle** (Phase 3) и **AI module** (Phase 5) |
 
 **Связи:**
 
@@ -99,4 +99,4 @@ README.md          ← корень: обзор, архитектура, dev, с
 | Selectel VM / relay provision | roadmap checkpoint → relay-ops → github-actions |
 | CI / deploy canary | github-actions.md |
 | Новый модуль | module-template README → AGENTS |
-| ROI / promote-pause-kill | economics.md → roadmap Phase 4 |
+| ROI / promote-pause-kill / oracle / AI economics | economics.md → roadmap Phase 3–5 |

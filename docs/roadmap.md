@@ -186,7 +186,7 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 - [ ] Реальные `_STD_.signers` / `httpGET` на canary processor
 - [ ] DevTools-enabled deploy, логи проверены
 - [ ] 7-дневное canary-окно измерений (ручной или coordinator stub)
-- [ ] `docs/economics.md` — формулы ROI, cost attribution
+- [x] `docs/economics.md` — формулы ROI, cost/revenue attribution; модели pull-oracle и AI module ([economics.md](economics.md))
 
 ### Exit criteria
 
@@ -222,7 +222,7 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 ### Зависимости
 
 - Phase 2 + Phase 3
-- Источник revenue (on-chain или off-chain attribution) — зафиксировать в `economics.md`
+- [x] Источник revenue — NIP-90 `bid` + feedback settlement → `revenue_acu` ([economics.md § Revenue attribution](economics.md#revenue-attribution))
 
 ---
 
