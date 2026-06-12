@@ -43,7 +43,7 @@ fi
 echo "HTTPS OK"
 
 echo "Checking WebSocket upgrade..."
-ws_status="$(curl -4sS -i -N --max-time 15 \
+ws_status="$(curl -4sS -i -N --http1.1 --max-time 15 \
   -H "Connection: Upgrade" \
   -H "Upgrade: websocket" \
   -H "Sec-WebSocket-Version: 13" \
