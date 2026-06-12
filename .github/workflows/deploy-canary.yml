@@ -178,18 +178,32 @@ jobs:
         if: inputs.module == 'hello' && inputs.dry_run == false
         env:
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
-          PREFLIGHT_TIMEOUT_MS: "180000"
+          PREFLIGHT_TIMEOUT_MS: "30000"
+          HEARTBEAT_MAX_WAIT_MS: "420000"
+          HEARTBEAT_POLL_INTERVAL_SEC: "15"
           DEVTOOLS_TIMEOUT_MS: "180000"
         run: |
           set -euo pipefail
-          echo "Waiting 360s for Acurast processor match + hello onetime execution (~5 min schedule)..."
-          sleep 360
           if [ -n "${{ steps.acurast_deploy.outputs.deployment_id }}" ]; then
             echo "Fetching DevTools logs from GHA (job ${{ steps.acurast_deploy.outputs.deployment_id }})..."
             bash scripts/inspect-canary-devtools.sh hello "${{ steps.acurast_deploy.outputs.deployment_id }}" 0 \
               || echo "::warning::DevTools log fetch failed — see Inspect Canary DevTools workflow or relay preflight below"
           fi
-          bash scripts/preflight-hello-heartbeat.sh "${RELAY_HOSTNAME}" hello
+          deadline=$(( $(date +%s) + HEARTBEAT_MAX_WAIT_MS / 1000 ))
+          while true; do
+            if bash scripts/preflight-hello-heartbeat.sh "${RELAY_HOSTNAME}" hello; then
+              echo "Heartbeat detected on relay."
+              break
+            fi
+            now="$(date +%s)"
+            if [ "${now}" -ge "${deadline}" ]; then
+              echo "::error::Timed out waiting for hello heartbeat on relay (${HEARTBEAT_MAX_WAIT_MS}ms)"
+              exit 1
+            fi
+            remaining=$(( deadline - now ))
+            echo "Heartbeat not visible yet; retry in ${HEARTBEAT_POLL_INTERVAL_SEC}s (remaining ${remaining}s)"
+            sleep "${HEARTBEAT_POLL_INTERVAL_SEC}"
+          done
 
       - name: Smoke coordinator on relay (registry + scorecard)
         if: inputs.module == 'coordinator' && inputs.dry_run == false
