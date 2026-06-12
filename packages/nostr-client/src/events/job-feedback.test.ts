@@ -28,6 +28,16 @@ describe("job feedback events", () => {
     expect(content.message).toBe("working");
   });
 
+  it("supports paid settlement status", () => {
+    const template = buildJobFeedbackTemplate({
+      jobId: "job-paid",
+      status: "paid",
+      message: "preimage:abc123",
+      createdAt: 1718000035,
+    });
+    expect(template.tags).toContainEqual(["status", "paid"]);
+  });
+
   it("round-trips through sign and parse", () => {
     const signer = createPrivateKeySigner(generateSecretKey());
     const template = buildJobFeedbackTemplate({

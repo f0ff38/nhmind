@@ -96,7 +96,7 @@ Kinds в диапазоне `30000–39999`. Идентичность replaceabl
 | Tag | Обязательный | Значение |
 |-----|--------------|----------|
 | `request` | да | `job_id` |
-| `status` | да | NIP-90 status: `payment-required`, `processing`, `error`, `success`, … |
+| `status` | да | NIP-90 status: `payment-required`, `paid`, `processing`, `error`, `success`, … |
 
 ---
 

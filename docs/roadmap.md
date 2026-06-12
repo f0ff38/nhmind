@@ -181,8 +181,8 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 ### Deliverables
 
 - [ ] `_STD_.ws` mesh: coordinator → module команды (`pause`/`kill` ack), env `WSS_URLS` / canary proxies
-- [ ] Выбор experimental-модуля (oracle, API relay, простой DVM job — не GameFi/MEV на старте)
-- [ ] `modules/<name>/` — `IBusinessModule`, production-shaped `acurast.json`
+- [x] Выбор experimental-модуля — **`oracle-feed`** (pull-oracle, NIP-90); см. [collective-intelligence.md](collective-intelligence.md)
+- [x] `modules/oracle-feed/` — `IBusinessModule`, multi-source median, revenue ledger (canary deploy ⬜)
 - [ ] Реальные `_STD_.signers` / `httpGET` на canary processor
 - [ ] DevTools-enabled deploy, логи проверены
 - [ ] 7-дневное canary-окно измерений (ручной или coordinator stub)

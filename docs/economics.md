@@ -108,7 +108,7 @@ revenue_acu = floor(bid_millisats × msat_to_acu_rate(window_end))
 
 [Acurast on-demand pull oracle](https://acurast.com/blog/oracle-blockchain-acurast/from-pull-to-push-changing-oracle-paradigms/): consumer запрашивает attested price/data **по требованию**; on-chain tx cost несёт consumer, не operator.
 
-В nhmind transport — **Nostr NIP-90** (`job_type: oracle`), execution — **Acurast TEE** (`httpGET` к price APIs, `_STD_.signers` для подписи результата).
+В nhmind transport — **Nostr NIP-90** (`job_type: oracle`), execution — **Acurast TEE** (`httpGET` к price APIs, `_STD_.signers` для подписи результата). Реализация: [`modules/oracle-feed`](../modules/oracle-feed/); коллективный слой — [collective-intelligence.md](collective-intelligence.md).
 
 ```
 Client ──5900 job──► Nostr relay ◄──6900 result── Oracle module (TEE)
@@ -416,6 +416,7 @@ Faucet cACU = **subsidy**; модуль на mainnet должен target `networ
 |------|-------|--------|
 | ROI formula in coordinator | 4 | ⬜ stub (`revenue_acu: "0"`) |
 | NIP-90 bid → revenue_acu conversion | 4 | ⬜ |
+| `modules/oracle-feed` scaffold + tests | 3 | ✅ |
 | Measured `cost_job_acu` (oracle) | 3 | ⬜ needs canary deploy |
 | `quality_score` in scorecard | 5 | ⬜ |
 | Treasury min balance gate | 4 | ⬜ |
