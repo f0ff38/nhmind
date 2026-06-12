@@ -219,8 +219,12 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 
 ### Deliverables
 
-- [ ] Выбор experimental-модуля: **pull-oracle** как default; API relay / простой DVM job допустимы, GameFi/MEV не брать на старте
-- [ ] `modules/<name>/` — `IBusinessModule`, production-shaped `acurast.json`
+- [x] Выбор experimental-модуля — **`oracle-feed`** (pull-oracle, DVM-compatible jobs); см. [collective-intelligence.md](collective-intelligence.md)
+- [x] `modules/oracle-feed/` — `IBusinessModule`, multi-source median, revenue ledger
+- [x] `oracle-feed` canary hardening — price API `_STD_.network.whitelist`, `ORACLE_MIN_SOURCES`, requester-only `paid` feedback, skip duplicate `6900`, error results, canonical TEE sign payload ([PR #54](https://github.com/f0ff38/nhmind/pull/54))
+- [x] `docs/nostr-protocol.md` — schema `nhmind/oracle-result/v1` (oracle job output)
+- [ ] Price proxy на своём домене (`prices.<zone>`) + `_acu` TXT — внешние API напрямую недоступны (см. [oracle-feed README](../modules/oracle-feed/README.md))
+- [ ] Canary deploy **`oracle-feed`** + smoke DVM-compatible job (5900 → paid → 6900)
 - [ ] Реальные `_STD_.signers` / `httpGET` на canary processor
 - [ ] DevTools-enabled deploy, логи проверены
 - [ ] 7-дневное canary-окно измерений (ручной или coordinator stub)
@@ -235,7 +239,7 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 
 ### Риски
 
-- DNS TXT whitelist для внешних API — может потребовать отдельный домен
+- DNS TXT whitelist только для своего hostname — price proxy `prices.<zone>` + `_acu` TXT (oracle-feed); relay hostname уже в Deploy Canary; Coinbase/Kraken напрямую недоступны
 - `acurast live` + телефон для отладки до canary deploy
 
 ---

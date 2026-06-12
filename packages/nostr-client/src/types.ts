@@ -88,6 +88,7 @@ export interface JobResultPayload {
 
 export type JobFeedbackStatus =
   | "payment-required"
+  | "paid"
   | "processing"
   | "error"
   | "success";
