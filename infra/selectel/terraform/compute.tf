@@ -48,7 +48,7 @@ resource "openstack_compute_instance_v2" "relay" {
   }
 
   lifecycle {
-    ignore_changes = [image_id]
+    ignore_changes = [image_id, user_data]
   }
 
   vendor_options {
