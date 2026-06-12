@@ -42,4 +42,4 @@ NHIND_MODULE_DIR=modules/oracle-feed ./scripts/dev run
 
 ## Acurast deploy
 
-Acurast `_acu` whitelist applies only to hostnames you control (your DNS zone). External price APIs (`api.coinbase.com`, `api.kraken.com`) are not reachable directly from the processor. For canary, run a **price proxy** on your domain (e.g. `prices.<zone>`) that forwards to those APIs, then upsert DNS TXT `_acu.prices.<zone>` — compute the value with `scripts/compute-acu-txt-v.mjs` the same way as for the relay hostname.
+Acurast `_acu` whitelist applies only to hostnames you control (your DNS zone). External price APIs (`api.coinbase.com`, `api.kraken.com`) are not reachable directly from the processor. For canary, run a **price proxy** on your domain (e.g. `prices.&lt;zone&gt;`) that forwards to those APIs, then upsert DNS TXT `_acu.prices.&lt;zone&gt;` — compute the value with `scripts/compute-acu-txt-v.mjs` the same way as for the relay hostname.
