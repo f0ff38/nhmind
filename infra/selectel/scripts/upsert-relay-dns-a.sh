@@ -69,27 +69,50 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-token="$(bash "${script_dir}/get-selectel-dns-token.sh")"
+token="$(bash "${script_dir}/get-selectel-dns-token.sh" | tr -d '\r\n')"
+token="$(trim "${token}")"
 
-auth_header=(-H "X-Auth-Token: ${token}" -H "Content-Type: application/json" -H "Accept: application/json")
+if [ -z "${token}" ]; then
+  echo "::error::Selectel DNS token is empty"
+  exit 1
+fi
 
 echo "Selectel DNS: upsert A ${rrset_fqdn} -> ${public_ip} (zone ${zone_fqdn})"
 
 dns_curl() {
-  curl -sS "${auth_header[@]}" "$@"
+  curl -sS \
+    -H "X-Auth-Token: ${token}" \
+    -H "Accept: application/json" \
+    "$@"
+}
+
+dns_json_curl() {
+  curl -sS \
+    -H "X-Auth-Token: ${token}" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    "$@"
 }
 
 list_zones_page() {
   local offset="$1"
   local limit="$2"
   local filter="${3:-}"
-  local url="${DNS_API}/zones?limit=${limit}&offset=${offset}"
+  local -a args=(
+    -G "${DNS_API}/zones"
+    --data-urlencode "limit=${limit}"
+    --data-urlencode "offset=${offset}"
+  )
   if [ -n "${filter}" ]; then
-    local encoded
-    encoded="$(printf '%s' "${filter}" | jq -sRr @uri)"
-    url="${url}&filter=${encoded}"
+    args+=(--data-urlencode "filter=${filter}")
   fi
-  dns_curl "${url}"
+  dns_curl "${args[@]}"
+}
+
+count_visible_zones() {
+  local payload
+  payload="$(list_zones_page 0 1)"
+  printf '%s' "${payload}" | jq -r 'if (.count? | type) == "number" then .count elif (.result? | type) == "array" then (.result | length) else 0 end'
 }
 
 extract_zone_id_from_payload() {
@@ -172,9 +195,8 @@ create_zone_if_missing() {
 
   echo "Selectel DNS: creating zone ${want_zone} (DNS hosting actual)"
   create_body="$(jq -n --arg name "${want_zone}" '{ name: $name }')"
-  http_code="$(curl -sS -o dns-zone-create.json -w "%{http_code}" \
+  http_code="$(dns_json_curl -o dns-zone-create.json -w "%{http_code}" \
     -X POST \
-    "${auth_header[@]}" \
     "${DNS_API}/zones" \
     -d "${create_body}")"
 
@@ -206,7 +228,7 @@ create_zone_if_missing() {
 resolve_zone_id() {
   if [ -n "${zone_id_override}" ]; then
     local payload http_code
-    http_code="$(curl -sS -o dns-zone.json -w "%{http_code}" "${auth_header[@]}" "${DNS_API}/zones/${zone_id_override}")"
+    http_code="$(dns_curl -o dns-zone.json -w "%{http_code}" "${DNS_API}/zones/${zone_id_override}")"
     if [ "${http_code}" != "200" ]; then
       echo "::error::RELAY_DNS_ZONE_ID ${zone_id_override} not found (HTTP ${http_code})"
       cat dns-zone.json || true
@@ -245,9 +267,20 @@ print_zone_lookup_help() {
 }
 
 TOTAL_ZONES_REPORT=""
-zone_id="$(resolve_zone_id || true)"
-if [ -z "${zone_id}" ] || [ "${zone_id}" = "null" ]; then
-  zone_id="$(create_zone_if_missing "${zone_fqdn}" || true)"
+zone_id=""
+if [ -n "${zone_id_override}" ]; then
+  zone_id="$(resolve_zone_id || true)"
+else
+  TOTAL_ZONES_REPORT="$(count_visible_zones || echo 0)"
+  if [ "${TOTAL_ZONES_REPORT}" = "0" ]; then
+    echo "Selectel DNS: zone list empty (count=0); creating ${zone_fqdn}"
+    zone_id="$(create_zone_if_missing "${zone_fqdn}" || true)"
+  else
+    zone_id="$(resolve_zone_id || true)"
+    if [ -z "${zone_id}" ] || [ "${zone_id}" = "null" ]; then
+      zone_id="$(create_zone_if_missing "${zone_fqdn}" || true)"
+    fi
+  fi
 fi
 if [ -z "${zone_id}" ] || [ "${zone_id}" = "null" ]; then
   echo "::error::DNS zone ${zone_fqdn} not found and could not be created in Selectel DNS"
@@ -255,8 +288,9 @@ if [ -z "${zone_id}" ] || [ "${zone_id}" = "null" ]; then
   exit 1
 fi
 
-list_url="${DNS_API}/zones/${zone_id}/rrset?name=$(printf '%s' "${rrset_fqdn}" | jq -sRr @uri)&rrset_types=A"
-rrsets_payload="$(dns_curl "${list_url}")"
+rrsets_payload="$(dns_curl -G "${DNS_API}/zones/${zone_id}/rrset" \
+  --data-urlencode "name=${rrset_fqdn}" \
+  --data-urlencode "rrset_types=A")"
 rrset_id="$(printf '%s' "${rrsets_payload}" | jq -r '.result[0].id // empty')"
 current_ip="$(printf '%s' "${rrsets_payload}" | jq -r '.result[0].records[0].content // empty')"
 
@@ -274,10 +308,8 @@ if [ -n "${rrset_id}" ]; then
     echo "DNS A record already points to ${public_ip}"
     exit 0
   fi
-  http_code="$(curl -sS -o dns-response.json -w "%{http_code}" \
+  http_code="$(dns_json_curl -o dns-response.json -w "%{http_code}" \
     -X PATCH \
-    -H "X-Auth-Token: ${token}" \
-    -H "Content-Type: application/json" \
     "${DNS_API}/zones/${zone_id}/rrset/${rrset_id}" \
     -d "${patch_body}")"
   if [ "${http_code}" = "204" ]; then
@@ -301,10 +333,8 @@ create_body="$(jq -n \
     comment: "nhmind relay (managed by provision-relay-infra)"
   }')"
 
-http_code="$(curl -sS -o dns-response.json -w "%{http_code}" \
+http_code="$(dns_json_curl -o dns-response.json -w "%{http_code}" \
   -X POST \
-  -H "X-Auth-Token: ${token}" \
-  -H "Content-Type: application/json" \
   "${DNS_API}/zones/${zone_id}/rrset" \
   -d "${create_body}")"
 
