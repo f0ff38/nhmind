@@ -52,7 +52,12 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
    - jobs `compute-acu-txt` (environment **canary**) + `upsert-acu-txt` (environment **relay**) — TXT `_acu.<host>` перед deploy
    - `hello` — on-chain deploy + smoke heartbeat `30090` (сейчас smoke ❌)
    - `coordinator` — только после hello heartbeat на relay; smoke `30092`/`30091` — [smoke-coordinator-relay.sh](../scripts/smoke-coordinator-relay.sh)
-4. Ручной fallback: Hub / `acurast devtools <deployment-id>`.
+4. **DevTools логи с GHA** (если `api.devtools.acurast.com` недоступен из вашей сети):
+   - **Inspect Canary DevTools** (`inspect-canary-devtools.yml`) — `workflow_dispatch`: `module`, `job_id` (например `378412`), `wait_seconds` (`0` для уже выполненного job, `360` после свежего deploy).
+   - Скрипты: [inspect-canary-devtools.sh](../scripts/inspect-canary-devtools.sh), [fetch-acurast-devtools-logs.mjs](../scripts/fetch-acurast-devtools-logs.mjs).
+   - **Deploy Canary → hello** после ожидания 360s автоматически вызывает DevTools fetch (continue-on-warning) + `preflight-hello-heartbeat.sh`.
+   - В логах job ищите `heartbeat published` / `heartbeat publish skipped` и `DevTools dashboard:`.
+   - Ручной fallback (если API доступен локально): `acurast devtools <job-id>` → [devtools.acurast.com](https://devtools.acurast.com) (не Hub).
 
 Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com). Адрес кошелька:
 
@@ -118,6 +123,7 @@ on:
 | `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Формат + live-проверки секретов **relay** (Keystone, S3, SSH keys, X-Token; deploy: SSH to VM via TF `public_ip`) ✅ |
 | `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через IPAM `ipam/v1` + `X-Token` ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke` \| `all`) | Selectel LE + Knox PEM → SSH → `infra/nostr-relay/` compose; IP из Terraform state ✅ |
+| `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools view-key + логи processor с runner GHA; опционально preflight heartbeat |
 
 **Секреты environment `relay`:**
 

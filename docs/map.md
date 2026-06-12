@@ -98,5 +98,6 @@ README.md          ← корень: обзор, архитектура, dev, с
 | Nostr kinds / heartbeat | nostr-protocol.md |
 | Selectel VM / relay provision | roadmap checkpoint → relay-ops → github-actions |
 | CI / deploy canary | github-actions.md |
+| DevTools логи (GHA, не локальная сеть) | github-actions.md → `inspect-canary-devtools.yml` |
 | Новый модуль | module-template README → AGENTS |
 | ROI / promote-pause-kill / oracle / AI economics | economics.md → roadmap Phase 3–5 |

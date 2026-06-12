@@ -155,24 +155,40 @@ jobs:
             dev bash -lc "cd modules/${{ inputs.module }} && acurast estimate-fee"
 
       - name: Deploy to Acurast canary
+        id: acurast_deploy
         run: |
+          set -euo pipefail
           DEPLOY_FLAGS="-n"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             DEPLOY_FLAGS="${DEPLOY_FLAGS} --dry-run"
           fi
           docker compose run --rm \
             -e ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com \
-            dev bash -lc "cd modules/${{ inputs.module }} && acurast deploy ${DEPLOY_FLAGS}"
+            dev bash -lc "cd modules/${{ inputs.module }} && acurast deploy ${DEPLOY_FLAGS}" \
+            2>&1 | tee /tmp/acurast-deploy.log
+          deployment_id="$(grep -oE 'Deployment registered \(ID: [0-9]+' /tmp/acurast-deploy.log | tail -1 | grep -oE '[0-9]+' || true)"
+          if [ -n "${deployment_id}" ]; then
+            echo "deployment_id=${deployment_id}" >> "${GITHUB_OUTPUT}"
+            echo "Parsed deployment_id=${deployment_id}"
+          else
+            echo "::warning::Could not parse deployment ID from acurast deploy output"
+          fi
 
       - name: Smoke hello heartbeat on relay
         if: inputs.module == 'hello' && inputs.dry_run == false
         env:
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
           PREFLIGHT_TIMEOUT_MS: "180000"
+          DEVTOOLS_TIMEOUT_MS: "180000"
         run: |
           set -euo pipefail
           echo "Waiting 360s for Acurast processor match + hello onetime execution (~5 min schedule)..."
           sleep 360
+          if [ -n "${{ steps.acurast_deploy.outputs.deployment_id }}" ]; then
+            echo "Fetching DevTools logs from GHA (job ${{ steps.acurast_deploy.outputs.deployment_id }})..."
+            bash scripts/inspect-canary-devtools.sh hello "${{ steps.acurast_deploy.outputs.deployment_id }}" 0 \
+              || echo "::warning::DevTools log fetch failed — see Inspect Canary DevTools workflow or relay preflight below"
+          fi
           bash scripts/preflight-hello-heartbeat.sh "${RELAY_HOSTNAME}" hello
 
       - name: Smoke coordinator on relay (registry + scorecard)
