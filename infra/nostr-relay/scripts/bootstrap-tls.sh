@@ -85,9 +85,13 @@ cert_exists() {
     -c "test -f /etc/letsencrypt/live/${relay_hostname}/fullchain.pem"
 }
 
+compose_up_relay() {
+  docker compose up -d --force-recreate relay nginx
+}
+
 ensure_http_nginx() {
   cp nginx/nginx.http-only.conf nginx/active.conf
-  docker compose up -d relay nginx
+  compose_up_relay
 }
 
 issue_certificate() {
@@ -104,7 +108,7 @@ issue_certificate() {
 
 activate_https_nginx() {
   sed "s/\${RELAY_HOSTNAME}/${relay_hostname}/g" nginx/nginx.conf.template > nginx/active.conf
-  docker compose up -d relay nginx
+  compose_up_relay
   docker compose exec -T nginx nginx -s reload 2>/dev/null || true
 }
 
