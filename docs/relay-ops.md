@@ -4,7 +4,7 @@
 
 Руководство по production relay для nhmind: требования Acurast, выбор VPS, уроки из экосистемы Nostr (в т.ч. [Nosflare](https://github.com/Spl0itable/nosflare)).
 
-**Статус (2026-06):** validate ✅, **terraform plan ✅** (15 ресурсов, flavor `BL1.2-4096` / `1003`). **Apply ⬜.** Порядок следующих шагов — **[roadmap → checkpoint](roadmap.md#checkpoint--следующая-сессия)** (не дублировать здесь).
+**Статус (2026-06):** validate ✅, plan ✅, **apply ✅**, **Deploy Relay** + WSS smoke ✅, Selectel LE TLS ✅. Блокер Phase 2: **hello heartbeat на relay** (Deploy Canary smoke ❌) — **[roadmap → checkpoint](roadmap.md#checkpoint--следующая-сессия)** (единственный список «что дальше»).
 
 ---
 
@@ -347,13 +347,13 @@ infra/nostr-relay/
 
 1. [x] **Validate Relay Secrets** → `provision` (environment **relay**)
 2. [x] **Provision Relay Infra** → `plan` (15 to add; flavor `BL1.2-4096`)
-3. [ ] **Provision Relay Infra** → `apply`, `set_ptr: true`, `set_dns_a: true` (A-запись в Selectel DNS автоматически)
-4. [ ] **Deploy Relay** → `deploy` или `all` (после propagation DNS)
-5. [ ] DNS: TXT `_acu.<RELAY_HOSTNAME>` для deploy-кошельков hello и coordinator
-6. [ ] Smoke WSS (**Deploy Relay** → `smoke`) или с ноутбука
-7. [ ] GitHub **canary** → secret `RELAY_HOSTNAME` (тот же FQDN, что relay)
-8. [ ] Redeploy hello + coordinator (`Deploy Canary`)
-9. [ ] Авто-smoke после **Deploy Canary** → coordinator: registry `30092` + scorecard `30091` на relay (или DevTools вручную)
+3. [x] **Provision Relay Infra** → `apply`, `set_ptr: true`, `set_dns_a: true`
+4. [x] **Deploy Relay** → `deploy` или `all`
+5. [x] DNS: TXT `_acu.<RELAY_HOSTNAME>` — автоматически в **Deploy Canary** (`compute-acu-txt` + `upsert-acu-txt`)
+6. [x] Smoke WSS (**Deploy Relay** → `smoke`)
+7. [x] GitHub **canary** → secret `RELAY_HOSTNAME`
+8. [ ] **Deploy Canary → hello** — on-chain ✅; smoke heartbeat `30090` на relay ❌ ([checkpoint](roadmap.md#checkpoint--следующая-сессия))
+9. [ ] **Deploy Canary → coordinator** — registry `30092` + scorecard `30091` (после hello heartbeat)
 
 TXT hash: формула в [Acurast Network docs](https://docs.acurast.com/developers/job-runtime-environment/#network); адреса кошельков — `node scripts/show-acurast-address.mjs modules/<name>`.
 

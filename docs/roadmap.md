@@ -37,60 +37,52 @@ flowchart LR
 | Стартовый модуль `modules/hello`                             | ✅                              |
 | Scaffold `modules/module-template` + `scripts/new-module.sh` | ✅                              |
 | GitHub Actions CI (`verify` + scaffold job)                  | ✅                              |
-| GitHub Actions `deploy-canary.yml`                           | ✅                              |
+| GitHub Actions `deploy-canary.yml`                           | ✅ workflow; **deploy-hello smoke ❌** |
 | Cursor: `AGENTS.md`, `.cursor/environment.json`, `BUGBOT.md` | ✅                              |
 | Roadmap / economics docs                                     | ✅ ([map.md](map.md))           |
 | **Активная фаза**                                            | **Phase 2 — Coordinator**      |
 | `packages/nostr-client`                                      | ✅ Phase 1                       |
 | `modules/coordinator` (код)                                  | ✅                              |
-| `hello` canary на processor                                  | ✅ (deploy via GHA)              |
-| `coordinator` canary на processor                            | ⬜ следующий шаг                 |
-| Публичный relay + `RELAY_URL` в deploy                       | 🔄 plan ✅, apply ⬜ — Selectel GitOps (`infra/selectel/` + provision/deploy workflows) |
+| Relay VM (Selectel) + PTR + A + TLS                          | ✅                              |
+| **Deploy Relay** (WSS smoke)                                 | ✅                              |
+| `_acu` TXT в Deploy Canary (compute + upsert)                | ✅ GHA ([PR #50](https://github.com/f0ff38/nhmind/pull/50), [#51](https://github.com/f0ff38/nhmind/pull/51)) |
+| `hello` on-chain (Deploy Canary)                             | ✅ on-chain; **heartbeat `30090` на relay ❌** |
+| `coordinator` canary + registry/scorecard smoke                | ⬜ заблокирован hello heartbeat |
 
 
 ---
 
 ## Checkpoint — следующая сессия
 
-**Где продолжить:** Phase 2, блок relay (Selectel). Plan сохранён (`tfplan`), **apply не делали**. Детали ops — [relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay).
+**Где продолжить:** Phase 2 — **разблокировать hello heartbeat на production relay**. Relay и on-chain deploy готовы; **Deploy Canary → hello** падает на smoke: на `RELAY_URL` нет свежего kind `30090` (#module=hello) после ожидания processor (~6+ мин). Пример: [GHA run 27390259361](https://github.com/f0ff38/nhmind/actions/runs/27390259361).
 
-### 1. Apply инфраструктуры
+### Симптом
 
-**Actions → Provision Relay Infra** (environment **relay**):
+| Шаг Deploy Canary (hello) | Статус |
+|---------------------------|--------|
+| `compute-acu-txt` + `upsert-acu-txt` | ✅ |
+| `Deploy to Acurast canary` | ✅ |
+| `Smoke hello heartbeat on relay` | ❌ timeout 180s, kind `30090` не найден |
 
-| Input | Значение |
-|-------|----------|
-| action | **apply** |
-| set_ptr | **true** (нужны `SELECTEL_STATIC_TOKEN`, `RELAY_HOSTNAME`) |
-| flavor_id | пусто (auto-resolve; на plan: `BL1.2-4096` / `1003`) |
+Coordinator deploy и smoke registry/scorecard **не запускать**, пока hello heartbeat не появляется на relay.
 
-Результат: **`public_ip`** в job summary; PTR — шаг workflow или вручную в Selectel **IP-адреса**.
+### Диагностика (ручная, deploy-кошелёк)
 
-### 2. DNS и deploy smoke
+1. **Hub** [hub.acurast.com](https://hub.acurast.com/) — сеть Canary, кошелёк = адрес из `ACURAST_MNEMONIC_HELLO`; последний execution hello: ошибки publish / network / whitelist.
+2. **DevTools** execution hello — логи `heartbeat published` vs `heartbeat publish skipped`.
+3. **Relay с ноутбука** — WSS `REQ` kind `30090`, `#client=nhmind`, `#module=hello` (см. [preflight-hello-heartbeat.sh](../scripts/preflight-hello-heartbeat.sh)).
+4. **Acurast whitelist** — TXT `_acu.<RELAY_HOSTNAME>` (upsert в GHA); **PTR** IP relay = hostname; reverse DNS + TXT `_acu.<ptr>` ([дока](https://docs.acurast.com/developers/job-runtime-environment/#network)).
+5. **HTTP processor → relay** — на processor транспорт `httpPOST`, не WSS; nginx на VM должен принимать POST на `https://<host>/` ([relay-ops — риск HTTP](relay-ops.md#известный-риск-http-на-processor)).
 
-1. **A** upsert автоматически при `apply` + `set_dns_a: true` (Selectel DNS API).
-2. **Validate Relay Secrets** → **`deploy`** (SSH smoke; IP из Terraform state).
+Уже в bundle (main): `hello` `maxNetworkRequests: 10`, `whitelistRelayHost()` в hello/coordinator ([PR #49](https://github.com/f0ff38/nhmind/pull/49)).
 
-### 3. Deploy relay
+### После исправления
 
-**Deploy Relay** (`deploy-relay.yml`, action `deploy` или `all`) — SSH на VM, compose из `infra/nostr-relay/`. IP не в secrets — читается из S3 state.
+1. **Deploy Canary** → `hello` — smoke heartbeat ✅.
+2. **Deploy Canary** → `coordinator` — preflight heartbeat + smoke `30092`/`30091`.
+3. Обновить deliverables Phase 2 ниже и [relay-ops чеклист](relay-ops.md#чеклист-первого-запуска).
 
-### 4. Canary (exit criteria Phase 2)
-
-1. TXT **`_acu.<hostname>`** (hello + coordinator wallets).
-2. **canary** → secret **`RELAY_HOSTNAME`** (workflow собирает `RELAY_URL`).
-3. **Deploy Canary** → coordinator.
-4. DevTools: heartbeat `30090`, scorecard `30091`.
-
-### Если apply упадёт
-
-| Симптом | Действие |
-|---------|----------|
-| Flavor | workflow input **`flavor_id=1003`** |
-| Keystone | [relay-ops — OpenStack troubleshooting](relay-ops.md#troubleshooting-authentication-failed-openstack) |
-| PTR | проверить `SELECTEL_STATIC_TOKEN`; PTR вручную |
-
-После закрытия шагов — обновить чеклист в [relay-ops.md](relay-ops.md#чеклист-первого-запуска) и отметить deliverables Phase 2 ниже.
+Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay). GHA — [github-actions.md](github-actions.md#4-deploy-canary-из-github-actions).
 
 ---
 
@@ -156,10 +148,11 @@ flowchart LR
 - [x] Scorecard aggregator (метрики из module events — stub metrics)
 - [x] Verdict engine: `promote` | `pause` | `kill` (правила без on-chain revenue пока — stub metrics)
 - [x] Programmatic deploy через SDK (canary) — `deploy-canary.yml` + `scripts/deploy-acurast-sdk.mjs`; autoscale в TEE — Phase 4
-- [ ] Canary deploy **coordinator** + smoke на processor
-- [x] Canary deploy **hello** на processor (GHA)
-- [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml`; validate ✅, plan ✅, apply ⬜ (см. [checkpoint](#checkpoint--следующая-сессия))
-- [ ] **Selectel GitOps (deploy relay)** — `infra/nostr-relay/` + `deploy-relay.yml` ✅ (IP из TF state; apply VM ⬜)
+- [ ] Canary deploy **coordinator** + smoke registry/scorecard на relay (заблокирован hello heartbeat)
+- [ ] Canary deploy **hello** + smoke heartbeat `30090` на relay (on-chain ✅; relay event ❌ — [checkpoint](#checkpoint--следующая-сессия))
+- [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml`; validate ✅, plan ✅, apply ✅
+- [x] **Selectel GitOps (deploy relay)** — `infra/nostr-relay/` + `deploy-relay.yml`; WSS smoke ✅
+- [x] `_acu` TXT upsert в **Deploy Canary** (jobs `compute-acu-txt` + `upsert-acu-txt`)
 
 ### Exit criteria
 

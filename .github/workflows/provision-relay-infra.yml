@@ -166,4 +166,4 @@ jobs:
             echo "DNS A skipped (\`set_dns_a=false\`). Upsert manually or re-run apply with \`set_dns_a=true\`." >> "${GITHUB_STEP_SUMMARY}"
           fi
           echo "" >> "${GITHUB_STEP_SUMMARY}"
-          echo "Next: run **Deploy Relay** workflow (\`deploy\` or \`all\`)." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Next: **Deploy Relay** (\`deploy\` or \`all\`), then canary — [roadmap checkpoint](https://github.com/${{ github.repository }}/blob/main/docs/roadmap.md#checkpoint--следующая-сессия)." >> "${GITHUB_STEP_SUMMARY}"

@@ -48,10 +48,11 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
    - `ACURAST_MNEMONIC_HELLO` — mnemonic из `modules/hello/.env`
    - `ACURAST_MNEMONIC_COORDINATOR` — mnemonic из `modules/coordinator/.env`
    - `RELAY_HOSTNAME` — `nostr.<ваш-домен>` (без схемы); `deploy-canary.yml` пишет в `.env` модульный `RELAY_URL=wss://<RELAY_HOSTNAME>/` (не Acurast P2P/RPC — см. [nostr-protocol.md](nostr-protocol.md#nostr-relay-на-canary-ops))
-3. Actions → **Deploy Canary** → Run workflow:
-   - `hello` — ✅ уже задеплоен (canary)
-   - `coordinator` — следующий шаг (`dry_run: true`, затем deploy)
-4. После deploy **coordinator**: workflow ждёт на relay `30092` (registry) и `30091` (scorecard) — [smoke-coordinator-relay.sh](../scripts/smoke-coordinator-relay.sh) (до 120 с, interval 60 с). Ручной fallback: `acurast devtools <deployment-id>` или Hub.
+3. Actions → **Deploy Canary** → Run workflow (порядок и текущий блокер — **[roadmap checkpoint](roadmap.md#checkpoint--следующая-сессия)**):
+   - jobs `compute-acu-txt` (environment **canary**) + `upsert-acu-txt` (environment **relay**) — TXT `_acu.<host>` перед deploy
+   - `hello` — on-chain deploy + smoke heartbeat `30090` (сейчас smoke ❌)
+   - `coordinator` — только после hello heartbeat на relay; smoke `30092`/`30091` — [smoke-coordinator-relay.sh](../scripts/smoke-coordinator-relay.sh)
+4. Ручной fallback: Hub / `acurast devtools <deployment-id>`.
 
 Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com). Адрес кошелька:
 
@@ -63,7 +64,7 @@ Programmatic SDK (вне TEE): `scripts/deploy-acurast-sdk.mjs` — тот же 
 
 `acurast deploy` в PR/push по-прежнему **не** запускается автоматически.
 
-### 5. Кэширование (следующий шаг)
+### 5. Кэширование (backlog, не блокер Phase 2)
 
 Когда CI станет медленным:
 
