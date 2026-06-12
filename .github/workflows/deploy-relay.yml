@@ -89,5 +89,5 @@ jobs:
             echo "| relay_url | \`wss://${{ secrets.RELAY_HOSTNAME }}/\` |"
             echo ""
             echo "TLS: Selectel LE (DNS-01) → Knox pull-on-deploy; port :80 closed."
-            echo "Next: DNS TXT \`_acu.${{ secrets.RELAY_HOSTNAME }}\`, then set \`RELAY_URL\` in environment **canary**."
+            echo "Next: DNS TXT \`_acu.${{ secrets.RELAY_HOSTNAME }}\`, then **Deploy Canary** (RELAY_URL from \`RELAY_HOSTNAME\` in environment **canary**)."
           } >> "${GITHUB_STEP_SUMMARY}"

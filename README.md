@@ -295,7 +295,7 @@ cp .env.example .env
 | `[provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml)`   | `workflow_dispatch` | Terraform: Selectel VM, сеть, floating IP, PTR             |
 
 
-CI и branch protection: `[docs/github-actions.md](docs/github-actions.md)`. Relay GitOps: environment **relay** — см. [relay-ops.md](docs/relay-ops.md). Canary: **canary** + `ACURAST_MNEMONIC_`*, `RELAY_URL` (после поднятия relay).
+CI и branch protection: `[docs/github-actions.md](docs/github-actions.md)`. Relay GitOps: environment **relay** — см. [relay-ops.md](docs/relay-ops.md). Canary: **canary** + `ACURAST_MNEMONIC_*`, `RELAY_HOSTNAME` (→ `RELAY_URL` в deploy-canary).
 
 ### Что остаётся вне Docker
 
