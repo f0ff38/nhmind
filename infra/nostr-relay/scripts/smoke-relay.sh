@@ -43,14 +43,17 @@ fi
 echo "HTTPS OK"
 
 echo "Checking WebSocket upgrade..."
-ws_status="$(curl -4sS -i -N --http1.1 --max-time 15 \
+ws_headers="$(mktemp)"
+trap 'rm -f "${ws_headers}" /tmp/nhmind-relay-nip11.json' EXIT
+ws_status="$(curl -4sS -D "${ws_headers}" -o /dev/null --http1.1 --max-time 15 \
   -H "Connection: Upgrade" \
   -H "Upgrade: websocket" \
   -H "Sec-WebSocket-Version: 13" \
   -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
-  "https://${relay_hostname}/" 2>&1 | head -n 1 || true)"
-if ! printf '%s' "${ws_status}" | grep -q '101'; then
-  echo "::error::WebSocket upgrade to wss://${relay_hostname}/ failed (${ws_status:-no response})"
+  "https://${relay_hostname}/" -w '%{http_code}' 2>/dev/null || true)"
+ws_first_line="$(head -n 1 "${ws_headers}" 2>/dev/null || true)"
+if ! printf '%s\n%s' "${ws_first_line}" "${ws_status}" | grep -q '101'; then
+  echo "::error::WebSocket upgrade to wss://${relay_hostname}/ failed (${ws_first_line:-no response}, code=${ws_status:-?})"
   exit 1
 fi
 echo "WebSocket upgrade OK"
