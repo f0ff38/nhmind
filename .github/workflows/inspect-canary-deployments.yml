@@ -57,9 +57,10 @@ jobs:
             printf 'RELAY_URL=wss://%s/\n' "${relay_hostname}" >> "${ENV_FILE}"
           fi
 
-      - name: Query deployments via Acurast CLI
+      - name: Query deployments via SDK
         env:
           INSPECT_DEPLOYMENTS_FAIL: "1"
+          ACURAST_RPC_TIMEOUT_MS: "180000"
         run: |
           set -euo pipefail
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
