@@ -74,13 +74,18 @@ close_legacy_http_ingress
 init_relay_data_dir
 
 sed "s/\${RELAY_HOSTNAME}/${relay_hostname}/g" nginx/nginx.conf.template > nginx/active.conf
-docker compose up -d --force-recreate relay nginx
+docker compose up -d --force-recreate relay http-bridge nginx
 docker compose exec -T nginx nginx -s reload 2>/dev/null || true
 
 docker compose ps
 if ! docker compose ps relay 2>/dev/null | grep -qE 'Up( |-)'; then
   echo "::warning::nostr-rs-relay is not healthy — container logs:"
   docker compose logs relay --tail 40 2>/dev/null || true
+  exit 1
+fi
+if ! docker compose ps http-bridge 2>/dev/null | grep -qE 'Up( |-)'; then
+  echo "::warning::http-bridge is not healthy — container logs:"
+  docker compose logs http-bridge --tail 40 2>/dev/null || true
   exit 1
 fi
 echo "Relay stack is up for ${relay_hostname} (TLS from Selectel Knox)"

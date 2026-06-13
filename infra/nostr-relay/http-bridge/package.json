@@ -1,0 +1,9 @@
+{
+  "name": "nhmind-relay-http-bridge",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}

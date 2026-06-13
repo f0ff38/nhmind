@@ -9,6 +9,16 @@ services:
     expose:
       - "8080"
 
+  http-bridge:
+    build: ./http-bridge
+    restart: unless-stopped
+    environment:
+      RELAY_WS_URL: ws://relay:8080
+    expose:
+      - "8090"
+    depends_on:
+      - relay
+
   nginx:
     image: nginx:1.30.2-alpine
     restart: unless-stopped
@@ -19,6 +29,7 @@ services:
       - ./certs:/etc/nginx/certs:ro
     depends_on:
       - relay
+      - http-bridge
 
 volumes:
   relay-data:

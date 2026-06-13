@@ -27,7 +27,7 @@ flowchart LR
 
 ---
 
-## Текущее состояние — v0.4 (Phase 2 — closing)
+## Текущее состояние — v0.4 (Phase 2 — closing + refactor checkpoint)
 
 
 | Компонент                                                    | Статус                         |
@@ -48,13 +48,16 @@ flowchart LR
 | `_acu` TXT в Deploy Canary (compute + upsert)                | ✅ GHA ([PR #50](https://github.com/f0ff38/nhmind/pull/50), [#51](https://github.com/f0ff38/nhmind/pull/51)) |
 | `hello` on-chain (Deploy Canary)                             | ✅ on-chain; **heartbeat `30090` на relay ❌** |
 | `coordinator` canary + registry/scorecard smoke                | ⬜ заблокирован hello heartbeat |
+| **Architecture refactor plan**                               | ✅ этот roadmap update; нужен targeted refactor, не rewrite |
 
 
 ---
 
 ## Checkpoint — следующая сессия
 
-**Где продолжить:** Phase 2 — **разблокировать hello heartbeat на production relay**. Relay и on-chain deploy готовы; **Deploy Canary → hello** падает на smoke: на `RELAY_URL` нет свежего kind `30090` (#module=hello) после ожидания processor (~6+ мин). Пример: [GHA run 27390259361](https://github.com/f0ff38/nhmind/actions/runs/27390259361).
+**Где продолжить:** Phase 2 — **разблокировать hello heartbeat на production relay**. Relay и on-chain deploy готовы; **Deploy Canary → hello** падает на smoke: на `RELAY_URL` нет свежего kind `30090` (#module=hello). Вероятная причина — processor шлёт HTTP POST, а relay принимал только WSS; **fix: `http-bridge` в `infra/nostr-relay/`** (нужен **Deploy Relay** на VM, затем **Deploy Canary → hello**).
+
+Senior architecture read: проект **не требует rewrite**, но требует targeted refactor перед Phase 3. Блокер — транспорт: relay API — WebSocket (`EVENT`/`REQ`/`OK`/`EOSE`), processor — `httpGET`/`httpPOST`. **В этом PR:** `infra/nostr-relay/http-bridge` + nginx POST route + smoke; осталось **задеплоить на VM** (Deploy Relay) и проверить hello heartbeat.
 
 ### Симптом
 
@@ -72,17 +75,50 @@ Coordinator deploy и smoke registry/scorecard **не запускать**, по
 2. **DevTools** execution hello — логи `heartbeat published` vs `heartbeat publish skipped` (из GHA: workflow **Inspect Canary DevTools** или шаг в **Deploy Canary**; локально `api.devtools.acurast.com` может быть 502).
 3. **Relay с ноутбука** — WSS `REQ` kind `30090`, `#client=nhmind`, `#module=hello` (см. [preflight-hello-heartbeat.sh](../scripts/preflight-hello-heartbeat.sh)).
 4. **Acurast whitelist** — TXT `_acu.<RELAY_HOSTNAME>` (upsert в GHA); **PTR** IP relay = hostname; reverse DNS + TXT `_acu.<ptr>` ([дока](https://docs.acurast.com/developers/job-runtime-environment/#network)).
-5. **HTTP processor → relay** — на processor транспорт `httpPOST`, не WSS; nginx на VM должен принимать POST на `https://<host>/` ([relay-ops — риск HTTP](relay-ops.md#известный-риск-http-на-processor)).
+5. **HTTP processor → relay** — на processor транспорт `httpPOST`, не WSS; nginx на VM должен принимать POST на `https://<host>/` и прокидывать в **HTTP→Nostr WebSocket adapter**, не напрямую в `nostr-rs-relay` ([relay-ops — риск HTTP](relay-ops.md#известный-риск-http-на-processor)).
 
 Уже в bundle (main): `hello` `maxNetworkRequests: 10`, `whitelistRelayHost()` в hello/coordinator ([PR #49](https://github.com/f0ff38/nhmind/pull/49)).
 
 ### После исправления
 
-1. **Deploy Canary** → `hello` — smoke heartbeat ✅.
+1. **Deploy Relay** на VM (http-bridge + smoke POST); затем **Deploy Canary** → `hello` — smoke heartbeat ✅.
 2. **Deploy Canary** → `coordinator` — preflight heartbeat + smoke `30092`/`30091`.
 3. Обновить deliverables Phase 2 ниже и [relay-ops чеклист](relay-ops.md#чеклист-первого-запуска).
 
 Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay). GHA — [github-actions.md](github-actions.md#4-deploy-canary-из-github-actions).
+
+---
+
+## Refactor checkpoint — before Phase 3
+
+**Вывод:** архитектура в целом верная: Acurast TEE для исполнения и секретов, Nostr для публичной координации, `_STD_.ws`/P2P только для внутреннего горячего пути. Рефакторинг нужен не потому, что выбран неверный стек, а чтобы убрать протокольные несоответствия перед первым real business module.
+
+### Решения
+
+| Область | Текущее состояние | Изменение |
+|---------|-------------------|-----------|
+| Processor → relay transport | `httpPOST` посылает Nostr frames прямо на relay URL | Добавить HTTP→WebSocket adapter рядом с relay; `nostr-rs-relay` оставить canonical NIP-01 storage/WS relay |
+| NIP-33 терминология | В docs используется NIP-33 | Перейти на формулировку **addressable events: NIP-01, formerly NIP-33**; код/kinds не менять |
+| NIP-90 профиль | `5900/6900/7000`, JSON payload, NIP-44 | Зафиксировать как **nhmind DVM-compatible profile**: диапазоны NIP-90 соблюдены, но tags/content intentionally stricter; не обещать full generic DVM compatibility |
+| Relay security | WSS smoke есть, write policy минимальная | Включить allowlist kinds/tags/pubkeys после получения deployment pubkeys; добавить negative smoke на rejected event |
+| Module contract | `IBusinessModule` описан в README | Вынести shared types/helper package только если Phase 3 реально создаёт второй модуль; до этого не плодить абстракции |
+| Economics | ROI уже описан | Не внедрять autoscaling до measured canary cost; Phase 3 должна дать фактический `cost_job_acu` |
+
+### Refactor deliverables
+
+- [x] `infra/nostr-relay`: HTTP→Nostr adapter (Nostr protocol POST body) + docker compose service + nginx route.
+- [ ] `packages/nostr-client`: `acurast-http` backend привести к adapter API; обрабатывать `OK`/`EOSE`/ошибки relay, а не считать любой HTTP success публикацией.
+- [x] `scripts` / GHA smoke: Acurast-style HTTP POST smoke в **Deploy Relay** (`smoke-relay.sh`).
+- [ ] `docs/nostr-protocol.md`: обновить wording NIP-33 → addressable events (NIP-01) и явно описать DVM-compatible profile.
+- [ ] `infra/nostr-relay/config.toml` / nginx: kind/tag/pubkey allowlist для canary после фикса pubkeys hello/coordinator.
+- [x] `docs/relay-ops.md`: чеклист и описание adapter + HTTP smoke.
+
+### Exit criteria
+
+- `hello` на canary processor публикует `30090`; smoke видит событие через публичный WSS relay.
+- `coordinator` на canary processor читает `30090` и публикует `30092`/`30091`.
+- Локальный и production пути отличаются только transport backend, не payload schema.
+- Документация больше не называет экспериментальный `5900/6900` профиль полным generic NIP-90 без оговорок.
 
 ---
 
@@ -119,8 +155,8 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 ### Deliverables
 
 - [x] `docs/nostr-protocol.md` — kinds, tags, примеры payload
-- [x] `packages/nostr-client` — publish/subscribe, NIP-44, NIP-90 helpers
-- [x] NIP-33 replaceable events — agent heartbeat (`30090`; scorecard `30091` — Phase 2)
+- [x] `packages/nostr-client` — publish/subscribe, NIP-44, DVM-compatible job helpers
+- [x] NIP-01 addressable events (formerly NIP-33) — agent heartbeat (`30090`; scorecard `30091` — Phase 2)
 - [x] Интеграционные тесты против `nostr-relay` в compose
 - [x] `hello` публикует heartbeat в relay (dev)
 
@@ -150,6 +186,8 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 - [x] Programmatic deploy через SDK (canary) — `deploy-canary.yml` + `scripts/deploy-acurast-sdk.mjs`; autoscale в TEE — Phase 4
 - [ ] Canary deploy **coordinator** + smoke registry/scorecard на relay (заблокирован hello heartbeat)
 - [ ] Canary deploy **hello** + smoke heartbeat `30090` на relay (on-chain ✅; relay event ❌ — [checkpoint](#checkpoint--следующая-сессия))
+- [x] HTTP→Nostr WebSocket adapter для Acurast processor transport (код в `infra/nostr-relay/http-bridge`; deploy на VM — Deploy Relay)
+- [x] Acurast-style HTTP smoke в **Deploy Relay** (`smoke-relay.sh` POST `REQ` + `EOSE`)
 - [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml`; validate ✅, plan ✅, apply ✅
 - [x] **Selectel GitOps (deploy relay)** — `infra/nostr-relay/` + `deploy-relay.yml`; WSS smoke ✅
 - [x] `_acu` TXT upsert в **Deploy Canary** (jobs `compute-acu-txt` + `upsert-acu-txt`)
@@ -169,23 +207,27 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 
 | Слой | Статус | Заметка |
 |------|--------|---------|
-| Nostr (NIP-33/90) | ✅ код Phase 1–2 | Exit criteria Phase 2 — на этом слое |
+| Nostr (NIP-01 addressable events / DVM-compatible jobs) | ✅ код Phase 1–2; docs refactor pending | Exit criteria Phase 2 — на этом слое |
 | `_STD_.ws` mesh | ⬜ Phase 3+ | Срочные команды coordinator ↔ module; те же `nhmind/*/v1` схемы |
 
 ---
 
 ## Phase 3 — First business module
 
-**Цель:** модуль с реальной (пусть небольшой) экономической логикой, прошедший canary-цикл.
+**Цель:** модуль с реальной (пусть небольшой) экономической логикой, прошедший canary-цикл. Начинать только после refactor checkpoint: processor HTTP transport доказан на canary, coordinator читает relay, DVM-compatible profile задокументирован.
 
 ### Deliverables
 
-- [ ] `_STD_.ws` mesh: coordinator → module команды (`pause`/`kill` ack), env `WSS_URLS` / canary proxies
-- [ ] Выбор experimental-модуля (oracle, API relay, простой DVM job — не GameFi/MEV на старте)
-- [ ] `modules/<name>/` — `IBusinessModule`, production-shaped `acurast.json`
+- [x] Выбор experimental-модуля — **`oracle-feed`** (pull-oracle, DVM-compatible jobs); см. [collective-intelligence.md](collective-intelligence.md)
+- [x] `modules/oracle-feed/` — `IBusinessModule`, multi-source median, revenue ledger
+- [x] `oracle-feed` canary hardening — price API `_STD_.network.whitelist`, `ORACLE_MIN_SOURCES`, requester-only `paid` feedback, skip duplicate `6900`, error results, canonical TEE sign payload ([PR #54](https://github.com/f0ff38/nhmind/pull/54))
+- [x] `docs/nostr-protocol.md` — schema `nhmind/oracle-result/v1` (oracle job output)
+- [ ] Price proxy на своём домене (`prices.<zone>`) + `_acu` TXT — внешние API напрямую недоступны (см. [oracle-feed README](../modules/oracle-feed/README.md))
+- [ ] Canary deploy **`oracle-feed`** + smoke DVM-compatible job (5900 → paid → 6900)
 - [ ] Реальные `_STD_.signers` / `httpGET` на canary processor
 - [ ] DevTools-enabled deploy, логи проверены
 - [ ] 7-дневное canary-окно измерений (ручной или coordinator stub)
+- [ ] `_STD_.ws` mesh spike: coordinator → module команды (`pause`/`kill` ack), только после Nostr canary smoke
 - [x] `docs/economics.md` — формулы ROI, cost/revenue attribution; модели pull-oracle и AI module ([economics.md](economics.md))
 
 ### Exit criteria
@@ -196,7 +238,7 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 
 ### Риски
 
-- DNS TXT whitelist для внешних API — может потребовать отдельный домен
+- DNS TXT whitelist только для своего hostname — price proxy `prices.<zone>` + `_acu` TXT (oracle-feed); relay hostname уже в Deploy Canary; Coinbase/Kraken напрямую недоступны
 - `acurast live` + телефон для отладки до canary deploy
 
 ---
@@ -222,7 +264,7 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 ### Зависимости
 
 - Phase 2 + Phase 3
-- [x] Источник revenue — NIP-90 `bid` + feedback settlement → `revenue_acu` ([economics.md § Revenue attribution](economics.md#revenue-attribution))
+- [x] Источник revenue — DVM-compatible job `bid` + feedback settlement → `revenue_acu` ([economics.md § Revenue attribution](economics.md#revenue-attribution))
 
 ---
 
@@ -238,6 +280,7 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 - [ ] LLM inference module (experimental) — `requiredModules`, confidential inference
 - [ ] Path filters в CI для monorepo
 - [ ] Публичный relay-лист + fallback strategy
+- [ ] Multi-relay read quorum: last-signed-wins по NIP-01 addressable events; write quorum только после стабильного single-relay canary
 - [ ] Runbook: incident pause, treasury refill, key rotation (`reuseKeysFrom`)
 
 ### Exit criteria
