@@ -66,6 +66,8 @@ flowchart LR
 | Post-window SDK inspect | ❌ **Expired**; ack **0/0** | ❌ **Expired**; ack **0/0** | ❌ **Expired**; ack **0/0** |
 | Smoke `30090` | ❌ timeout | ❌ timeout | ⏭ skipped (minimal) |
 
+**Повтор production deploy** ([27471452097](https://github.com/f0ff38/nhmind/actions/runs/27471452097)): `minimal_smoke=false`, без `relay_url_override` — **on-chain регистрация не состоялась** (`RELAY_SKIP_WHITELIST` не в `.env` → acurast CLI error); smoke `30090` ❌ timeout **без нового deployment ID** (не подтверждает processor blocker — deploy не прошёл).
+
 Ранее: **378421**/**378422** — тот же паттерн. Coordinator deploy **не запускать**.
 
 ### Диагностика (следующий шаг)
