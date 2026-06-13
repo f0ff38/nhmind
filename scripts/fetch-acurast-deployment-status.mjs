@@ -9,12 +9,15 @@
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { pathToFileURL } from "url";
-import { ApiPromise, WsProvider } from "@polkadot/api";
 
+const cliRoot =
+  process.env.ACURAST_CLI_ROOT ?? "/usr/local/lib/node_modules/@acurast/cli";
 const sdkRoot =
-  process.env.ACURAST_SDK_ROOT ??
-  "/usr/local/lib/node_modules/@acurast/cli/node_modules/@acurast/sdk/dist";
+  process.env.ACURAST_SDK_ROOT ?? `${cliRoot}/node_modules/@acurast/sdk/dist`;
+const polkadotApiPath =
+  process.env.POLKADOT_API_PATH ?? `${cliRoot}/node_modules/@polkadot/api/index.js`;
 
+const { ApiPromise, WsProvider } = await import(pathToFileURL(polkadotApiPath).href);
 const { walletFromMnemonic, getAcknowledgedProcessors } = await import(
   pathToFileURL(`${sdkRoot}/chain/index.js`).href
 );
@@ -174,6 +177,8 @@ async function fetchIndexerList(networkCfg, walletAddress) {
 }
 
 async function connectApi(rpcEndpoint) {
+  const apiAugmentPath = `${cliRoot}/node_modules/@polkadot/api-augment/index.js`;
+  await import(pathToFileURL(apiAugmentPath).href);
   const provider = new WsProvider(rpcEndpoint, 2500, {}, RPC_TIMEOUT_MS);
   const api = await ApiPromise.create({
     provider,
