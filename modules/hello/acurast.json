@@ -26,7 +26,7 @@
       "requiredModules": [],
       "minProcessorReputation": 0,
       "maxCostPerExecution": 5000000000,
-      "includeEnvironmentVariables": ["RELAY_URL"],
+      "includeEnvironmentVariables": ["RELAY_URL", "RELAY_SKIP_WHITELIST"],
       "processorWhitelist": [],
       "mutability": "Mutable"
     }
