@@ -103,6 +103,12 @@ jobs:
           source infra/selectel/scripts/prepare-openstack-env.sh
           bash infra/selectel/scripts/upsert-relay-acu-txt.sh
 
+      - name: Verify _acu TXT propagation
+        env:
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          ACURAST_TXT_V: ${{ needs.compute-acu-txt.outputs.acu_txt_v }}
+        run: bash infra/selectel/scripts/verify-relay-acu-txt.sh
+
   deploy:
     name: deploy-${{ inputs.module }}
     needs: upsert-acu-txt
