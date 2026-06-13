@@ -59,7 +59,8 @@ fi
 echo "WebSocket upgrade OK"
 
 echo "Checking Acurast HTTP POST bridge (REQ)..."
-bridge_body='["REQ","nhmind-smoke",{"limit":0}]'
+# limit:0 never yields EOSE on nostr-rs-relay; use a minimal stored-events query.
+bridge_body='["REQ","nhmind-smoke",{"kinds":[1],"limit":1}]'
 bridge_code=""
 attempt=1
 while [ "${attempt}" -le "${max_attempts}" ]; do
@@ -67,15 +68,22 @@ while [ "${attempt}" -le "${max_attempts}" ]; do
     -X POST "https://${relay_hostname}/" \
     -H "Content-Type: application/json" \
     --data "${bridge_body}" 2>/dev/null || true)"
-  if [ "${bridge_code}" = "200" ] && grep -q 'EOSE' /tmp/nhmind-relay-bridge.json 2>/dev/null; then
+  if [ "${bridge_code}" = "200" ] && grep -qE '"(EOSE|CLOSED)"' /tmp/nhmind-relay-bridge.json 2>/dev/null; then
     break
   fi
   echo "HTTP POST bridge not ready (HTTP ${bridge_code:-000}), retry ${attempt}/${max_attempts}..."
+  if [ -f /tmp/nhmind-relay-bridge.json ]; then
+    echo "Bridge response preview: $(head -c 200 /tmp/nhmind-relay-bridge.json 2>/dev/null || true)"
+  fi
   sleep 5
   attempt=$((attempt + 1))
 done
-if [ "${bridge_code}" != "200" ] || ! grep -q 'EOSE' /tmp/nhmind-relay-bridge.json 2>/dev/null; then
+if [ "${bridge_code}" != "200" ] || ! grep -qE '"(EOSE|CLOSED)"' /tmp/nhmind-relay-bridge.json 2>/dev/null; then
   echo "::error::HTTP POST https://${relay_hostname}/ (Acurast bridge) failed (HTTP ${bridge_code:-000})"
+  if [ -f /tmp/nhmind-relay-bridge.json ]; then
+    echo "Bridge response body:"
+    cat /tmp/nhmind-relay-bridge.json || true
+  fi
   exit 1
 fi
 echo "HTTP POST bridge OK"

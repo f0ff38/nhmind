@@ -14,13 +14,36 @@ function readBody(req) {
   });
 }
 
+function appendRelayLines(lines, data) {
+  for (const line of data.toString().split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed) {
+      lines.push(trimmed);
+    }
+  }
+}
+
+function isReqComplete(message, parsed) {
+  if (!Array.isArray(parsed) || typeof parsed[0] !== "string") {
+    return false;
+  }
+  const kind = parsed[0];
+  if (message[0] === "EVENT" && kind === "OK") {
+    return true;
+  }
+  if (message[0] === "REQ" && (kind === "EOSE" || kind === "CLOSED")) {
+    return true;
+  }
+  return false;
+}
+
 function relayOverWebSocket(message) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(RELAY_WS);
     const lines = [];
     let settled = false;
 
-    const finish = (result) => {
+    const finish = (result, error) => {
       if (settled) {
         return;
       }
@@ -29,30 +52,45 @@ function relayOverWebSocket(message) {
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close();
       }
-      resolve(result);
+      if (error) {
+        reject(error);
+        return;
+      }
+      const payload = result.trim();
+      if (!payload) {
+        reject(new Error("relay returned no protocol lines"));
+        return;
+      }
+      resolve(payload);
     };
 
-    const timer = setTimeout(() => finish(lines.join("\n")), TIMEOUT_MS);
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+          ws.close();
+        }
+        reject(new Error("relay timed out before protocol completion"));
+      }
+    }, TIMEOUT_MS);
 
     ws.on("open", () => {
       ws.send(JSON.stringify(message));
     });
 
     ws.on("message", (data) => {
-      const line = data.toString();
-      lines.push(line);
-      try {
-        const parsed = JSON.parse(line);
-        const kind = parsed[0];
-        if (message[0] === "EVENT" && kind === "OK") {
-          finish(lines.join("\n"));
-          return;
+      appendRelayLines(lines, data);
+      for (const line of lines) {
+        try {
+          const parsed = JSON.parse(line);
+          if (isReqComplete(message, parsed)) {
+            finish(lines.join("\n"));
+            return;
+          }
+        } catch {
+          // Ignore non-JSON relay frames.
         }
-        if (message[0] === "REQ" && kind === "EOSE") {
-          finish(lines.join("\n"));
-        }
-      } catch {
-        // Ignore non-JSON relay frames.
       }
     });
 
@@ -64,7 +102,14 @@ function relayOverWebSocket(message) {
       }
     });
 
-    ws.on("close", () => finish(lines.join("\n")));
+    ws.on("close", () => {
+      if (!settled) {
+        finish(
+          lines.join("\n"),
+          new Error("relay closed before protocol completion"),
+        );
+      }
+    });
   });
 }
 
