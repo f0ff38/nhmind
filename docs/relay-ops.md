@@ -361,7 +361,11 @@ TXT hash: формула в [Acurast Network docs](https://docs.acurast.com/deve
 
 ## Известный риск: HTTP на processor
 
-На processor транспорт — **HTTP POST** (`packages/nostr-client` → `acurast-http`), не WebSocket. `nostr-rs-relay` — WebSocket. nginx проксирует WSS для клиентов; для processor может понадобиться **HTTP→WS адаптер** в том же compose — проверить на шаге 9 чеклиста.
+На processor транспорт — **HTTP POST** (`packages/nostr-client` → `acurast-http`), не WebSocket. `nostr-rs-relay` принимает только NIP-01 WebSocket.
+
+**Решение (canary):** sidecar `infra/nostr-relay/http-bridge/` — принимает HTTP POST с Nostr-протоколом (`["EVENT",…]`, `["REQ",…]`), проксирует через WS на `relay:8080`. nginx: POST → bridge, GET/WSS upgrade → relay. Smoke: **Deploy Relay** проверяет POST `REQ` + `EOSE`.
+
+После изменений relay — **Deploy Relay** → `deploy`/`all`, затем **Deploy Canary → hello**.
 
 ---
 

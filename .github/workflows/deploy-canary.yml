@@ -178,19 +178,19 @@ jobs:
         if: inputs.module == 'hello' && inputs.dry_run == false
         env:
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
-          PREFLIGHT_TIMEOUT_MS: "180000"
-          DEVTOOLS_TIMEOUT_MS: "180000"
+          WAIT_BEFORE_SMOKE_SEC: "105"
+          PREFLIGHT_TIMEOUT_MS: "210000"
         run: |
           set -euo pipefail
-          echo "Waiting 360s for Acurast processor match + hello onetime execution (~5 min schedule)..."
-          sleep 360
+          echo "Waiting ${WAIT_BEFORE_SMOKE_SEC}s before hello smoke preflight..."
+          sleep "${WAIT_BEFORE_SMOKE_SEC}"
           if [ -n "${{ steps.acurast_deploy.outputs.deployment_id }}" ]; then
             echo "Fetching DevTools logs from GHA (job ${{ steps.acurast_deploy.outputs.deployment_id }})..."
             bash scripts/inspect-canary-devtools.sh hello "${{ steps.acurast_deploy.outputs.deployment_id }}" 0 \
-              || echo "::warning::DevTools log fetch failed — see Inspect Canary DevTools workflow or relay preflight below"
+              || echo "::warning::DevTools log fetch failed - continuing with relay preflight"
           fi
+          echo "Running single hello heartbeat preflight (timeout ${PREFLIGHT_TIMEOUT_MS}ms)..."
           bash scripts/preflight-hello-heartbeat.sh "${RELAY_HOSTNAME}" hello
-
       - name: Smoke coordinator on relay (registry + scorecard)
         if: inputs.module == 'coordinator' && inputs.dry_run == false
         env:

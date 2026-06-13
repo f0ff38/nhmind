@@ -55,9 +55,9 @@ flowchart LR
 
 ## Checkpoint — следующая сессия
 
-**Где продолжить:** Phase 2 — **разблокировать hello heartbeat на production relay**. Relay и on-chain deploy готовы; **Deploy Canary → hello** падает на smoke: на `RELAY_URL` нет свежего kind `30090` (#module=hello) после ожидания processor (~6+ мин). Пример: [GHA run 27390259361](https://github.com/f0ff38/nhmind/actions/runs/27390259361).
+**Где продолжить:** Phase 2 — **разблокировать hello heartbeat на production relay**. Relay и on-chain deploy готовы; **Deploy Canary → hello** падает на smoke: на `RELAY_URL` нет свежего kind `30090` (#module=hello). Вероятная причина — processor шлёт HTTP POST, а relay принимал только WSS; **fix: `http-bridge` в `infra/nostr-relay/`** (нужен **Deploy Relay** на VM, затем **Deploy Canary → hello**).
 
-Senior architecture read: проект **не требует rewrite**, но требует targeted refactor перед Phase 3. Главная гипотеза блокера — не Nostr-схемы, а транспорт: по NIP-01 relay API является WebSocket-протоколом (`EVENT`/`REQ`/`OK`/`EOSE`), а на Acurast processor доступна callback-модель `httpGET`/`httpPOST`. Текущий `acurast-http` backend отправляет Nostr frames через HTTP POST на `nostr-rs-relay`; `nostr-rs-relay` из коробки ожидает WebSocket, поэтому нужен явный HTTP→WebSocket adapter на relay VM или другой официальный relay/backend, который документированно принимает такой HTTP ingestion/query профиль.
+Senior architecture read: проект **не требует rewrite**, но требует targeted refactor перед Phase 3. Блокер — транспорт: relay API — WebSocket (`EVENT`/`REQ`/`OK`/`EOSE`), processor — `httpGET`/`httpPOST`. **В этом PR:** `infra/nostr-relay/http-bridge` + nginx POST route + smoke; осталось **задеплоить на VM** (Deploy Relay) и проверить hello heartbeat.
 
 ### Симптом
 
@@ -81,10 +81,9 @@ Coordinator deploy и smoke registry/scorecard **не запускать**, по
 
 ### После исправления
 
-1. Реализовать/задеплоить HTTP→Nostr WebSocket adapter на relay VM; smoke должен проверять и WSS-клиента, и Acurast-style HTTP POST.
-2. **Deploy Canary** → `hello` — smoke heartbeat ✅.
-3. **Deploy Canary** → `coordinator` — preflight heartbeat + smoke `30092`/`30091`.
-4. Обновить deliverables Phase 2 ниже и [relay-ops чеклист](relay-ops.md#чеклист-первого-запуска).
+1. **Deploy Relay** на VM (http-bridge + smoke POST); затем **Deploy Canary** → `hello` — smoke heartbeat ✅.
+2. **Deploy Canary** → `coordinator` — preflight heartbeat + smoke `30092`/`30091`.
+3. Обновить deliverables Phase 2 ниже и [relay-ops чеклист](relay-ops.md#чеклист-первого-запуска).
 
 Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay). GHA — [github-actions.md](github-actions.md#4-deploy-canary-из-github-actions).
 
@@ -107,12 +106,12 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 
 ### Refactor deliverables
 
-- [ ] `infra/nostr-relay`: HTTP→Nostr adapter (`POST /event`, `POST /req` или совместимый endpoint) + docker compose service + nginx route.
+- [x] `infra/nostr-relay`: HTTP→Nostr adapter (Nostr protocol POST body) + docker compose service + nginx route.
 - [ ] `packages/nostr-client`: `acurast-http` backend привести к adapter API; обрабатывать `OK`/`EOSE`/ошибки relay, а не считать любой HTTP success публикацией.
-- [ ] `scripts` / GHA smoke: отдельный Acurast-style HTTP publish/read smoke до canary deploy.
+- [x] `scripts` / GHA smoke: Acurast-style HTTP POST smoke в **Deploy Relay** (`smoke-relay.sh`).
 - [ ] `docs/nostr-protocol.md`: обновить wording NIP-33 → addressable events (NIP-01) и явно описать DVM-compatible profile.
 - [ ] `infra/nostr-relay/config.toml` / nginx: kind/tag/pubkey allowlist для canary после фикса pubkeys hello/coordinator.
-- [ ] `docs/relay-ops.md`: обновить чеклист первого запуска с adapter и HTTP smoke.
+- [x] `docs/relay-ops.md`: чеклист и описание adapter + HTTP smoke.
 
 ### Exit criteria
 
@@ -187,8 +186,8 @@ Ops-детали relay (Terraform, секреты, troubleshooting) — [relay-o
 - [x] Programmatic deploy через SDK (canary) — `deploy-canary.yml` + `scripts/deploy-acurast-sdk.mjs`; autoscale в TEE — Phase 4
 - [ ] Canary deploy **coordinator** + smoke registry/scorecard на relay (заблокирован hello heartbeat)
 - [ ] Canary deploy **hello** + smoke heartbeat `30090` на relay (on-chain ✅; relay event ❌ — [checkpoint](#checkpoint--следующая-сессия))
-- [ ] HTTP→Nostr WebSocket adapter для Acurast processor transport (refactor checkpoint)
-- [ ] Acurast-style HTTP smoke в CI/GHA перед canary smoke
+- [x] HTTP→Nostr WebSocket adapter для Acurast processor transport (код в `infra/nostr-relay/http-bridge`; deploy на VM — Deploy Relay)
+- [x] Acurast-style HTTP smoke в **Deploy Relay** (`smoke-relay.sh` POST `REQ` + `EOSE`)
 - [x] **Selectel GitOps (provision)** — `infra/selectel/terraform/` + `provision-relay-infra.yml`; validate ✅, plan ✅, apply ✅
 - [x] **Selectel GitOps (deploy relay)** — `infra/nostr-relay/` + `deploy-relay.yml`; WSS smoke ✅
 - [x] `_acu` TXT upsert в **Deploy Canary** (jobs `compute-acu-txt` + `upsert-acu-txt`)
