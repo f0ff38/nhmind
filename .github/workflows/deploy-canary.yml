@@ -15,6 +15,11 @@ on:
         required: false
         type: boolean
         default: false
+      relay_url_override:
+        description: "Hello A/B only: override RELAY_URL (e.g. wss://relay.damus.io/). Sets RELAY_SKIP_WHITELIST=1. Empty = production RELAY_HOSTNAME."
+        required: false
+        type: string
+        default: ""
 
 concurrency:
   group: deploy-canary-${{ inputs.module }}
@@ -130,11 +135,13 @@ jobs:
           docker compose run --rm dev npm run bundle --prefix modules/${{ inputs.module }}
 
       - name: Write module .env from secrets
+        id: module_env
         env:
           MNEMONIC_HELLO: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
           MNEMONIC_COORDINATOR: ${{ secrets.ACURAST_MNEMONIC_COORDINATOR }}
           MNEMONIC_FALLBACK: ${{ secrets.ACURAST_MNEMONIC }}
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          RELAY_URL_OVERRIDE: ${{ inputs.relay_url_override }}
         run: |
           set -euo pipefail
           MODULE="${{ inputs.module }}"
@@ -148,16 +155,35 @@ jobs:
             echo "Set ACURAST_MNEMONIC_${MODULE^^} or ACURAST_MNEMONIC in environment canary." >&2
             exit 1
           fi
-          relay_hostname="$(printf '%s' "${RELAY_HOSTNAME:-}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s|/$||')"
-          if [ -z "${relay_hostname}" ]; then
-            echo "::error::Missing RELAY_HOSTNAME in environment canary (FQDN without scheme)" >&2
-            exit 1
+          relay_override="$(printf '%s' "${RELAY_URL_OVERRIDE:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          if [ -n "${relay_override}" ]; then
+            if [ "${MODULE}" != "hello" ]; then
+              echo "::error::relay_url_override is only supported for module hello" >&2
+              exit 1
+            fi
+            if ! printf '%s' "${relay_override}" | grep -Eq '^wss://[^/[:space:]]+/?$'; then
+              echo "::error::relay_url_override must be wss://<host>/ (e.g. wss://relay.damus.io/)" >&2
+              exit 1
+            fi
+            relay_url="${relay_override%/}/"
+            smoke_hostname="$(printf '%s' "${relay_url}" | sed -E 's|^wss://([^/]+)/?$|\1|' | tr '[:upper:]' '[:lower:]')"
+            relay_ab_mode="public"
+            echo "::notice::Hello A/B: RELAY_URL=${relay_url} (RELAY_SKIP_WHITELIST=1); smoke on ${smoke_hostname}"
+          else
+            relay_hostname="$(printf '%s' "${RELAY_HOSTNAME:-}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s|/$||')"
+            if [ -z "${relay_hostname}" ]; then
+              echo "::error::Missing RELAY_HOSTNAME in environment canary (FQDN without scheme)" >&2
+              exit 1
+            fi
+            if ! printf '%s' "${relay_hostname}" | grep -Eq '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'; then
+              echo "::error::Invalid RELAY_HOSTNAME format (expected lowercase FQDN)" >&2
+              exit 1
+            fi
+            relay_url="wss://${relay_hostname}/"
+            smoke_hostname="${relay_hostname}"
+            relay_ab_mode="production"
+            echo "RELAY_URL derived from RELAY_HOSTNAME (wss://<host>/)" >&2
           fi
-          if ! printf '%s' "${relay_hostname}" | grep -Eq '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'; then
-            echo "::error::Invalid RELAY_HOSTNAME format (expected lowercase FQDN)" >&2
-            exit 1
-          fi
-          relay_url="wss://${relay_hostname}/"
           ENV_FILE="modules/${MODULE}/.env"
           printf 'ACURAST_MNEMONIC=%s\n' "${MNEMONIC}" > "${ENV_FILE}"
           printf 'ACURAST_RPC=wss://public-rpc.canary.acurast.com\n' >> "${ENV_FILE}"
@@ -165,10 +191,16 @@ jobs:
           printf 'ACURAST_CANARY_INDEXER=https://dev.indexer.canary.acurast.com/api/v1/rpc\n' >> "${ENV_FILE}"
           printf 'ACURAST_CANARY_INDEXER_API_KEY=OXuwySHqNSlwwa_qqB-cBw\n' >> "${ENV_FILE}"
           printf 'RELAY_URL=%s\n' "${relay_url}" >> "${ENV_FILE}"
-          echo "RELAY_URL derived from RELAY_HOSTNAME (wss://<host>/)" >&2
+          if [ "${relay_ab_mode}" = "public" ]; then
+            printf 'RELAY_SKIP_WHITELIST=1\n' >> "${ENV_FILE}"
+          fi
           if [ "${MODULE}" = "coordinator" ]; then
             printf 'COORDINATOR_WATCH_MODULES=hello\n' >> "${ENV_FILE}"
           fi
+          {
+            echo "smoke_relay_hostname=${smoke_hostname}"
+            echo "relay_ab_mode=${relay_ab_mode}"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Preflight hello heartbeat (coordinator deploy)
         if: inputs.module == 'coordinator' && inputs.dry_run == false
@@ -226,12 +258,18 @@ jobs:
       - name: Smoke hello heartbeat on relay
         if: inputs.module == 'hello' && inputs.dry_run == false
         env:
-          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          RELAY_SMOKE_HOSTNAME: ${{ steps.module_env.outputs.smoke_relay_hostname }}
+          RELAY_AB_MODE: ${{ steps.module_env.outputs.relay_ab_mode }}
           WAIT_BEFORE_SMOKE_SEC: "390"
           SMOKE_EXECUTION_MARGIN_SEC: "90"
           PREFLIGHT_TIMEOUT_MS: "300000"
         run: |
           set -euo pipefail
+          if [ -z "${RELAY_SMOKE_HOSTNAME:-}" ]; then
+            echo "::error::Missing smoke relay hostname from module_env step" >&2
+            exit 1
+          fi
+          echo "Hello smoke relay A/B mode: ${RELAY_AB_MODE:-production} → ${RELAY_SMOKE_HOSTNAME}"
           wait_sec="${WAIT_BEFORE_SMOKE_SEC}"
           if [ -f /tmp/acurast-deploy.log ]; then
             scheduled="$(grep -oE 'first execution scheduled in [0-9]+s' /tmp/acurast-deploy.log | tail -1 | grep -oE '[0-9]+' || true)"
@@ -254,7 +292,7 @@ jobs:
               || echo "::warning::Deployment inspect failed (post-execution)"
           fi
           echo "Running single hello heartbeat preflight (timeout ${PREFLIGHT_TIMEOUT_MS}ms)..."
-          bash scripts/preflight-hello-heartbeat.sh "${RELAY_HOSTNAME}" hello
+          bash scripts/preflight-hello-heartbeat.sh "${RELAY_SMOKE_HOSTNAME}" hello
       - name: Smoke coordinator on relay (registry + scorecard)
         if: inputs.module == 'coordinator' && inputs.dry_run == false
         env:

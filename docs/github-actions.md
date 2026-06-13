@@ -51,6 +51,7 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
 3. Actions → **Deploy Canary** → Run workflow (порядок и текущий блокер — **[roadmap checkpoint](roadmap.md#checkpoint--следующая-сессия)**):
    - jobs `compute-acu-txt` (environment **canary**) + `upsert-acu-txt` (environment **relay**) — **PTR ensure/verify** ([ensure-relay-ptr.sh](../infra/selectel/scripts/ensure-relay-ptr.sh), [verify-relay-ptr.sh](../infra/selectel/scripts/verify-relay-ptr.sh)) + TXT `_acu.<RELAY_HOSTNAME>` перед deploy
    - `hello` — submit/register (≤5 min, [deploy-canary-acurast.sh](../scripts/deploy-canary-acurast.sh)) + smoke `30090` (wait по schedule + 90s, preflight до 5 min)
+   - **Hello relay A/B** (изоляция relay vs processor): input `relay_url_override` (напр. `wss://relay.damus.io/`) — только `module=hello`; пишет `RELAY_SKIP_WHITELIST=1` (нет `_acu` TXT у чужого relay); smoke слушает тот же host. Пусто = production `RELAY_HOSTNAME`.
    - `coordinator` — только после hello heartbeat на relay; smoke `30092`/`30091` — [smoke-coordinator-relay.sh](../scripts/smoke-coordinator-relay.sh)
 4. **Диагностика deployments без Hub/DevTools web** (основной путь — CLI + SDK из GHA):
    - **Inspect Canary Deployment** (`inspect-canary-deployments.yml`) — `workflow_dispatch`: `module`, опционально `deployment_id` (число из Hub, напр. `378421`), опционально `deploy_run_id` (номер run **Deploy Canary** — скачивает artifact `acurast-deploy-<module>-<id>` для `acurast deployments <id>`).

@@ -24,6 +24,20 @@ describe("hello module", () => {
     expect(await publishHeartbeat()).toBe(false);
   });
 
+  it("skips relay whitelist when RELAY_SKIP_WHITELIST is set", async () => {
+    const whitelisted: string[] = [];
+    globalThis._STD_ = {
+      ...createLocalStd({ RELAY_URL: "ws://nostr-relay:8080", RELAY_SKIP_WHITELIST: "1" }),
+      network: {
+        whitelist: (hosts) => {
+          whitelisted.push(String(hosts));
+        },
+      },
+    };
+    await publishHeartbeat();
+    expect(whitelisted).toEqual([]);
+  });
+
   it("runs main without throwing", async () => {
     const logs: string[] = [];
     const originalLog = console.log;

@@ -11,6 +11,11 @@ export interface HealthCheckResult {
   details?: string;
 }
 
+function skipRelayWhitelist(env: Record<string, string | undefined>): boolean {
+  const flag = env.RELAY_SKIP_WHITELIST?.trim().toLowerCase();
+  return flag === "1" || flag === "true" || flag === "yes";
+}
+
 export function healthCheck(): HealthCheckResult {
   const std = getStd();
   const relayUrl = std.env.RELAY_URL?.trim();
@@ -36,7 +41,11 @@ export async function publishHeartbeat(): Promise<boolean> {
   let client: NostrClient | undefined;
 
   try {
-    whitelistRelayHost(std.network, relayUrl);
+    if (skipRelayWhitelist(std.env)) {
+      console.log("relay whitelist skipped (RELAY_SKIP_WHITELIST)");
+    } else {
+      whitelistRelayHost(std.network, relayUrl);
+    }
     client = new NostrClient({
       relays: [relayUrl],
       signer: createModuleSigner(),
