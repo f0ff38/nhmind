@@ -6,6 +6,9 @@
       "network": "canary",
       "onlyAttestedDevices": true,
       "enableDevtools": true,
+      "startAt": {
+        "msFromNow": 0
+      },
       "assignmentStrategy": {
         "type": "Single"
       },
