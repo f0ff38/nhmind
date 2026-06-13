@@ -48,6 +48,7 @@ jobs:
           fi
           ENV_FILE="modules/${MODULE}/.env"
           printf 'ACURAST_MNEMONIC=%s\n' "${MNEMONIC}" > "${ENV_FILE}"
+          printf 'ACURAST_RPC=wss://public-rpc.canary.acurast.com\n' >> "${ENV_FILE}"
           if [ -n "${RELAY_HOSTNAME:-}" ]; then
             relay_hostname="$(printf '%s' "${RELAY_HOSTNAME}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s|/$||')"
             printf 'RELAY_URL=wss://%s/\n' "${relay_hostname}" >> "${ENV_FILE}"
