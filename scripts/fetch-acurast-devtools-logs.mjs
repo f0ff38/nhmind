@@ -147,6 +147,11 @@ try {
   });
 } catch (error) {
   await probeApi(apiUrl);
+  const detail = error instanceof Error ? error.message : String(error);
+  if (/DevTools API (502|503|504)/.test(detail)) {
+    console.error(`::warning::DevTools API temporarily unavailable — skip log fetch (${detail.slice(0, 120)}…)`);
+    process.exit(0);
+  }
   throw error;
 }
 
