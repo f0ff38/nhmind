@@ -9,21 +9,27 @@
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { pathToFileURL } from "url";
+import { ApiPromise, WsProvider } from "@polkadot/api";
 
-const sdkChainPath =
-  process.env.ACURAST_SDK_CHAIN ??
-  "/usr/local/lib/node_modules/@acurast/cli/node_modules/@acurast/sdk/dist/chain/index.js";
+const sdkRoot =
+  process.env.ACURAST_SDK_ROOT ??
+  "/usr/local/lib/node_modules/@acurast/cli/node_modules/@acurast/sdk/dist";
 
-const { walletFromMnemonic, AcurastService, getAcknowledgedProcessors } = await import(
-  pathToFileURL(sdkChainPath).href
+const { walletFromMnemonic, getAcknowledgedProcessors } = await import(
+  pathToFileURL(`${sdkRoot}/chain/index.js`).href
 );
+const { CUSTOM_TYPES } = await import(pathToFileURL(`${sdkRoot}/types/env.js`).href);
+
+const CANARY_RPC_CANDIDATES = [
+  process.env.ACURAST_CANARY_RPC,
+  process.env.ACURAST_RPC,
+  "wss://public-rpc.canary.acurast.com",
+  "wss://canarynet-ws-1.acurast-h-server-2.papers.tech",
+].filter(Boolean);
 
 const NETWORK_DEFAULTS = {
   canary: {
-    rpc:
-      process.env.ACURAST_CANARY_RPC ??
-      process.env.ACURAST_RPC ??
-      "wss://public-rpc.canary.acurast.com",
+    rpcCandidates: CANARY_RPC_CANDIDATES,
     indexer:
       process.env.ACURAST_CANARY_INDEXER ??
       "https://dev.indexer.canary.acurast.com/api/v1/rpc",
@@ -32,10 +38,12 @@ const NETWORK_DEFAULTS = {
     symbol: "cACU",
   },
   mainnet: {
-    rpc:
-      process.env.ACURAST_MAINNET_RPC ??
-      process.env.ACURAST_RPC ??
+    rpcCandidates: [
+      process.env.ACURAST_MAINNET_RPC,
+      process.env.ACURAST_RPC,
       "wss://public-rpc.mainnet.acurast.com",
+      "wss://archive.mainnet.acurast.com",
+    ].filter(Boolean),
     indexer:
       process.env.ACURAST_MAINNET_INDEXER ??
       "https://dev.indexer.mainnet.acurast.com/api/v1/rpc",
@@ -44,6 +52,8 @@ const NETWORK_DEFAULTS = {
     symbol: "ACU",
   },
 };
+
+const RPC_TIMEOUT_MS = Number(process.env.ACURAST_RPC_TIMEOUT_MS ?? "120000");
 
 function parseArgs(argv) {
   const out = { module: "hello", deploymentId: "", network: "canary" };
@@ -82,7 +92,11 @@ function loadMnemonic(moduleDir) {
 function toPlain(value) {
   if (value == null) return value;
   if (typeof value === "bigint") return value.toString();
-  if (typeof value === "object" && typeof value.toString === "function" && value.constructor?.name === "BigNumber") {
+  if (
+    typeof value === "object" &&
+    typeof value.toString === "function" &&
+    value.constructor?.name === "BigNumber"
+  ) {
     return value.toString();
   }
   if (value instanceof Date) return value.toISOString();
@@ -93,6 +107,32 @@ function toPlain(value) {
     return out;
   }
   return value;
+}
+
+function decodeScript(script) {
+  if (typeof script !== "string") return script;
+  if (!script.startsWith("0x")) return script;
+  return new TextDecoder().decode(Buffer.from(script.slice(2), "hex"));
+}
+
+function registrationFromJson(json) {
+  const schedule = json.schedule ?? {};
+  return {
+    script: decodeScript(json.script),
+    schedule: {
+      duration: Number(schedule.duration ?? 0),
+      startTime: new Date(Number(schedule.startTime ?? 0)),
+      endTime: new Date(Number(schedule.endTime ?? 0)),
+      interval: schedule.interval ?? "0",
+      maxStartDelay: Number(schedule.maxStartDelay ?? 0),
+    },
+    extra: {
+      requirements: {
+        slots: Number(json.extra?.requirements?.slots ?? 0),
+        reward: json.extra?.requirements?.reward ?? "0",
+      },
+    },
+  };
 }
 
 function deriveWindowStatus(schedule, nowMs = Date.now()) {
@@ -133,11 +173,43 @@ async function fetchIndexerList(networkCfg, walletAddress) {
   }));
 }
 
-async function fetchWalletJobs(acurast, walletAddress) {
-  const jobs = await acurast.getAllJobs();
-  return jobs
-    .filter((job) => job.id[0].acurast === walletAddress)
-    .sort((a, b) => b.id[1] - a.id[1]);
+async function connectApi(rpcEndpoint) {
+  const provider = new WsProvider(rpcEndpoint, 2500, {}, RPC_TIMEOUT_MS);
+  const api = await ApiPromise.create({
+    provider,
+    noInitWarn: true,
+    types: { ...CUSTOM_TYPES },
+  });
+  return { api, provider };
+}
+
+async function connectWithFallback(rpcCandidates) {
+  let lastError = null;
+  for (const rpc of rpcCandidates) {
+    try {
+      console.log(`Connecting RPC: ${rpc}`);
+      const conn = await connectApi(rpc);
+      return { ...conn, rpc };
+    } catch (err) {
+      lastError = err;
+      console.error(`::warning::RPC ${rpc} failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+  throw lastError ?? new Error("no RPC endpoints configured");
+}
+
+async function fetchJobById(api, walletAddress, deploymentNumber) {
+  const origin = api.createType("AcurastCommonMultiOrigin", { Acurast: walletAddress });
+  const id = api.createType("u128", deploymentNumber);
+  const opt = await api.query.acurast.storedJobRegistration([origin, id]);
+  if (opt.isNone) {
+    return null;
+  }
+  const json = opt.unwrap().toJSON();
+  return {
+    id: [{ acurast: walletAddress }, deploymentNumber],
+    registration: registrationFromJson(json),
+  };
 }
 
 function formatJobSummary(job, assignments, networkCfg) {
@@ -169,6 +241,7 @@ function formatJobSummary(job, assignments, networkCfg) {
 
 function printHumanSummary(payload) {
   console.log(`Wallet: ${payload.wallet}`);
+  console.log(`RPC used: ${payload.rpc ?? "n/a"}`);
   if (payload.indexer?.length) {
     console.log(`Indexer registrations (${payload.indexer.length}):`);
     for (const row of payload.indexer.slice(0, 15)) {
@@ -220,7 +293,7 @@ async function main() {
     module: args.module,
     network: args.network,
     wallet: wallet.address,
-    rpc: networkCfg.rpc,
+    rpc: null,
     indexer: [],
     indexerError: null,
     deployment: null,
@@ -233,39 +306,33 @@ async function main() {
     console.error(`::warning::Indexer list failed: ${payload.indexerError}`);
   }
 
-  const acurast = new AcurastService(networkCfg.rpc);
-  try {
-    await acurast.connect();
-    if (!acurast.api) {
-      throw new Error("RPC API not connected");
-    }
+  const { api, provider, rpc } = await connectWithFallback(networkCfg.rpcCandidates);
+  payload.rpc = rpc;
 
+  try {
     const deploymentNumber = args.deploymentId ? Number(args.deploymentId) : NaN;
+
     if (!args.deploymentId) {
       if (!payload.indexer.length) {
-        const jobs = await fetchWalletJobs(acurast, wallet.address);
-        payload.indexer = jobs.map((job) => ({
-          deploymentId: job.id[1],
-          registeredAt: job.registration.schedule.startTime.toISOString(),
-          origin: job.id[0].acurast,
-          source: "rpc",
-        }));
+        console.log(
+          "::notice::Indexer unavailable and list-only mode skips full-chain scan; pass --deployment-id"
+        );
       }
     } else if (Number.isNaN(deploymentNumber)) {
       throw new Error(`invalid --deployment-id: ${args.deploymentId}`);
     } else {
-      const jobs = await fetchWalletJobs(acurast, wallet.address);
-      const job = jobs.find((j) => j.id[1] === deploymentNumber);
+      const job = await fetchJobById(api, wallet.address, deploymentNumber);
       if (!job) {
         throw new Error(
           `deployment ${deploymentNumber} not found on-chain for wallet ${wallet.address}`
         );
       }
-      const assignments = await getAcknowledgedProcessors(acurast.api, job.id);
+      const assignments = await getAcknowledgedProcessors(api, job.id);
       payload.deployment = formatJobSummary(job, assignments, networkCfg);
     }
   } finally {
-    await acurast.disconnect();
+    await api.disconnect();
+    await provider.disconnect();
   }
 
   printHumanSummary(payload);
@@ -287,7 +354,7 @@ async function main() {
       lines.push(`- **Hub:** ${d.hubUrl}`);
     }
     if (payload.indexer.length) {
-      lines.push(`- **Registrations (indexer/RPC):** ${payload.indexer.length}`);
+      lines.push(`- **Registrations (indexer):** ${payload.indexer.length}`);
     }
     lines.push("", "```json", JSON.stringify(toPlain(payload), null, 2), "```", "");
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n"));
