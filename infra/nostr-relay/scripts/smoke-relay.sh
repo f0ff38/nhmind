@@ -44,7 +44,7 @@ echo "HTTPS OK"
 
 echo "Checking WebSocket upgrade..."
 ws_headers="$(mktemp)"
-trap 'rm -f "${ws_headers}" /tmp/nhmind-relay-nip11.json' EXIT
+trap 'rm -f "${ws_headers}" /tmp/nhmind-relay-nip11.json /tmp/nhmind-relay-bridge.json' EXIT
 ws_status="$(curl -4sS -D "${ws_headers}" -o /dev/null --http1.1 --max-time 15 \
   -H "Connection: Upgrade" \
   -H "Upgrade: websocket" \
@@ -57,5 +57,27 @@ if ! printf '%s\n%s' "${ws_first_line}" "${ws_status}" | grep -q '101'; then
   exit 1
 fi
 echo "WebSocket upgrade OK"
+
+echo "Checking Acurast HTTP POST bridge (REQ)..."
+bridge_body='["REQ","nhmind-smoke",{"limit":0}]'
+bridge_code=""
+attempt=1
+while [ "${attempt}" -le "${max_attempts}" ]; do
+  bridge_code="$(curl -4fsS -o /tmp/nhmind-relay-bridge.json -w '%{http_code}' \
+    -X POST "https://${relay_hostname}/" \
+    -H "Content-Type: application/json" \
+    --data "${bridge_body}" 2>/dev/null || true)"
+  if [ "${bridge_code}" = "200" ] && grep -q 'EOSE' /tmp/nhmind-relay-bridge.json 2>/dev/null; then
+    break
+  fi
+  echo "HTTP POST bridge not ready (HTTP ${bridge_code:-000}), retry ${attempt}/${max_attempts}..."
+  sleep 5
+  attempt=$((attempt + 1))
+done
+if [ "${bridge_code}" != "200" ] || ! grep -q 'EOSE' /tmp/nhmind-relay-bridge.json 2>/dev/null; then
+  echo "::error::HTTP POST https://${relay_hostname}/ (Acurast bridge) failed (HTTP ${bridge_code:-000})"
+  exit 1
+fi
+echo "HTTP POST bridge OK"
 
 echo "Smoke passed for wss://${relay_hostname}/"

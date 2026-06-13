@@ -55,7 +55,7 @@ flowchart LR
 
 ## Checkpoint — следующая сессия
 
-**Где продолжить:** Phase 2 — **разблокировать hello heartbeat на production relay**. Relay и on-chain deploy готовы; **Deploy Canary → hello** падает на smoke: на `RELAY_URL` нет свежего kind `30090` (#module=hello) после ожидания processor (~6+ мин). Пример: [GHA run 27390259361](https://github.com/f0ff38/nhmind/actions/runs/27390259361).
+**Где продолжить:** Phase 2 — **разблокировать hello heartbeat на production relay**. Relay и on-chain deploy готовы; **Deploy Canary → hello** падает на smoke: на `RELAY_URL` нет свежего kind `30090` (#module=hello). Вероятная причина — processor шлёт HTTP POST, а relay принимал только WSS; **fix: `http-bridge` в `infra/nostr-relay/`** (нужен **Deploy Relay** на VM, затем **Deploy Canary → hello**).
 
 Senior architecture read: проект **не требует rewrite**, но требует targeted refactor перед Phase 3. Главная гипотеза блокера — не Nostr-схемы, а транспорт: по NIP-01 relay API является WebSocket-протоколом (`EVENT`/`REQ`/`OK`/`EOSE`), а на Acurast processor доступна callback-модель `httpGET`/`httpPOST`. Текущий `acurast-http` backend отправляет Nostr frames через HTTP POST на `nostr-rs-relay`; `nostr-rs-relay` из коробки ожидает WebSocket, поэтому нужен явный HTTP→WebSocket adapter на relay VM или другой официальный relay/backend, который документированно принимает такой HTTP ingestion/query профиль.
 
