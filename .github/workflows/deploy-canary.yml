@@ -179,7 +179,7 @@ jobs:
         env:
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
           WAIT_BEFORE_SMOKE_SEC: "105"
-          PREFLIGHT_TIMEOUT_MS: "210000"
+          PREFLIGHT_TIMEOUT_MS: "60000"
         run: |
           set -euo pipefail
           echo "Waiting ${WAIT_BEFORE_SMOKE_SEC}s before hello smoke preflight..."
