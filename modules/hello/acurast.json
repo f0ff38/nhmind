@@ -4,7 +4,7 @@
       "projectName": "hello",
       "fileUrl": "dist/bundle.js",
       "network": "canary",
-      "onlyAttestedDevices": true,
+      "onlyAttestedDevices": false,
       "enableDevtools": true,
       "startAt": {
         "msFromNow": 300000
@@ -16,7 +16,7 @@
         "type": "onetime",
         "maxExecutionTimeInMs": 60000
       },
-      "maxAllowedStartDelayInMs": 10000,
+      "maxAllowedStartDelayInMs": 60000,
       "usageLimit": {
         "maxMemory": 0,
         "maxNetworkRequests": 10,
