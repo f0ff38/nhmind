@@ -204,10 +204,11 @@ async function connectWithFallback(rpcCandidates) {
 }
 
 async function fetchAssignedProcessorAddresses(api, deploymentNumber) {
-  const entries = await api.query.acurastMarketplace.assignedProcessors.entries(
-    deploymentNumber
-  );
-  return entries.map(([key]) => key.args[1].toString());
+  const jobId = String(deploymentNumber);
+  const entries = await api.query.acurastMarketplace.assignedProcessors.entries();
+  return entries
+    .filter(([key]) => key.args[1]?.toString() === jobId)
+    .map(([key]) => key.args[0].toString());
 }
 
 async function fetchJobById(api, walletAddress, deploymentNumber) {
@@ -344,10 +345,18 @@ async function main() {
           `deployment ${deploymentNumber} not found on-chain for wallet ${wallet.address}`
         );
       }
-      const [assignments, assignedProcessorAddresses] = await Promise.all([
-        getAcknowledgedProcessors(api, job.id),
-        fetchAssignedProcessorAddresses(api, deploymentNumber),
-      ]);
+      const assignments = await getAcknowledgedProcessors(api, job.id);
+      let assignedProcessorAddresses = [];
+      try {
+        assignedProcessorAddresses = await fetchAssignedProcessorAddresses(
+          api,
+          deploymentNumber
+        );
+      } catch (err) {
+        console.error(
+          `::warning::assignedProcessors query failed: ${err instanceof Error ? err.message : err}`
+        );
+      }
       payload.deployment = formatJobSummary(
         job,
         assignments,
