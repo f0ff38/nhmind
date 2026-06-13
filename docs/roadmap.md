@@ -55,23 +55,21 @@ flowchart LR
 
 ## Checkpoint — следующая сессия
 
-**Где продолжить:** Phase 2 — **разблокировать hello heartbeat на production relay**. Relay и on-chain deploy готовы; **Deploy Canary → hello** падает на smoke: на `RELAY_URL` нет свежего kind `30090` (#module=hello). Вероятная причина — processor шлёт HTTP POST, а relay принимал только WSS; **fix: `http-bridge` в `infra/nostr-relay/`** (нужен **Deploy Relay** на VM, затем **Deploy Canary → hello**).
-
-Senior architecture read: проект **не требует rewrite**, но требует targeted refactor перед Phase 3. Блокер — транспорт: relay API — WebSocket (`EVENT`/`REQ`/`OK`/`EOSE`), processor — `httpGET`/`httpPOST`. **В этом PR:** `infra/nostr-relay/http-bridge` + nginx POST route + smoke; осталось **задеплоить на VM** (Deploy Relay) и проверить hello heartbeat.
+**Где продолжить:** Phase 2 — **hello heartbeat на production relay**. Relay + http-bridge ✅; on-chain deploy регистрируется, но jobs в Hub уходят в **Expired** при `startAt.msFromNow: 60000` (processors не успевают match до Start). **Fix:** `msFromNow: 300000` + GHA deploy submit-only ([deploy-canary-acurast.sh](../scripts/deploy-canary-acurast.sh)); затем **Deploy Canary → hello** smoke `30090`.
 
 ### Симптом
 
 | Шаг Deploy Canary (hello) | Статус |
 |---------------------------|--------|
 | `compute-acu-txt` + `upsert-acu-txt` | ✅ |
-| `Deploy to Acurast canary` | ✅ |
-| `Smoke hello heartbeat on relay` | ❌ timeout 180s, kind `30090` не найден |
+| `Deploy to Acurast canary` | ✅ register; ❌ при `msFromNow: 60s` — Hub **Expired** (378418 assigned 1/1, 378419 0/1) |
+| `Smoke hello heartbeat on relay` | ❌ нет `30090` пока execution не прошёл в слоте Start–End |
 
 Coordinator deploy и smoke registry/scorecard **не запускать**, пока hello heartbeat не появляется на relay.
 
 ### Диагностика (ручная, deploy-кошелёк)
 
-1. **Hub** [hub.acurast.com](https://hub.acurast.com/) — сеть Canary, кошелёк = адрес из `ACURAST_MNEMONIC_HELLO`; последний execution hello: ошибки publish / network / whitelist.
+1. **Hub** [hub.acurast.com](https://hub.acurast.com/) — сеть Canary, кошелёк hello; статус **Expired** = match/execution не уложились в Start–End (не путать с отсутствием deploy). Reports/DevTools по job id.
 2. **DevTools** execution hello — логи `heartbeat published` vs `heartbeat publish skipped` (из GHA: workflow **Inspect Canary DevTools** или шаг в **Deploy Canary**; локально `api.devtools.acurast.com` может быть 502).
 3. **Relay с ноутбука** — WSS `REQ` kind `30090`, `#client=nhmind`, `#module=hello` (см. [preflight-hello-heartbeat.sh](../scripts/preflight-hello-heartbeat.sh)).
 4. **Acurast whitelist** — TXT `_acu.<RELAY_HOSTNAME>` (upsert в GHA); **PTR** IP relay = hostname; reverse DNS + TXT `_acu.<ptr>` ([дока](https://docs.acurast.com/developers/job-runtime-environment/#network)).

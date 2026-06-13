@@ -50,12 +50,12 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
    - `RELAY_HOSTNAME` — `nostr.<ваш-домен>` (без схемы); `deploy-canary.yml` пишет в `.env` модульный `RELAY_URL=wss://<RELAY_HOSTNAME>/` (не Acurast P2P/RPC — см. [nostr-protocol.md](nostr-protocol.md#nostr-relay-на-canary-ops))
 3. Actions → **Deploy Canary** → Run workflow (порядок и текущий блокер — **[roadmap checkpoint](roadmap.md#checkpoint--следующая-сессия)**):
    - jobs `compute-acu-txt` (environment **canary**) + `upsert-acu-txt` (environment **relay**) — TXT `_acu.<host>` перед deploy
-   - `hello` — on-chain deploy + smoke heartbeat `30090` (сейчас smoke ❌)
+   - `hello` — submit/register (≤5 min, [deploy-canary-acurast.sh](../scripts/deploy-canary-acurast.sh)) + smoke `30090` (wait по schedule + 90s, preflight до 5 min)
    - `coordinator` — только после hello heartbeat на relay; smoke `30092`/`30091` — [smoke-coordinator-relay.sh](../scripts/smoke-coordinator-relay.sh)
 4. **DevTools логи с GHA** (если `api.devtools.acurast.com` недоступен из вашей сети):
    - **Inspect Canary DevTools** (`inspect-canary-devtools.yml`) — `workflow_dispatch`: `module`, `job_id` (например `378412`), `wait_seconds` (`0` для уже выполненного job, `360` после свежего deploy).
    - Скрипты: [inspect-canary-devtools.sh](../scripts/inspect-canary-devtools.sh), [fetch-acurast-devtools-logs.mjs](../scripts/fetch-acurast-devtools-logs.mjs).
-   - **Deploy Canary → hello** после ожидания 360s автоматически вызывает DevTools fetch (continue-on-warning) + `preflight-hello-heartbeat.sh`.
+   - **Deploy Canary → hello** после ожидания по расписанию из deploy log вызывает DevTools fetch (continue-on-warning) + `preflight-hello-heartbeat.sh` (до 5 min).
    - В логах job ищите `heartbeat published` / `heartbeat publish skipped` и `DevTools dashboard:`.
    - Ручной fallback (если API доступен локально): `acurast devtools <job-id>` → [devtools.acurast.com](https://devtools.acurast.com) (не Hub).
 
@@ -66,6 +66,8 @@ docker compose run --rm --entrypoint bash dev -c "node scripts/show-acurast-addr
 ```
 
 Programmatic SDK (вне TEE): `scripts/deploy-acurast-sdk.mjs` — тот же стек, что `acurast deploy`.
+
+**GHA deploy (hello/coordinator):** [deploy-canary-acurast.sh](../scripts/deploy-canary-acurast.sh) — `timeout` после on-chain registration (не ждать processor match 30+ min). `startAt.msFromNow: 300000` в `acurast.json` — буфер для match до Start (см. [README](../README.md#acurast-обязательные-практики)).
 
 `acurast deploy` в PR/push по-прежнему **не** запускается автоматически.
 
