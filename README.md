@@ -156,10 +156,12 @@ Nostr — **event log с eventual consistency**, не база данных. В 
 | `execution.type`         | `interval` для агентов; `onetime` для разовых job                    |
 | `maxExecutionTimeInMs`   | Задавать явно под worst-case сценарий модуля                         |
 | `maxCostPerExecution`    | Всегда лимитировать; оценка через `acurast estimate-fee`             |
-| `startAt.msFromNow`      | Canary/CI: `60000` (1 мин; on-chain требует `start` в будущем; дефолт CLI — 5 мин) |
+| `startAt.msFromNow`      | Canary/CI: **`300000`** (5 мин, как дефолт CLI). Не ставить `0` (chain reject) и не `60000` — processors не успевают match до Start → Hub **Expired** |
 | `minProcessorReputation` | Поднимать для production-модулей                                     |
 | `processorWhitelist`     | Для canary и чувствительных модулей                                  |
 | `requiredModules`        | `['DataEncryption']` при работе с секретами                          |
+
+Canary deploy из GHA: [deploy-canary-acurast.sh](scripts/deploy-canary-acurast.sh) регистрирует job on-chain и **не ждёт** processor match (до 5 min); smoke на relay проверяет execution. Hub: [hub.acurast.com](https://hub.acurast.com/) — сеть **Canary**, кошелёк = адрес из `ACURAST_MNEMONIC_*`.
 
 
 ### Секреты и подпись (вместо отдельного «vault»)

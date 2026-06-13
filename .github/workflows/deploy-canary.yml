@@ -156,17 +156,13 @@ jobs:
 
       - name: Deploy to Acurast canary
         id: acurast_deploy
+        env:
+          ACURAST_DEPLOY_TIMEOUT_SEC: "300"
         run: |
           set -euo pipefail
-          DEPLOY_FLAGS="-n"
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
-            DEPLOY_FLAGS="${DEPLOY_FLAGS} --dry-run"
-          fi
-          docker compose run --rm \
-            -e ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com \
-            dev bash -lc "cd modules/${{ inputs.module }} && acurast deploy ${DEPLOY_FLAGS}" \
-            2>&1 | tee /tmp/acurast-deploy.log
-          deployment_id="$(grep -oE 'Deployment registered \(ID: [0-9]+' /tmp/acurast-deploy.log | tail -1 | grep -oE '[0-9]+' || true)"
+          deploy_out="$(bash scripts/deploy-canary-acurast.sh "${{ inputs.module }}" "${{ inputs.dry_run }}")"
+          printf '%s\n' "${deploy_out}"
+          deployment_id="$(printf '%s\n' "${deploy_out}" | grep -E '^deployment_id=' | tail -1 | cut -d= -f2- || true)"
           if [ -n "${deployment_id}" ]; then
             echo "deployment_id=${deployment_id}" >> "${GITHUB_OUTPUT}"
             echo "Parsed deployment_id=${deployment_id}"
@@ -186,16 +182,17 @@ jobs:
         if: inputs.module == 'hello' && inputs.dry_run == false
         env:
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
-          WAIT_BEFORE_SMOKE_SEC: "30"
-          PREFLIGHT_TIMEOUT_MS: "60000"
+          WAIT_BEFORE_SMOKE_SEC: "390"
+          SMOKE_EXECUTION_MARGIN_SEC: "90"
+          PREFLIGHT_TIMEOUT_MS: "300000"
         run: |
           set -euo pipefail
           wait_sec="${WAIT_BEFORE_SMOKE_SEC}"
           if [ -f /tmp/acurast-deploy.log ]; then
             scheduled="$(grep -oE 'first execution scheduled in [0-9]+s' /tmp/acurast-deploy.log | tail -1 | grep -oE '[0-9]+' || true)"
             if [ -n "${scheduled}" ]; then
-              wait_sec=$((scheduled + 20))
-              echo "Parsed first execution in ${scheduled}s → waiting ${wait_sec}s before smoke"
+              wait_sec=$((scheduled + SMOKE_EXECUTION_MARGIN_SEC))
+              echo "Parsed first execution in ${scheduled}s → waiting ${wait_sec}s before smoke (margin ${SMOKE_EXECUTION_MARGIN_SEC}s)"
             fi
           fi
           echo "Waiting ${wait_sec}s before hello smoke preflight..."
