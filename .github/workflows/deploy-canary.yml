@@ -174,16 +174,32 @@ jobs:
             echo "::warning::Could not parse deployment ID from acurast deploy output"
           fi
 
+      - name: Print DevTools URL
+        if: inputs.dry_run == false && steps.acurast_deploy.outputs.deployment_id != ''
+        run: |
+          bash scripts/print-canary-devtools-url.sh \
+            "${{ inputs.module }}" \
+            "${{ steps.acurast_deploy.outputs.deployment_id }}" \
+            /tmp/acurast-deploy.log
+
       - name: Smoke hello heartbeat on relay
         if: inputs.module == 'hello' && inputs.dry_run == false
         env:
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
-          WAIT_BEFORE_SMOKE_SEC: "105"
+          WAIT_BEFORE_SMOKE_SEC: "30"
           PREFLIGHT_TIMEOUT_MS: "60000"
         run: |
           set -euo pipefail
-          echo "Waiting ${WAIT_BEFORE_SMOKE_SEC}s before hello smoke preflight..."
-          sleep "${WAIT_BEFORE_SMOKE_SEC}"
+          wait_sec="${WAIT_BEFORE_SMOKE_SEC}"
+          if [ -f /tmp/acurast-deploy.log ]; then
+            scheduled="$(grep -oE 'first execution scheduled in [0-9]+s' /tmp/acurast-deploy.log | tail -1 | grep -oE '[0-9]+' || true)"
+            if [ -n "${scheduled}" ]; then
+              wait_sec=$((scheduled + 20))
+              echo "Parsed first execution in ${scheduled}s → waiting ${wait_sec}s before smoke"
+            fi
+          fi
+          echo "Waiting ${wait_sec}s before hello smoke preflight..."
+          sleep "${wait_sec}"
           if [ -n "${{ steps.acurast_deploy.outputs.deployment_id }}" ]; then
             echo "Fetching DevTools logs from GHA (job ${{ steps.acurast_deploy.outputs.deployment_id }})..."
             bash scripts/inspect-canary-devtools.sh hello "${{ steps.acurast_deploy.outputs.deployment_id }}" 0 \
