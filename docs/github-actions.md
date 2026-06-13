@@ -49,7 +49,7 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
    - `ACURAST_MNEMONIC_COORDINATOR` — mnemonic из `modules/coordinator/.env`
    - `RELAY_HOSTNAME` — `nostr.<ваш-домен>` (без схемы); `deploy-canary.yml` пишет в `.env` модульный `RELAY_URL=wss://<RELAY_HOSTNAME>/` (не Acurast P2P/RPC — см. [nostr-protocol.md](nostr-protocol.md#nostr-relay-на-canary-ops))
 3. Actions → **Deploy Canary** → Run workflow (порядок и текущий блокер — **[roadmap checkpoint](roadmap.md#checkpoint--следующая-сессия)**):
-   - jobs `compute-acu-txt` (environment **canary**) + `upsert-acu-txt` (environment **relay**) — TXT `_acu.<host>` перед deploy
+   - jobs `compute-acu-txt` (environment **canary**) + `upsert-acu-txt` (environment **relay**) — **PTR ensure/verify** ([ensure-relay-ptr.sh](../infra/selectel/scripts/ensure-relay-ptr.sh), [verify-relay-ptr.sh](../infra/selectel/scripts/verify-relay-ptr.sh)) + TXT `_acu.<RELAY_HOSTNAME>` перед deploy
    - `hello` — submit/register (≤5 min, [deploy-canary-acurast.sh](../scripts/deploy-canary-acurast.sh)) + smoke `30090` (wait по schedule + 90s, preflight до 5 min)
    - `coordinator` — только после hello heartbeat на relay; smoke `30092`/`30091` — [smoke-coordinator-relay.sh](../scripts/smoke-coordinator-relay.sh)
 4. **Диагностика deployments без Hub/DevTools web** (основной путь — CLI + SDK из GHA):
@@ -127,7 +127,7 @@ on:
 | Workflow | Триггер | Назначение |
 |----------|---------|------------|
 | `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Формат + live-проверки секретов **relay** (Keystone, S3, SSH keys, X-Token; deploy: SSH to VM via TF `public_ip`) ✅ |
-| `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через IPAM `ipam/v1` + `X-Token` ✅ |
+| `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через IPAM `ipam/v1` + `X-Token`; verify PTR propagation ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke` \| `all`) | Selectel LE + Knox PEM → SSH → `infra/nostr-relay/` compose; IP из Terraform state ✅ |
 | `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools API (опционально; часто 502 из GHA) |
 | `inspect-canary-deployments.yml` | `workflow_dispatch` | SDK + CLI deployment status (основной путь без Hub/DevTools web) |

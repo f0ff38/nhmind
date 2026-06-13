@@ -91,7 +91,7 @@ Selectel использует **три типа** токенов; для GitOps 
 **Рекомендация для GHA:**
 
 1. **Terraform** — логин/пароль **сервисного пользователя** с ролью `member` в scope **Проект** (паттерн из [Terraform quickstart](https://docs.selectel.ru/terraform/quickstart/)): провайдеры `selectel` + `openstack`, `auth_url = https://cloud.api.selcloud.ru/identity/v3`. Пароль — в GitHub Secret; IAM-токен в CI **можно** получать через Keystone POST, но проще отдать password провайдеру (он сам ходит в Keystone).
-2. **PTR** — [upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh): `POST`/`PUT` к **IPAM API** `https://api.selectel.ru/ipam/v1/` с `X-Token` (не `domains/v1/ptr` — legacy, HTTP 405). IAM-токены для PTR **не поддерживаются**.
+2. **PTR** — [upsert-relay-ptr.sh](../infra/selectel/scripts/upsert-relay-ptr.sh): `POST`/`PUT` к **IPAM API** `https://api.selectel.ru/ipam/v1/` с `X-Token` (не `domains/v1/ptr` — legacy, HTTP 405). IAM-токены для PTR **не поддерживаются**. После upsert — [verify-relay-ptr.sh](../infra/selectel/scripts/verify-relay-ptr.sh) (`dig -x` → `RELAY_HOSTNAME`); в **Deploy Canary** — [ensure-relay-ptr.sh](../infra/selectel/scripts/ensure-relay-ptr.sh) перед TXT `_acu`.
 3. **DNS** (DNS hosting actual) — после `apply`: при отсутствии зоны `POST /zones`, затем upsert **A** через [DNS API v2](https://docs.selectel.ru/en/api/dns-actual/). **`SELECTEL_PROJECT_ID`** тот же, что в IAM → Projects и Облачные серверы; для DNS Keystone нужен scope по **имени** проекта — [resolve-selectel-project-name.sh](../infra/selectel/scripts/resolve-selectel-project-name.sh) резолвит имя по id автоматически. Override: `SELECTEL_IAM_PROJECT_NAME`. Опционально `RELAY_DNS_ZONE_ID`.
 4. **Не хранить** статический `X-Token` в Terraform state; PTR — shell/curl или маленький script в workflow после `terraform apply`.
 
@@ -349,7 +349,7 @@ infra/nostr-relay/
 2. [x] **Provision Relay Infra** → `plan` (15 to add; flavor `BL1.2-4096`)
 3. [x] **Provision Relay Infra** → `apply`, `set_ptr: true`, `set_dns_a: true`
 4. [x] **Deploy Relay** → `deploy` или `all`
-5. [x] DNS: TXT `_acu.<RELAY_HOSTNAME>` — автоматически в **Deploy Canary** (`compute-acu-txt` + `upsert-acu-txt`)
+5. [x] DNS: TXT `_acu.<RELAY_HOSTNAME>` + **PTR verify** — **Deploy Canary** (`ensure-relay-ptr` + `upsert-acu-txt`)
 6. [x] Smoke WSS (**Deploy Relay** → `smoke`)
 7. [x] GitHub **canary** → secret `RELAY_HOSTNAME`
 8. [ ] **Deploy Canary → hello** — on-chain ✅; smoke heartbeat `30090` на relay ❌ ([checkpoint](roadmap.md#checkpoint--следующая-сессия))
