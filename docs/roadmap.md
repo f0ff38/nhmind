@@ -71,7 +71,7 @@ flowchart LR
 ### Диагностика (следующий шаг)
 
 1. ~~Минимальный hello bundle~~ ✅ **исключено** — [PR #76](https://github.com/f0ff38/nhmind/pull/76), **378425** ([run 27469893555](https://github.com/f0ff38/nhmind/actions/runs/27469893555)): `minimal_smoke=true`, `relay_url_override=wss://relay.damus.io/` — **тот же Expired/sla 0/1** → **не** Nostr/whitelist/network; processor **не выполняет bundle** (или не отчитывается SLA).
-2. **Hub Reports** для **378425** (и **378424**/**378423**) — execution logs: bundle стартовал? `hello-minimal-start` vs crash до entry (Hub web — primary; DevTools API часто 502).
+2. **Hub Reports** для **378425** (и **378424**/**378423**) — execution logs: bundle стартовал? `hello-minimal-start` vs crash до entry (Hub web — primary; DevTools API **502** из GHA [27470313002](https://github.com/f0ff38/nhmind/actions/runs/27470313002), логи не получены). Post-window inspect **378425** ✅ [27470279264](https://github.com/f0ff38/nhmind/actions/runs/27470279264): **Expired**, ack **0/0**, processor pre-window `5GEr1Nd2XHHddsXjXrXtdQQVT3NnVrUeZB2hFXgpr1n19DBP`. Эскалация: [acurast-escalation-378425.md](acurast-escalation-378425.md).
 3. **Acurast support / processor logs** — sla=0/1 при ack 1/1: attestation, `onlyAttestedDevices`, bundle size, Node runtime на processor, `maxAllowedStartDelayInMs`.
 4. ~~Изоляция relay~~ ✅ **исключено** — public relay A/B ([PR #74](https://github.com/f0ff38/nhmind/pull/74)).
 5. ~~Изоляция JS logic~~ ✅ **исключено** — minimal bundle ([PR #76](https://github.com/f0ff38/nhmind/pull/76)); `minimal_smoke` остаётся за workflow input (не default deploy).
