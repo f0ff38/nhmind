@@ -40,6 +40,9 @@ output_indicates_failure() {
 cli_failed() {
   local label="$1"
   local exit_code="$2"
+  if [ "${exit_code}" -eq 0 ]; then
+    exit_code=1
+  fi
   echo "::warning::${label} failed (exit ${exit_code})"
   if [ "${fail_on_error}" = "1" ]; then
     exit "${exit_code}"
@@ -72,7 +75,13 @@ ls_exit=$?
 set -e
 printf '%s\n' "${ls_out}"
 append_summary_section "Acurast deployments ls (canary)" "${ls_out}"
-check_cli_result "acurast deployments ls" "${ls_out}" "${ls_exit}"
+if [ "${ls_exit}" -ne 0 ] || output_indicates_failure "${ls_out}"; then
+  if [ -z "${deployment_id}" ]; then
+    check_cli_result "acurast deployments ls" "${ls_out}" "${ls_exit}"
+  else
+    echo "::notice::deployments ls unavailable; continuing with deployment_id=${deployment_id}"
+  fi
+fi
 
 if [ -z "${deployment_id}" ]; then
   exit 0

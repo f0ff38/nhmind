@@ -135,6 +135,7 @@ jobs:
           relay_url="wss://${relay_hostname}/"
           ENV_FILE="modules/${MODULE}/.env"
           printf 'ACURAST_MNEMONIC=%s\n' "${MNEMONIC}" > "${ENV_FILE}"
+          printf 'ACURAST_RPC=wss://public-rpc.canary.acurast.com\n' >> "${ENV_FILE}"
           printf 'RELAY_URL=%s\n' "${relay_url}" >> "${ENV_FILE}"
           echo "RELAY_URL derived from RELAY_HOSTNAME (wss://<host>/)" >&2
           if [ "${MODULE}" = "coordinator" ]; then
