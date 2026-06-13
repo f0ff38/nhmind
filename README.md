@@ -274,7 +274,7 @@ cp .env.example .env
 ./scripts/dev acurast live            # отладка на live-processor
 ```
 
-После deploy с `enableDevtools: true` CLI выдаёт URL веб-дашборда с логами. Статус on-chain без Hub: `acurast deployments ls --network canary` и `acurast deployments <id>` — в GHA см. **Inspect Canary Deployments** ([github-actions.md](docs/github-actions.md)).
+После deploy с `enableDevtools: true` CLI может выдать URL веб-дашборда (DevTools web часто недоступен из CI). **Основная диагностика без Hub/DevTools:** SDK + `acurast deployments <id>` — в GHA см. **Inspect Canary Deployment** ([github-actions.md](docs/github-actions.md)).
 
 ### Cursor Dev Container
 

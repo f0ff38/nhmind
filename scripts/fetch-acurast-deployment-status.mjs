@@ -203,6 +203,13 @@ async function connectWithFallback(rpcCandidates) {
   throw lastError ?? new Error("no RPC endpoints configured");
 }
 
+async function fetchAssignedProcessorAddresses(api, deploymentNumber) {
+  const entries = await api.query.acurastMarketplace.assignedProcessors.entries(
+    deploymentNumber
+  );
+  return entries.map(([key]) => key.args[1].toString());
+}
+
 async function fetchJobById(api, walletAddress, deploymentNumber) {
   const origin = api.createType("AcurastCommonMultiOrigin", { Acurast: walletAddress });
   const id = api.createType("u128", deploymentNumber);
@@ -217,7 +224,7 @@ async function fetchJobById(api, walletAddress, deploymentNumber) {
   };
 }
 
-function formatJobSummary(job, assignments, networkCfg) {
+function formatJobSummary(job, assignments, assignedProcessorAddresses, networkCfg) {
   const schedule = job.registration.schedule;
   const windowStatus = deriveWindowStatus(schedule);
   const acknowledged = assignments.filter((a) => a.assignment?.acknowledged);
@@ -237,10 +244,12 @@ function formatJobSummary(job, assignments, networkCfg) {
     rewardSymbol: networkCfg.symbol,
     slots: job.registration.extra?.requirements?.slots,
     script: job.registration.script,
+    assignedProcessorAddresses,
     assignments: toPlain(assignments),
     acknowledgedProcessors: acknowledged.map((a) => a.processor),
     acknowledgedCount: acknowledged.length,
     totalAssignments: assignments.length,
+    storedMatchCount: assignments.length,
   };
 }
 
@@ -269,6 +278,9 @@ function printHumanSummary(payload) {
   console.log(`  Hub: ${d.hubUrl}`);
   console.log(`  Window: ${d.windowStatus} (${d.schedule.startTime} → ${d.schedule.endTime})`);
   console.log(`  Reward: ${d.reward} ${d.rewardSymbol}, slots: ${d.slots}`);
+  if (d.assignedProcessorAddresses?.length) {
+    console.log(`  Assigned (marketplace): ${d.assignedProcessorAddresses.join(", ")}`);
+  }
   console.log(
     `  Processors: ${d.acknowledgedCount}/${d.totalAssignments} acknowledged` +
       (d.acknowledgedProcessors.length ? ` [${d.acknowledgedProcessors.join(", ")}]` : "")
@@ -332,8 +344,16 @@ async function main() {
           `deployment ${deploymentNumber} not found on-chain for wallet ${wallet.address}`
         );
       }
-      const assignments = await getAcknowledgedProcessors(api, job.id);
-      payload.deployment = formatJobSummary(job, assignments, networkCfg);
+      const [assignments, assignedProcessorAddresses] = await Promise.all([
+        getAcknowledgedProcessors(api, job.id),
+        fetchAssignedProcessorAddresses(api, deploymentNumber),
+      ]);
+      payload.deployment = formatJobSummary(
+        job,
+        assignments,
+        assignedProcessorAddresses,
+        networkCfg
+      );
     }
   } finally {
     await api.disconnect();

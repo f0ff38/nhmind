@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Query Acurast deployment status (indexer + on-chain RPC via SDK).
+# CLI/SDK canary deployment diagnostics (no DevTools web).
+# 1) SDK: indexer + on-chain RPC (works without local .acurast file)
+# 2) CLI: acurast deployments <id> when modules/<module>/.acurast/deploy/*-<id>.json exists
 # Usage: inspect-canary-deployments.sh <module> [deployment_id]
-# Env: INSPECT_DEPLOYMENTS_FAIL=1 — exit non-zero on failure (standalone GHA workflow).
+# Env: INSPECT_DEPLOYMENTS_FAIL=1 — exit non-zero on SDK failure (standalone GHA workflow).
 set -euo pipefail
 
 module="${1:?usage: inspect-canary-deployments.sh <module> [deployment_id]}"
@@ -35,4 +37,9 @@ if [ "${sdk_exit}" -ne 0 ]; then
   if [ "${fail_on_error}" = "1" ]; then
     exit "${sdk_exit}"
   fi
+fi
+
+if [ -n "${deployment_id}" ]; then
+  bash scripts/inspect-canary-deployment-cli.sh "${module}" "${deployment_id}" \
+    || echo "::warning::CLI deployment detail failed"
 fi

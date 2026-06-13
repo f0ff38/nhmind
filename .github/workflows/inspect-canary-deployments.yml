@@ -1,4 +1,4 @@
-name: Inspect Canary Deployments
+name: Inspect Canary Deployment
 
 on:
   workflow_dispatch:
@@ -11,14 +11,19 @@ on:
           - hello
           - coordinator
       deployment_id:
-        description: Hub deployment number (e.g. 378420); leave empty to list only
+        description: Hub deployment number (e.g. 378421); leave empty to list only
+        required: false
+        type: string
+        default: ""
+      deploy_run_id:
+        description: Optional Deploy Canary run ID to download .acurast artifact (needs deployment_id)
         required: false
         type: string
         default: ""
 
 jobs:
   inspect:
-    name: inspect-deployments-${{ inputs.module }}
+    name: inspect-${{ inputs.module }}${{ inputs.deployment_id && format('-{0}', inputs.deployment_id) || '' }}
     runs-on: ubuntu-latest
     environment: canary
     steps:
@@ -27,6 +32,15 @@ jobs:
 
       - name: Build dev image
         run: docker compose build dev
+
+      - name: Download deployment artifact
+        if: inputs.deploy_run_id != '' && inputs.deployment_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: acurast-deploy-${{ inputs.module }}-${{ inputs.deployment_id }}
+          path: modules/${{ inputs.module }}/.acurast/deploy
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.deploy_run_id }}
 
       - name: Write module .env from secrets
         env:
@@ -57,7 +71,7 @@ jobs:
             printf 'RELAY_URL=wss://%s/\n' "${relay_hostname}" >> "${ENV_FILE}"
           fi
 
-      - name: Query deployments via SDK
+      - name: Inspect via SDK + CLI
         env:
           INSPECT_DEPLOYMENTS_FAIL: "1"
           ACURAST_RPC_TIMEOUT_MS: "180000"
@@ -65,12 +79,17 @@ jobs:
           set -euo pipefail
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
             {
-              echo "# Inspect Canary Deployments"
+              echo "# Inspect Canary Deployment"
               echo ""
               echo "- **Module:** \`${{ inputs.module }}\`"
               if [ -n "${{ inputs.deployment_id }}" ]; then
                 echo "- **Deployment ID:** \`${{ inputs.deployment_id }}\`"
               fi
+              if [ -n "${{ inputs.deploy_run_id }}" ]; then
+                echo "- **Artifact from run:** \`${{ inputs.deploy_run_id }}\`"
+              fi
+              echo ""
+              echo "Diagnostics: SDK (indexer + RPC) + optional \`acurast deployments <id>\` when local \`.acurast/deploy\` file exists."
               echo ""
             } >> "${GITHUB_STEP_SUMMARY}"
           fi
