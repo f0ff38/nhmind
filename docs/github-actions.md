@@ -63,7 +63,7 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
    - **Inspect Canary Deployments** (`inspect-canary-deployments.yml`) — `workflow_dispatch`: `module`, опционально `deployment_id` (число из Hub, напр. `378420`). Секреты — те же, environment **canary** (см. таблицу выше).
    - Скрипт: [inspect-canary-deployments.sh](../scripts/inspect-canary-deployments.sh) — `acurast deployments ls --network canary` и `acurast deployments <id>` ([CLI docs](https://docs.acurast.com/developers/tools/cli#listing-and-viewing)).
    - **Deploy Canary** автоматически вызывает CLI inspect сразу после регистрации и после окна execution (continue-on-warning); результат — в job log и **Summary**.
-   - Локально: `docker compose run --rm -e ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com dev bash -lc "cd modules/hello && acurast deployments ls --network canary"`.
+   - Локально: `docker compose run --rm -e ACURAST_RPC=wss://public-rpc.canary.acurast.com dev bash -lc "cd modules/hello && acurast deployments ls --network canary"`.
 
 Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com). Адрес кошелька:
 
