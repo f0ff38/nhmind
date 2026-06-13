@@ -55,27 +55,28 @@ flowchart LR
 
 ## Checkpoint — следующая сессия
 
-**Где продолжить:** Phase 2 — **processor/bundle execution на canary**, не relay/DNS. A/B isolation ✅ ([PR #74](https://github.com/f0ff38/nhmind/pull/74)): **378424** с `RELAY_URL=wss://relay.damus.io/` + `RELAY_SKIP_WHITELIST=1` ([run 27462483764](https://github.com/f0ff38/nhmind/actions/runs/27462483764)) — тот же паттерн **ack 1/1 → Expired → нет `30090`** на **публичном** relay → **не** VM/nginx/bridge/TLS; проблема на processor (bundle/runtime/execution).
+**Где продолжить:** Phase 2 — **escalate to Acurast** (processor/runtime execution). Relay/DNS и JS/Nostr logic **исключены**: A/B public relay ✅ ([PR #74](https://github.com/f0ff38/nhmind/pull/74), **378424**) + **minimal hello bundle** ✅ ([PR #76](https://github.com/f0ff38/nhmind/pull/76), **378425**) — оба **ack 1/1 pre-window → Expired post-window → sla 0/1**; minimal path (`HELLO_MINIMAL=1`, только `console.log`) **не меняет исход**.
 
-### Симптом (актуально: deployment **378424** A/B, production baseline **378423**)
+### Симптом (актуально: minimal **378425**, A/B **378424**, production **378423**)
 
-| Шаг Deploy Canary (hello) | Production (`378423`, [27461812639](https://github.com/f0ff38/nhmind/actions/runs/27461812639)) | A/B public relay (`378424`, [27462483764](https://github.com/f0ff38/nhmind/actions/runs/27462483764)) |
-|---------------------------|--------|--------|
-| PTR + `_acu` TXT | ✅ | ✅ (production path; deploy uses `relay.damus.io`) |
-| Register + pre-window ack | ✅ **378423** ack **1/1** | ✅ **378424** ack **1/1** |
-| Post-window SDK inspect | ❌ **Expired**; sla **0/1** | ❌ **Expired**; sla **0/1** |
-| Smoke `30090` | ❌ timeout на production relay | ❌ timeout на `wss://relay.damus.io/` |
+| Шаг Deploy Canary (hello) | Production (`378423`) | A/B damus (`378424`) | Minimal smoke (`378425`, [27469893555](https://github.com/f0ff38/nhmind/actions/runs/27469893555)) |
+|---------------------------|---------------------|----------------------|-----------------------------------------------------------------------------------------------------|
+| Config | full hello | `RELAY_SKIP_WHITELIST=1` | `HELLO_MINIMAL=1` + damus + skip whitelist |
+| Register + pre-window ack | ✅ ack **1/1**, sla **0/1** | ✅ ack **1/1**, sla **0/1** | ✅ ack **1/1**, sla **0/1** |
+| Post-window SDK inspect | ❌ **Expired**; ack **0/0** | ❌ **Expired**; ack **0/0** | ❌ **Expired**; ack **0/0** |
+| Smoke `30090` | ❌ timeout | ❌ timeout | ⏭ skipped (minimal) |
 
-Ранее: **378421**/**378422** — тот же паттерн. **378423** post-mortem inspect: [27462431894](https://github.com/f0ff38/nhmind/actions/runs/27462431894) — Expired, 0/0 ack post-window. Coordinator deploy **не запускать**.
+Ранее: **378421**/**378422** — тот же паттерн. Coordinator deploy **не запускать**.
 
 ### Диагностика (следующий шаг)
 
-1. **Минимальный hello bundle** — Deploy Canary `minimal_smoke=true` + `relay_url_override=wss://relay.damus.io/` ([PR pending](#)) — только `console.log` start/done; если снова **Expired/sla 0/1** → processor/runtime, не JS/Nostr.
-2. **Hub Reports** для **378424** (и **378423**) — execution logs: bundle стартовал? `heartbeat published` vs `heartbeat publish skipped` vs crash до publish (Hub web — primary; DevTools API часто 502).
-3. **Acurast support / processor logs** — sla=0/1 при ack 1/1: attestation, `maxNetworkRequests`, bundle size, runtime error.
-4. ~~Изоляция relay~~ ✅ **исключено** — public relay A/B ([PR #74](https://github.com/f0ff38/nhmind/pull/74), `relay_url_override` в Deploy Canary).
+1. ~~Минимальный hello bundle~~ ✅ **исключено** — [PR #76](https://github.com/f0ff38/nhmind/pull/76), **378425** ([run 27469893555](https://github.com/f0ff38/nhmind/actions/runs/27469893555)): `minimal_smoke=true`, `relay_url_override=wss://relay.damus.io/` — **тот же Expired/sla 0/1** → **не** Nostr/whitelist/network; processor **не выполняет bundle** (или не отчитывается SLA).
+2. **Hub Reports** для **378425** (и **378424**/**378423**) — execution logs: bundle стартовал? `hello-minimal-start` vs crash до entry (Hub web — primary; DevTools API часто 502).
+3. **Acurast support / processor logs** — sla=0/1 при ack 1/1: attestation, `onlyAttestedDevices`, bundle size, Node runtime на processor, `maxAllowedStartDelayInMs`.
+4. ~~Изоляция relay~~ ✅ **исключено** — public relay A/B ([PR #74](https://github.com/f0ff38/nhmind/pull/74)).
+5. ~~Изоляция JS logic~~ ✅ **исключено** — minimal bundle ([PR #76](https://github.com/f0ff38/nhmind/pull/76)); `minimal_smoke` остаётся за workflow input (не default deploy).
 
-Уже в bundle (main): `hello` `maxNetworkRequests: 10`, `whitelistRelayHost()` (+ opt-out `RELAY_SKIP_WHITELIST` для A/B), canary `onlyAttestedDevices: false`, `maxAllowedStartDelayInMs: 60000` ([PR #72](https://github.com/f0ff38/nhmind/pull/72)). **Minimal path:** `HELLO_MINIMAL=1` / workflow `minimal_smoke` (см. [github-actions.md](github-actions.md#4-deploy-canary-из-github-actions)).
+Уже в bundle (main): `hello` `maxNetworkRequests: 10`, `whitelistRelayHost()` (+ opt-out `RELAY_SKIP_WHITELIST` для A/B), canary `onlyAttestedDevices: false`, `maxAllowedStartDelayInMs: 60000` ([PR #72](https://github.com/f0ff38/nhmind/pull/72)). **Minimal path:** `HELLO_MINIMAL=1` / workflow `minimal_smoke` ([github-actions.md](github-actions.md#4-deploy-canary-из-github-actions)).
 
 ### После исправления
 
