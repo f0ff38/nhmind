@@ -61,9 +61,9 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
 
 5. **Статус deployments через CLI** (когда Hub не показывает Reports / UI неудобен):
    - **Inspect Canary Deployments** (`inspect-canary-deployments.yml`) — `workflow_dispatch`: `module`, опционально `deployment_id` (число из Hub, напр. `378420`). Секреты — те же, environment **canary** (см. таблицу выше).
-   - Скрипт: [inspect-canary-deployments.sh](../scripts/inspect-canary-deployments.sh) — `acurast deployments ls --network canary` и `acurast deployments <id>` ([CLI docs](https://docs.acurast.com/developers/tools/cli#listing-and-viewing)).
-   - **Deploy Canary** автоматически вызывает CLI inspect сразу после регистрации и после окна execution (continue-on-warning); результат — в job log и **Summary**.
-   - Локально: `docker compose run --rm -e ACURAST_RPC=wss://public-rpc.canary.acurast.com dev bash -lc "cd modules/hello && acurast deployments ls --network canary"`.
+   - Скрипты: [inspect-canary-deployments.sh](../scripts/inspect-canary-deployments.sh) → [fetch-acurast-deployment-status.mjs](../scripts/fetch-acurast-deployment-status.mjs) — **indexer** (`getEvents`) + **on-chain RPC** (`getAllJobs`, `getAcknowledgedProcessors`); не требует локального `.acurast/deploy` файла ([CLI source](https://github.com/Acurast/acurast-cli/blob/main/src/commands/deployments.ts)).
+   - **Deploy Canary** вызывает inspect после регистрации и после execution window; публикует artifact `modules/<module>/.acurast/deploy/` (для `acurast deployments <id>` offline).
+   - Локально: `docker compose run --rm dev node scripts/fetch-acurast-deployment-status.mjs --module hello --deployment-id 378420`
 
 Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com). Адрес кошелька:
 

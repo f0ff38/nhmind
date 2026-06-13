@@ -49,6 +49,9 @@ jobs:
           ENV_FILE="modules/${MODULE}/.env"
           printf 'ACURAST_MNEMONIC=%s\n' "${MNEMONIC}" > "${ENV_FILE}"
           printf 'ACURAST_RPC=wss://public-rpc.canary.acurast.com\n' >> "${ENV_FILE}"
+          printf 'ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com\n' >> "${ENV_FILE}"
+          printf 'ACURAST_CANARY_INDEXER=https://dev.indexer.canary.acurast.com/api/v1/rpc\n' >> "${ENV_FILE}"
+          printf 'ACURAST_CANARY_INDEXER_API_KEY=OXuwySHqNSlwwa_qqB-cBw\n' >> "${ENV_FILE}"
           if [ -n "${RELAY_HOSTNAME:-}" ]; then
             relay_hostname="$(printf '%s' "${RELAY_HOSTNAME}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s|/$||')"
             printf 'RELAY_URL=wss://%s/\n' "${relay_hostname}" >> "${ENV_FILE}"

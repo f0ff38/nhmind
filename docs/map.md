@@ -101,7 +101,7 @@ README.md          ← корень: обзор, архитектура, dev, с
 | Selectel VM / relay provision | roadmap checkpoint → relay-ops → github-actions |
 | CI / deploy canary | github-actions.md |
 | DevTools логи (GHA, не локальная сеть) | github-actions.md → `inspect-canary-devtools.yml` |
-| Статус deployment on-chain (Hub без Reports) | github-actions.md → `inspect-canary-deployments.yml` |
+| Статус deployment on-chain (Hub без Reports) | github-actions.md → `inspect-canary-deployments.yml`, `fetch-acurast-deployment-status.mjs` |
 | Новый модуль | module-template README → AGENTS |
 | ROI / promote-pause-kill / oracle / AI economics | economics.md → roadmap Phase 3–5 |
 | Collective intelligence / oracle-feed | collective-intelligence.md → modules/oracle-feed |

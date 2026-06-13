@@ -136,6 +136,9 @@ jobs:
           ENV_FILE="modules/${MODULE}/.env"
           printf 'ACURAST_MNEMONIC=%s\n' "${MNEMONIC}" > "${ENV_FILE}"
           printf 'ACURAST_RPC=wss://public-rpc.canary.acurast.com\n' >> "${ENV_FILE}"
+          printf 'ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com\n' >> "${ENV_FILE}"
+          printf 'ACURAST_CANARY_INDEXER=https://dev.indexer.canary.acurast.com/api/v1/rpc\n' >> "${ENV_FILE}"
+          printf 'ACURAST_CANARY_INDEXER_API_KEY=OXuwySHqNSlwwa_qqB-cBw\n' >> "${ENV_FILE}"
           printf 'RELAY_URL=%s\n' "${relay_url}" >> "${ENV_FILE}"
           echo "RELAY_URL derived from RELAY_HOSTNAME (wss://<host>/)" >&2
           if [ "${MODULE}" = "coordinator" ]; then
@@ -182,16 +185,18 @@ jobs:
       - name: Inspect deployment via CLI (registered)
         if: inputs.dry_run == false && steps.acurast_deploy.outputs.deployment_id != ''
         run: |
-          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-            {
-              echo "## Deployment status (CLI, registered)"
-              echo ""
-            } >> "${GITHUB_STEP_SUMMARY}"
-          fi
           bash scripts/inspect-canary-deployments.sh \
             "${{ inputs.module }}" \
             "${{ steps.acurast_deploy.outputs.deployment_id }}" \
-            || echo "::warning::CLI deployment inspect failed (registered)"
+            || echo "::warning::Deployment status inspect failed (registered)"
+
+      - name: Upload Acurast deployment files
+        if: inputs.dry_run == false && steps.acurast_deploy.outputs.deployment_id != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: acurast-deploy-${{ inputs.module }}-${{ steps.acurast_deploy.outputs.deployment_id }}
+          path: modules/${{ inputs.module }}/.acurast/deploy/
+          if-no-files-found: warn
 
       - name: Smoke hello heartbeat on relay
         if: inputs.module == 'hello' && inputs.dry_run == false
