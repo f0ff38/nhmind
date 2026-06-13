@@ -352,7 +352,7 @@ infra/nostr-relay/
 5. [x] DNS: TXT `_acu.<RELAY_HOSTNAME>` + **PTR verify** — **Deploy Canary** (`ensure-relay-ptr` + `upsert-acu-txt`)
 6. [x] Smoke WSS (**Deploy Relay** → `smoke`)
 7. [x] GitHub **canary** → secret `RELAY_HOSTNAME`
-8. [ ] **Deploy Canary → hello** — on-chain ✅ (378423); PTR/TXT ✅; smoke heartbeat `30090` ❌ — processor execution Expired ([checkpoint](roadmap.md#checkpoint--следующая-сессия))
+8. [ ] **Deploy Canary → hello** — on-chain ✅ (378424 A/B); PTR/TXT ✅; smoke `30090` ❌ — **processor** Expired (не relay: A/B public relay тоже ❌, [checkpoint](roadmap.md#checkpoint--следующая-сессия))
 9. [ ] **Deploy Canary → coordinator** — registry `30092` + scorecard `30091` (после hello heartbeat)
 
 TXT hash: формула в [Acurast Network docs](https://docs.acurast.com/developers/job-runtime-environment/#network); адреса кошельков — `node scripts/show-acurast-address.mjs modules/<name>`.
