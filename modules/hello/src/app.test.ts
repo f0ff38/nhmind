@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { healthCheck, main, publishHeartbeat } from "./app";
+import { healthCheck, isHelloMinimal, main, mainMinimal, publishHeartbeat } from "./app";
 import { createLocalStd } from "./runtime/local-std";
 
 describe("hello module", () => {
@@ -50,6 +50,39 @@ describe("hello module", () => {
       expect(logs.some((line) => line.includes("NostrHiveMind hello module"))).toBe(
         true,
       );
+    } finally {
+      console.log = originalLog;
+    }
+  });
+
+  it("runs minimal main without network or relay", async () => {
+    globalThis._STD_ = createLocalStd({ HELLO_MINIMAL: "1" });
+    expect(isHelloMinimal(globalThis._STD_.env)).toBe(true);
+
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+
+    try {
+      await main();
+      expect(logs).toEqual(["hello-minimal-start", "hello-minimal-done"]);
+    } finally {
+      console.log = originalLog;
+    }
+  });
+
+  it("mainMinimal logs start and done", async () => {
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+
+    try {
+      await mainMinimal();
+      expect(logs).toEqual(["hello-minimal-start", "hello-minimal-done"]);
     } finally {
       console.log = originalLog;
     }
