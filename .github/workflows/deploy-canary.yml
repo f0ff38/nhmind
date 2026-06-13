@@ -66,6 +66,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Ensure PTR (Acurast reverse whitelist)
+        env:
+          SELECTEL_STATIC_TOKEN: ${{ secrets.SELECTEL_STATIC_TOKEN }}
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+          TF_STATE_S3_BUCKET: ${{ secrets.TF_STATE_S3_BUCKET }}
+          TF_STATE_S3_ACCESS_KEY: ${{ secrets.TF_STATE_S3_ACCESS_KEY }}
+          TF_STATE_S3_SECRET_KEY: ${{ secrets.TF_STATE_S3_SECRET_KEY }}
+          TF_STATE_S3_REGION: ${{ secrets.TF_STATE_S3_REGION }}
+          SELECTEL_REGION: ${{ secrets.SELECTEL_REGION }}
+          SELECTEL_AVAILABILITY_ZONE: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
+        run: |
+          set -euo pipefail
+          bash infra/selectel/scripts/ensure-relay-ptr.sh
+
       - name: Upsert _acu TXT in Selectel DNS
         env:
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}

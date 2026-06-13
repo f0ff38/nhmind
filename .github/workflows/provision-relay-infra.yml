@@ -126,6 +126,17 @@ jobs:
           export PUBLIC_IP
           bash infra/selectel/scripts/upsert-relay-ptr.sh
 
+      - name: Verify PTR propagation
+        if: inputs.action == 'apply' && inputs.set_ptr
+        working-directory: ${{ github.workspace }}
+        env:
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+        run: |
+          set -euo pipefail
+          PUBLIC_IP="$(terraform -chdir=infra/selectel/terraform output -raw public_ip)"
+          export PUBLIC_IP
+          bash infra/selectel/scripts/verify-relay-ptr.sh
+
       - name: Upsert DNS A record (Selectel DNS)
         if: inputs.action == 'apply' && inputs.set_dns_a
         working-directory: ${{ github.workspace }}
