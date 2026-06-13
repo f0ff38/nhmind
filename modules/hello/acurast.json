@@ -7,7 +7,7 @@
       "onlyAttestedDevices": true,
       "enableDevtools": true,
       "startAt": {
-        "msFromNow": 0
+        "msFromNow": 60000
       },
       "assignmentStrategy": {
         "type": "Single"

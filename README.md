@@ -156,6 +156,7 @@ Nostr — **event log с eventual consistency**, не база данных. В 
 | `execution.type`         | `interval` для агентов; `onetime` для разовых job                    |
 | `maxExecutionTimeInMs`   | Задавать явно под worst-case сценарий модуля                         |
 | `maxCostPerExecution`    | Всегда лимитировать; оценка через `acurast estimate-fee`             |
+| `startAt.msFromNow`      | Canary/CI: `60000` (1 мин; on-chain требует `start` в будущем; дефолт CLI — 5 мин) |
 | `minProcessorReputation` | Поднимать для production-модулей                                     |
 | `processorWhitelist`     | Для canary и чувствительных модулей                                  |
 | `requiredModules`        | `['DataEncryption']` при работе с секретами                          |
@@ -188,7 +189,7 @@ Nostr — **event log с eventual consistency**, не база данных. В 
 | Тесты                   | `./scripts/dev test`                                                                  |
 | Canary                  | `./scripts/dev acurast deploy`                                                        |
 | Production              | `network: mainnet` + deploy или [@acurast/sdk](https://docs.acurast.com/)             |
-| Оплата без ACU-аккаунта | [Deploy Agent](https://docs.acurast.com/developers/deploy-agent) (x402, USDC на Base) |
+| Оплата без ACU-аккаунта | [Deploy Agent](https://docs.acurast.com/developers/tools/deploy-agent) (x402, USDC на Base) |
 | LLM inference           | `requiredModules` для LLM; confidential inference в TEE                               |
 
 
@@ -339,10 +340,54 @@ nhmind/
 
 ## Ссылки
 
-- [Acurast Docs](https://docs.acurast.com/)
-- [Node.js Runtime API](https://docs.acurast.com/developers/job-runtime-environment/)
-- [Deploy Agent (x402)](https://docs.acurast.com/developers/deploy-agent)
-- [acurast-cli](https://github.com/Acurast/acurast-cli)
-- [acurast-example-apps](https://github.com/Acurast/acurast-example-apps)
+### Acurast — Getting Started
+
+- [Acurast Docs (hub)](https://docs.acurast.com/)
+- [Quickstart](https://docs.acurast.com/developers/getting-started/quickstart)
+- [Quickstart — Cargo](https://docs.acurast.com/developers/getting-started/quickstart-cargo)
+- [Quickstart — Tunnel (Canary)](https://docs.acurast.com/developers/getting-started/quickstart-tunnel)
+- [Example Apps](https://docs.acurast.com/developers/getting-started/examples)
+- [acurast-example-apps](https://github.com/Acurast/acurast-example-apps) (GitHub)
+- [acurast-cli](https://github.com/Acurast/acurast-cli) (GitHub)
+
+### Acurast — Build & Runtime
+
+- [Deployment Config (`acurast.json`)](https://docs.acurast.com/developers/build/deployment-config)
+- [Environment Variables](https://docs.acurast.com/developers/build/environment-variables)
+- [Node.js Runtime Environment](https://docs.acurast.com/developers/build/nodejs-runtime-environment)
+- [Cargo Runtime Environment](https://docs.acurast.com/developers/build/cargo-runtime-environment)
+- [On-Demand Deployments](https://docs.acurast.com/developers/build/on-demand-deployments)
+- [LLM on Acurast](https://docs.acurast.com/developers/build/llm-on-acurast)
+
+### Acurast — Tools
+
+- [CLI](https://docs.acurast.com/developers/tools/cli)
+- [SDK](https://docs.acurast.com/developers/tools/sdk)
+- [DevTools](https://docs.acurast.com/developers/tools/devtools)
+- [Deploy Agent (x402)](https://docs.acurast.com/developers/tools/deploy-agent)
+
+### Acurast — Processors
+
+- [Processors (hub)](https://docs.acurast.com/processors)
+- [Become a Compute Provider](https://docs.acurast.com/processors/become-compute-provider)
+- [Processor Rewards](https://docs.acurast.com/processors/rewards)
+- [Benchmarks](https://docs.acurast.com/processors/benchmarks)
+
+### Acurast — Protocol & Reference
+
+- [Node Setup](https://docs.acurast.com/acurast-protocol/node-setup)
+- [Node Tunnel Setup (Canary)](https://docs.acurast.com/acurast-protocol/node-tunnel-setup)
+- [Audits](https://docs.acurast.com/acurast-protocol/audits)
+- [Canary → Mainnet](https://docs.acurast.com/acurast-protocol/from-canary-to-mainnet/overview)
+- [Architecture Overview](https://docs.acurast.com/acurast-protocol/architecture/architecture)
+- [End-to-End Deployment](https://docs.acurast.com/acurast-protocol/architecture/end-to-end)
+- [Application Layer](https://docs.acurast.com/acurast-protocol/architecture/application-layer)
+- [Execution Layer](https://docs.acurast.com/acurast-protocol/architecture/execution-layer)
+- [Consensus Layer](https://docs.acurast.com/acurast-protocol/architecture/consensus-layer)
+- [Network Instances](https://docs.acurast.com/acurast-protocol/architecture/instances)
+- [Matcher](https://docs.acurast.com/acurast-protocol/architecture/architecture#matcher)
+
+### Nostr & прочее
+
 - [Nostr NIPs](https://github.com/nostr-protocol/nips)
 
