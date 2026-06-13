@@ -59,6 +59,12 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
    - В логах job ищите `heartbeat published` / `heartbeat publish skipped` и `DevTools dashboard:`.
    - Ручной fallback (если API доступен локально): `acurast devtools <job-id>` → [devtools.acurast.com](https://devtools.acurast.com) (не Hub).
 
+5. **Статус deployments через CLI** (когда Hub не показывает Reports / UI неудобен):
+   - **Inspect Canary Deployments** (`inspect-canary-deployments.yml`) — `workflow_dispatch`: `module`, опционально `deployment_id` (число из Hub, напр. `378420`). Секреты — те же, environment **canary** (см. таблицу выше).
+   - Скрипт: [inspect-canary-deployments.sh](../scripts/inspect-canary-deployments.sh) — `acurast deployments ls --network canary` и `acurast deployments <id>` ([CLI docs](https://docs.acurast.com/developers/tools/cli#listing-and-viewing)).
+   - **Deploy Canary** автоматически вызывает CLI inspect сразу после регистрации и после окна execution (continue-on-warning); результат — в job log и **Summary**.
+   - Локально: `docker compose run --rm -e ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com dev bash -lc "cd modules/hello && acurast deployments ls --network canary"`.
+
 Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com). Адрес кошелька:
 
 ```bash
@@ -126,6 +132,7 @@ on:
 | `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через IPAM `ipam/v1` + `X-Token` ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke` \| `all`) | Selectel LE + Knox PEM → SSH → `infra/nostr-relay/` compose; IP из Terraform state ✅ |
 | `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools view-key + логи processor с runner GHA; опционально preflight heartbeat |
+| `inspect-canary-deployments.yml` | `workflow_dispatch` | `acurast deployments ls` / `deployments <id>` on-chain (Hub alternative) |
 
 **Секреты environment `relay`:**
 
@@ -177,6 +184,8 @@ Workflow **Deploy Relay**: [`.github/workflows/deploy-relay.yml`](../.github/wor
 | `validate-relay-secrets.yml` | `workflow_dispatch` | проверка секретов relay ✅ |
 | `provision-relay-infra.yml` | `workflow_dispatch` | Selectel VM + сеть ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` | relay compose на VM ✅ |
+| `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools processor logs ✅ |
+| `inspect-canary-deployments.yml` | `workflow_dispatch` | CLI deployment status ✅ |
 | `cursor-agent.yml` | issue comment / schedule | Cursor CLI (будущее) |
 
 ## Cursor Dashboard

@@ -178,6 +178,20 @@ jobs:
             "${{ steps.acurast_deploy.outputs.deployment_id }}" \
             /tmp/acurast-deploy.log
 
+      - name: Inspect deployment via CLI (registered)
+        if: inputs.dry_run == false && steps.acurast_deploy.outputs.deployment_id != ''
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            {
+              echo "## Deployment status (CLI, registered)"
+              echo ""
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
+          bash scripts/inspect-canary-deployments.sh \
+            "${{ inputs.module }}" \
+            "${{ steps.acurast_deploy.outputs.deployment_id }}" \
+            || echo "::warning::CLI deployment inspect failed (registered)"
+
       - name: Smoke hello heartbeat on relay
         if: inputs.module == 'hello' && inputs.dry_run == false
         env:
@@ -201,6 +215,15 @@ jobs:
             echo "Fetching DevTools logs from GHA (job ${{ steps.acurast_deploy.outputs.deployment_id }})..."
             bash scripts/inspect-canary-devtools.sh hello "${{ steps.acurast_deploy.outputs.deployment_id }}" 0 \
               || echo "::warning::DevTools log fetch failed - continuing with relay preflight"
+            if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+              {
+                echo "## Deployment status (CLI, post-execution)"
+                echo ""
+              } >> "${GITHUB_STEP_SUMMARY}"
+            fi
+            echo "Querying deployment status via CLI (post-execution)..."
+            bash scripts/inspect-canary-deployments.sh hello "${{ steps.acurast_deploy.outputs.deployment_id }}" \
+              || echo "::warning::CLI deployment inspect failed (post-execution)"
           fi
           echo "Running single hello heartbeat preflight (timeout ${PREFLIGHT_TIMEOUT_MS}ms)..."
           bash scripts/preflight-hello-heartbeat.sh "${RELAY_HOSTNAME}" hello
@@ -214,4 +237,14 @@ jobs:
           echo "Waiting 360s for processor match + 75s for first coordinator interval..."
           sleep 360
           sleep 75
+          if [ -n "${{ steps.acurast_deploy.outputs.deployment_id }}" ]; then
+            if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+              {
+                echo "## Deployment status (CLI, post-execution)"
+                echo ""
+              } >> "${GITHUB_STEP_SUMMARY}"
+            fi
+            bash scripts/inspect-canary-deployments.sh coordinator "${{ steps.acurast_deploy.outputs.deployment_id }}" \
+              || echo "::warning::CLI deployment inspect failed (post-execution)"
+          fi
           bash scripts/smoke-coordinator-relay.sh "${RELAY_HOSTNAME}" hello
