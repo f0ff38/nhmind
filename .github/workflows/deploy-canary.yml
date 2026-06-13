@@ -197,20 +197,27 @@ jobs:
           printf 'ACURAST_CANARY_INDEXER=https://dev.indexer.canary.acurast.com/api/v1/rpc\n' >> "${ENV_FILE}"
           printf 'ACURAST_CANARY_INDEXER_API_KEY=OXuwySHqNSlwwa_qqB-cBw\n' >> "${ENV_FILE}"
           printf 'RELAY_URL=%s\n' "${relay_url}" >> "${ENV_FILE}"
-          if [ "${relay_ab_mode}" = "public" ]; then
-            printf 'RELAY_SKIP_WHITELIST=1\n' >> "${ENV_FILE}"
+          if [ "${MODULE}" = "hello" ]; then
+            if [ "${relay_ab_mode}" = "public" ]; then
+              printf 'RELAY_SKIP_WHITELIST=1\n' >> "${ENV_FILE}"
+            else
+              printf 'RELAY_SKIP_WHITELIST=\n' >> "${ENV_FILE}"
+            fi
           fi
           if [ "${MODULE}" = "coordinator" ]; then
             printf 'COORDINATOR_WATCH_MODULES=hello\n' >> "${ENV_FILE}"
           fi
           minimal_smoke="$(printf '%s' "${HELLO_MINIMAL_SMOKE:-false}" | tr '[:upper:]' '[:lower:]')"
-          if [ "${minimal_smoke}" = "true" ]; then
-            if [ "${MODULE}" != "hello" ]; then
-              echo "::error::minimal_smoke is only supported for module hello" >&2
-              exit 1
+          if [ "${MODULE}" = "hello" ]; then
+            if [ "${minimal_smoke}" = "true" ]; then
+              printf 'HELLO_MINIMAL=1\n' >> "${ENV_FILE}"
+              echo "::notice::Hello minimal smoke: HELLO_MINIMAL=1 (no Nostr/network); heartbeat smoke skipped"
+            else
+              printf 'HELLO_MINIMAL=\n' >> "${ENV_FILE}"
             fi
-            printf 'HELLO_MINIMAL=1\n' >> "${ENV_FILE}"
-            echo "::notice::Hello minimal smoke: HELLO_MINIMAL=1 (no Nostr/network); heartbeat smoke skipped"
+          elif [ "${minimal_smoke}" = "true" ]; then
+            echo "::error::minimal_smoke is only supported for module hello" >&2
+            exit 1
           fi
           {
             echo "smoke_relay_hostname=${smoke_hostname}"
