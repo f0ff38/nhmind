@@ -16,6 +16,16 @@ function skipRelayWhitelist(env: Record<string, string | undefined>): boolean {
   return flag === "1" || flag === "true" || flag === "yes";
 }
 
+export function isHelloMinimal(env: Record<string, string | undefined>): boolean {
+  const flag = env.HELLO_MINIMAL?.trim().toLowerCase();
+  return flag === "1" || flag === "true" || flag === "yes";
+}
+
+export async function mainMinimal(): Promise<void> {
+  console.log("hello-minimal-start");
+  console.log("hello-minimal-done");
+}
+
 export function healthCheck(): HealthCheckResult {
   const std = getStd();
   const relayUrl = std.env.RELAY_URL?.trim();
@@ -75,6 +85,11 @@ export async function publishHeartbeat(): Promise<boolean> {
 
 export async function main(): Promise<void> {
   const std = getStd();
+  if (isHelloMinimal(std.env)) {
+    await mainMinimal();
+    return;
+  }
+
   const deployment = std.job.getId();
   const health = healthCheck();
 

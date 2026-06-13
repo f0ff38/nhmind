@@ -70,12 +70,12 @@ flowchart LR
 
 ### Диагностика (следующий шаг)
 
-1. **Hub Reports** для **378424** (и **378423**) — execution logs: bundle стартовал? `heartbeat published` vs `heartbeat publish skipped` vs crash до publish (Hub web — primary; DevTools API часто 502).
-2. **Минимальный hello bundle** — убрать/упростить Nostr publish (только `console.log` + `_STD_.network.whitelist`) чтобы подтвердить, что processor вообще выполняет JS в окне.
+1. **Минимальный hello bundle** — Deploy Canary `minimal_smoke=true` + `relay_url_override=wss://relay.damus.io/` ([PR pending](#)) — только `console.log` start/done; если снова **Expired/sla 0/1** → processor/runtime, не JS/Nostr.
+2. **Hub Reports** для **378424** (и **378423**) — execution logs: bundle стартовал? `heartbeat published` vs `heartbeat publish skipped` vs crash до publish (Hub web — primary; DevTools API часто 502).
 3. **Acurast support / processor logs** — sla=0/1 при ack 1/1: attestation, `maxNetworkRequests`, bundle size, runtime error.
 4. ~~Изоляция relay~~ ✅ **исключено** — public relay A/B ([PR #74](https://github.com/f0ff38/nhmind/pull/74), `relay_url_override` в Deploy Canary).
 
-Уже в bundle (main): `hello` `maxNetworkRequests: 10`, `whitelistRelayHost()` (+ opt-out `RELAY_SKIP_WHITELIST` для A/B), canary `onlyAttestedDevices: false`, `maxAllowedStartDelayInMs: 60000` ([PR #72](https://github.com/f0ff38/nhmind/pull/72)).
+Уже в bundle (main): `hello` `maxNetworkRequests: 10`, `whitelistRelayHost()` (+ opt-out `RELAY_SKIP_WHITELIST` для A/B), canary `onlyAttestedDevices: false`, `maxAllowedStartDelayInMs: 60000` ([PR #72](https://github.com/f0ff38/nhmind/pull/72)). **Minimal path:** `HELLO_MINIMAL=1` / workflow `minimal_smoke` (см. [github-actions.md](github-actions.md#4-deploy-canary-из-github-actions)).
 
 ### После исправления
 
