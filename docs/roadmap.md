@@ -55,27 +55,27 @@ flowchart LR
 
 ## Checkpoint — следующая сессия
 
-**Где продолжить:** Phase 2 — **processor execution на canary**, не DNS. Relay + PTR + `_acu` TXT + http-bridge smoke ✅ в GHA ([runs](https://github.com/f0ff38/nhmind/actions/workflows/deploy-canary.yml)); on-chain register + processor **ack 1/1**, но **sla=0/1** → Hub **Expired** → нет kind `30090` на relay.
+**Где продолжить:** Phase 2 — **processor/bundle execution на canary**, не relay/DNS. A/B isolation ✅ ([PR #74](https://github.com/f0ff38/nhmind/pull/74)): **378424** с `RELAY_URL=wss://relay.damus.io/` + `RELAY_SKIP_WHITELIST=1` ([run 27462483764](https://github.com/f0ff38/nhmind/actions/runs/27462483764)) — тот же паттерн **ack 1/1 → Expired → нет `30090`** на **публичном** relay → **не** VM/nginx/bridge/TLS; проблема на processor (bundle/runtime/execution).
 
-### Симптом (актуально: deployment **378423**, run [27461812639](https://github.com/f0ff38/nhmind/actions/runs/27461812639))
+### Симптом (актуально: deployment **378424** A/B, production baseline **378423**)
 
-| Шаг Deploy Canary (hello) | Статус |
-|---------------------------|--------|
-| `ensure-relay-ptr` + `verify-relay-acu-txt` | ✅ `PTR OK`, `TXT OK` (2 v=) |
-| `Deploy to Acurast canary` | ✅ register **378423**; ack **1/1** pre-window; `msFromNow: 300000` |
-| Post-window SDK inspect | ❌ **Expired**; assignments cleared |
-| `Smoke hello heartbeat on relay` | ❌ timeout 300s — нет `30090` |
+| Шаг Deploy Canary (hello) | Production (`378423`, [27461812639](https://github.com/f0ff38/nhmind/actions/runs/27461812639)) | A/B public relay (`378424`, [27462483764](https://github.com/f0ff38/nhmind/actions/runs/27462483764)) |
+|---------------------------|--------|--------|
+| PTR + `_acu` TXT | ✅ | ✅ (production path; deploy uses `relay.damus.io`) |
+| Register + pre-window ack | ✅ **378423** ack **1/1** | ✅ **378424** ack **1/1** |
+| Post-window SDK inspect | ❌ **Expired**; sla **0/1** | ❌ **Expired**; sla **0/1** |
+| Smoke `30090` | ❌ timeout на production relay | ❌ timeout на `wss://relay.damus.io/` |
 
-Ранее: **378421**/**378422** — тот же паттерн (ack → Expired → нет heartbeat). Coordinator deploy **не запускать**.
+Ранее: **378421**/**378422** — тот же паттерн. **378423** post-mortem inspect: [27462431894](https://github.com/f0ff38/nhmind/actions/runs/27462431894) — Expired, 0/0 ack post-window. Coordinator deploy **не запускать**.
 
 ### Диагностика (следующий шаг)
 
-1. **Hub Reports** для **378423** — execution logs: `heartbeat published` vs `heartbeat publish skipped` / network whitelist error (GHA DevTools API часто 502; Hub web — primary).
-2. **Inspect Canary Deployment** — SDK+CLI post-mortem: [workflow](https://github.com/f0ff38/nhmind/actions/workflows/inspect-canary-deployments.yml) + `deploy_run_id` artifact ([run 27462124536](https://github.com/f0ff38/nhmind/actions/runs/27462124536) для 378423).
-3. **Изоляция relay** — временно smoke с публичным relay (wss://relay.damus.io) + тот же hello deploy: если `30090` появляется → баг в VM/nginx/bridge/TLS; если нет → bundle/runtime на processor.
-4. **Acurast whitelist** (исключено для 378423): forward+reverse TXT и PTR проверены в GHA; hash `v=` для hello wallet присутствует в DNS.
+1. **Hub Reports** для **378424** (и **378423**) — execution logs: bundle стартовал? `heartbeat published` vs `heartbeat publish skipped` vs crash до publish (Hub web — primary; DevTools API часто 502).
+2. **Минимальный hello bundle** — убрать/упростить Nostr publish (только `console.log` + `_STD_.network.whitelist`) чтобы подтвердить, что processor вообще выполняет JS в окне.
+3. **Acurast support / processor logs** — sla=0/1 при ack 1/1: attestation, `maxNetworkRequests`, bundle size, runtime error.
+4. ~~Изоляция relay~~ ✅ **исключено** — public relay A/B ([PR #74](https://github.com/f0ff38/nhmind/pull/74), `relay_url_override` в Deploy Canary).
 
-Уже в bundle (main): `hello` `maxNetworkRequests: 10`, `whitelistRelayHost()`, canary `onlyAttestedDevices: false`, `maxAllowedStartDelayInMs: 60000` ([PR #72](https://github.com/f0ff38/nhmind/pull/72)).
+Уже в bundle (main): `hello` `maxNetworkRequests: 10`, `whitelistRelayHost()` (+ opt-out `RELAY_SKIP_WHITELIST` для A/B), canary `onlyAttestedDevices: false`, `maxAllowedStartDelayInMs: 60000` ([PR #72](https://github.com/f0ff38/nhmind/pull/72)).
 
 ### После исправления
 
