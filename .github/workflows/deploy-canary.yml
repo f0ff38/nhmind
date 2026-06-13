@@ -201,7 +201,7 @@ jobs:
             if [ "${relay_ab_mode}" = "public" ]; then
               printf 'RELAY_SKIP_WHITELIST=1\n' >> "${ENV_FILE}"
             else
-              printf 'RELAY_SKIP_WHITELIST=\n' >> "${ENV_FILE}"
+              printf 'RELAY_SKIP_WHITELIST=0\n' >> "${ENV_FILE}"
             fi
           fi
           if [ "${MODULE}" = "coordinator" ]; then
@@ -213,7 +213,7 @@ jobs:
               printf 'HELLO_MINIMAL=1\n' >> "${ENV_FILE}"
               echo "::notice::Hello minimal smoke: HELLO_MINIMAL=1 (no Nostr/network); heartbeat smoke skipped"
             else
-              printf 'HELLO_MINIMAL=\n' >> "${ENV_FILE}"
+              printf 'HELLO_MINIMAL=0\n' >> "${ENV_FILE}"
             fi
           elif [ "${minimal_smoke}" = "true" ]; then
             echo "::error::minimal_smoke is only supported for module hello" >&2
