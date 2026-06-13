@@ -206,7 +206,7 @@ async function connectWithFallback(rpcCandidates) {
 async function fetchJobById(api, walletAddress, deploymentNumber) {
   const origin = api.createType("AcurastCommonMultiOrigin", { Acurast: walletAddress });
   const id = api.createType("u128", deploymentNumber);
-  const opt = await api.query.acurast.storedJobRegistration([origin, id]);
+  const opt = await api.query.acurast.storedJobRegistration(origin, id);
   if (opt.isNone) {
     return null;
   }
