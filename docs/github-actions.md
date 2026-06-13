@@ -52,18 +52,16 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
    - jobs `compute-acu-txt` (environment **canary**) + `upsert-acu-txt` (environment **relay**) — TXT `_acu.<host>` перед deploy
    - `hello` — submit/register (≤5 min, [deploy-canary-acurast.sh](../scripts/deploy-canary-acurast.sh)) + smoke `30090` (wait по schedule + 90s, preflight до 5 min)
    - `coordinator` — только после hello heartbeat на relay; smoke `30092`/`30091` — [smoke-coordinator-relay.sh](../scripts/smoke-coordinator-relay.sh)
-4. **DevTools логи с GHA** (если `api.devtools.acurast.com` недоступен из вашей сети):
-   - **Inspect Canary DevTools** (`inspect-canary-devtools.yml`) — `workflow_dispatch`: `module`, `job_id` (например `378412`), `wait_seconds` (`0` для уже выполненного job, `360` после свежего deploy).
-   - Скрипты: [inspect-canary-devtools.sh](../scripts/inspect-canary-devtools.sh), [fetch-acurast-devtools-logs.mjs](../scripts/fetch-acurast-devtools-logs.mjs).
-   - **Deploy Canary → hello** после ожидания по расписанию из deploy log вызывает DevTools fetch (continue-on-warning) + `preflight-hello-heartbeat.sh` (до 5 min).
-   - В логах job ищите `heartbeat published` / `heartbeat publish skipped` и `DevTools dashboard:`.
-   - Ручной fallback (если API доступен локально): `acurast devtools <job-id>` → [devtools.acurast.com](https://devtools.acurast.com) (не Hub).
-
-5. **Статус deployments через CLI** (когда Hub не показывает Reports / UI неудобен):
-   - **Inspect Canary Deployments** (`inspect-canary-deployments.yml`) — `workflow_dispatch`: `module`, опционально `deployment_id` (число из Hub, напр. `378420`). Секреты — те же, environment **canary** (см. таблицу выше).
-   - Скрипты: [inspect-canary-deployments.sh](../scripts/inspect-canary-deployments.sh) → [fetch-acurast-deployment-status.mjs](../scripts/fetch-acurast-deployment-status.mjs) — **indexer** (`getEvents`) + **on-chain RPC** (`getAllJobs`, `getAcknowledgedProcessors`); не требует локального `.acurast/deploy` файла ([CLI source](https://github.com/Acurast/acurast-cli/blob/main/src/commands/deployments.ts)).
-   - **Deploy Canary** вызывает inspect после регистрации и после execution window; публикует artifact `modules/<module>/.acurast/deploy/` (для `acurast deployments <id>` offline).
-   - Локально: `docker compose run --rm dev node scripts/fetch-acurast-deployment-status.mjs --module hello --deployment-id 378420`
+4. **Диагностика deployments без Hub/DevTools web** (основной путь — CLI + SDK из GHA):
+   - **Inspect Canary Deployment** (`inspect-canary-deployments.yml`) — `workflow_dispatch`: `module`, опционально `deployment_id` (число из Hub, напр. `378421`), опционально `deploy_run_id` (номер run **Deploy Canary** — скачивает artifact `acurast-deploy-<module>-<id>` для `acurast deployments <id>`).
+   - Скрипты: [inspect-canary-deployments.sh](../scripts/inspect-canary-deployments.sh) → [fetch-acurast-deployment-status.mjs](../scripts/fetch-acurast-deployment-status.mjs) (indexer + on-chain RPC: `storedJobRegistration`, `getAcknowledgedProcessors`, `assignedProcessors`) + [inspect-canary-deployment-cli.sh](../scripts/inspect-canary-deployment-cli.sh) (`acurast deployments <id>` — полный Assignments JSON, нужен локальный `.acurast/deploy/*-<id>.json`).
+   - **Deploy Canary** вызывает SDK+CLI inspect после регистрации и после execution window; публикует artifact `.acurast/deploy/`; smoke **не** зависит от DevTools API.
+   - Локально:
+     ```bash
+     docker compose run --rm dev node scripts/fetch-acurast-deployment-status.mjs --module hello --deployment-id 378421
+     bash scripts/inspect-canary-deployment-cli.sh hello 378421  # после deploy или с artifact
+     ```
+   - DevTools web/API (`devtools.acurast.com`, `api.devtools.acurast.com`) — **опционально**, часто 502 из GHA; см. `inspect-canary-devtools.yml` только если API доступен.
 
 Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com). Адрес кошелька:
 
@@ -131,8 +129,8 @@ on:
 | `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Формат + live-проверки секретов **relay** (Keystone, S3, SSH keys, X-Token; deploy: SSH to VM via TF `public_ip`) ✅ |
 | `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через IPAM `ipam/v1` + `X-Token` ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke` \| `all`) | Selectel LE + Knox PEM → SSH → `infra/nostr-relay/` compose; IP из Terraform state ✅ |
-| `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools view-key + логи processor с runner GHA; опционально preflight heartbeat |
-| `inspect-canary-deployments.yml` | `workflow_dispatch` | `acurast deployments ls` / `deployments <id>` on-chain (Hub alternative) |
+| `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools API (опционально; часто 502 из GHA) |
+| `inspect-canary-deployments.yml` | `workflow_dispatch` | SDK + CLI deployment status (основной путь без Hub/DevTools web) |
 
 **Секреты environment `relay`:**
 
@@ -184,8 +182,8 @@ Workflow **Deploy Relay**: [`.github/workflows/deploy-relay.yml`](../.github/wor
 | `validate-relay-secrets.yml` | `workflow_dispatch` | проверка секретов relay ✅ |
 | `provision-relay-infra.yml` | `workflow_dispatch` | Selectel VM + сеть ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` | relay compose на VM ✅ |
-| `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools processor logs ✅ |
-| `inspect-canary-deployments.yml` | `workflow_dispatch` | CLI deployment status ✅ |
+| `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools API (опционально) |
+| `inspect-canary-deployments.yml` | `workflow_dispatch` | SDK + CLI deployment diagnostics ✅ |
 | `cursor-agent.yml` | issue comment / schedule | Cursor CLI (будущее) |
 
 ## Cursor Dashboard
