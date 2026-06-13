@@ -1,120 +1,38 @@
 #!/usr/bin/env bash
-# Query Acurast deployment status via CLI (alternative to Hub UI).
+# Query Acurast deployment status (indexer + on-chain RPC via SDK).
 # Usage: inspect-canary-deployments.sh <module> [deployment_id]
-#   deployment_id — Hub numeric ID (e.g. 378420); optional (list only if omitted).
-# Env: INSPECT_DEPLOYMENTS_FAIL=1 — exit non-zero when CLI fails (standalone GHA workflow).
+# Env: INSPECT_DEPLOYMENTS_FAIL=1 — exit non-zero on failure (standalone GHA workflow).
 set -euo pipefail
 
 module="${1:?usage: inspect-canary-deployments.sh <module> [deployment_id]}"
 deployment_id="${2:-}"
 fail_on_error="${INSPECT_DEPLOYMENTS_FAIL:-0}"
 canary_rpc="${ACURAST_RPC:-wss://public-rpc.canary.acurast.com}"
+canary_indexer="${ACURAST_CANARY_INDEXER:-https://dev.indexer.canary.acurast.com/api/v1/rpc}"
+canary_indexer_key="${ACURAST_CANARY_INDEXER_API_KEY:-OXuwySHqNSlwwa_qqB-cBw}"
 
-run_cli() {
-  local cmd="$1"
+sdk_args=(--module "${module}" --network canary)
+if [ -n "${deployment_id}" ]; then
+  sdk_args+=(--deployment-id "${deployment_id}")
+fi
+
+echo "=== fetch-acurast-deployment-status.mjs (module=${module}${deployment_id:+, id=${deployment_id}}) ==="
+set +e
+sdk_out="$(
   docker compose run --rm \
     -e "ACURAST_RPC=${canary_rpc}" \
-    dev bash -lc "cd modules/${module} && ${cmd}"
-}
-
-append_summary_section() {
-  local title="$1"
-  local body="$2"
-  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-    {
-      echo "## ${title}"
-      echo ""
-      echo '```text'
-      printf '%s\n' "${body}"
-      echo '```'
-      echo ""
-    } >> "${GITHUB_STEP_SUMMARY}"
-  fi
-}
-
-output_indicates_failure() {
-  local out="$1"
-  grep -qiE 'failed to fetch|fetch failed|please provide a deployment id|error:' <<<"${out}"
-}
-
-cli_failed() {
-  local label="$1"
-  local exit_code="$2"
-  if [ "${exit_code}" -eq 0 ]; then
-    exit_code=1
-  fi
-  echo "::warning::${label} failed (exit ${exit_code})"
-  if [ "${fail_on_error}" = "1" ]; then
-    exit "${exit_code}"
-  fi
-}
-
-check_cli_result() {
-  local label="$1"
-  local out="$2"
-  local exit_code="$3"
-  if [ "${exit_code}" -ne 0 ] || output_indicates_failure "${out}"; then
-    cli_failed "${label}" "${exit_code:-1}"
-  fi
-}
-
-wallet_addr=""
-wallet_addr="$(docker compose run --rm dev bash -lc "node scripts/show-acurast-address.mjs modules/${module}" 2>/dev/null || true)"
-if [ -n "${wallet_addr}" ]; then
-  echo "Deploy wallet: ${wallet_addr}"
-  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-    echo "- **Wallet:** \`${wallet_addr}\`" >> "${GITHUB_STEP_SUMMARY}"
-    echo "" >> "${GITHUB_STEP_SUMMARY}"
-  fi
-fi
-
-echo "=== acurast deployments ls --network canary (module=${module}) ==="
-set +e
-ls_out="$(run_cli "acurast deployments ls --network canary" 2>&1)"
-ls_exit=$?
+    -e "ACURAST_CANARY_RPC=${canary_rpc}" \
+    -e "ACURAST_CANARY_INDEXER=${canary_indexer}" \
+    -e "ACURAST_CANARY_INDEXER_API_KEY=${canary_indexer_key}" \
+    dev node scripts/fetch-acurast-deployment-status.mjs "${sdk_args[@]}" 2>&1
+)"
+sdk_exit=$?
 set -e
-printf '%s\n' "${ls_out}"
-append_summary_section "Acurast deployments ls (canary)" "${ls_out}"
-if [ "${ls_exit}" -ne 0 ] || output_indicates_failure "${ls_out}"; then
-  if [ -z "${deployment_id}" ]; then
-    check_cli_result "acurast deployments ls" "${ls_out}" "${ls_exit}"
-  else
-    echo "::notice::deployments ls unavailable; continuing with deployment_id=${deployment_id}"
+printf '%s\n' "${sdk_out}"
+
+if [ "${sdk_exit}" -ne 0 ]; then
+  echo "::warning::fetch-acurast-deployment-status failed (exit ${sdk_exit})"
+  if [ "${fail_on_error}" = "1" ]; then
+    exit "${sdk_exit}"
   fi
 fi
-
-if [ -z "${deployment_id}" ]; then
-  exit 0
-fi
-
-full_id=""
-full_id="$(printf '%s\n' "${ls_out}" | grep -oE "Acurast:[^[:space:]]+:${deployment_id}" | head -1 || true)"
-if [ -z "${full_id}" ] && [ -n "${wallet_addr}" ]; then
-  full_id="Acurast:${wallet_addr}:${deployment_id}"
-fi
-
-detail_out=""
-detail_exit=1
-detail_label=""
-
-if [ -n "${full_id}" ]; then
-  detail_label="acurast deployments \"${full_id}\" --network canary"
-  echo "=== ${detail_label} ==="
-  set +e
-  detail_out="$(run_cli "acurast deployments \"${full_id}\" --network canary" 2>&1)"
-  detail_exit=$?
-  set -e
-fi
-
-if [ -z "${detail_out}" ] || output_indicates_failure "${detail_out}"; then
-  detail_label="acurast deployments ${deployment_id} --network canary"
-  echo "=== ${detail_label} (numeric fallback) ==="
-  set +e
-  detail_out="$(run_cli "acurast deployments ${deployment_id} --network canary" 2>&1)"
-  detail_exit=$?
-  set -e
-fi
-
-printf '%s\n' "${detail_out}"
-append_summary_section "Deployment ${deployment_id}" "${detail_out}"
-check_cli_result "${detail_label}" "${detail_out}" "${detail_exit}"
