@@ -25,6 +25,11 @@ on:
         required: false
         type: boolean
         default: false
+      diagnostic_runtime:
+        description: "Hello only: widen runtime/report window and force HELLO_MINIMAL=1 for Acurast processor diagnostics."
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-canary-${{ inputs.module }}
@@ -147,10 +152,16 @@ jobs:
           MNEMONIC_FALLBACK: ${{ secrets.ACURAST_MNEMONIC }}
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
           RELAY_URL_OVERRIDE: ${{ inputs.relay_url_override }}
-          HELLO_MINIMAL_SMOKE: ${{ inputs.minimal_smoke }}
+          HELLO_MINIMAL_SMOKE: ${{ inputs.minimal_smoke || inputs.diagnostic_runtime }}
         run: |
           set -euo pipefail
           bash scripts/write-canary-module-env.sh --module "${{ inputs.module }}" --mode deploy
+
+      - name: Apply diagnostic runtime overrides
+        if: inputs.module == 'hello' && inputs.diagnostic_runtime == true
+        run: |
+          set -euo pipefail
+          node scripts/apply-canary-diagnostic-runtime.mjs modules/hello/acurast.json
 
       - name: Preflight hello heartbeat (coordinator deploy)
         if: inputs.module == 'coordinator' && inputs.dry_run == false
@@ -206,7 +217,7 @@ jobs:
             || echo "::warning::CLI deployment detail failed"
 
       - name: Smoke hello heartbeat on relay
-        if: inputs.module == 'hello' && inputs.dry_run == false && inputs.minimal_smoke == false
+        if: inputs.module == 'hello' && inputs.dry_run == false && inputs.minimal_smoke == false && inputs.diagnostic_runtime == false
         env:
           RELAY_SMOKE_HOSTNAME: ${{ steps.module_env.outputs.smoke_relay_hostname }}
           RELAY_AB_MODE: ${{ steps.module_env.outputs.relay_ab_mode }}
@@ -244,7 +255,7 @@ jobs:
           echo "Running single hello heartbeat preflight (timeout ${PREFLIGHT_TIMEOUT_MS}ms)..."
           bash scripts/preflight-hello-heartbeat.sh "${RELAY_SMOKE_HOSTNAME}" hello
       - name: Inspect deployment post-window (minimal smoke)
-        if: inputs.module == 'hello' && inputs.dry_run == false && inputs.minimal_smoke == true && steps.acurast_deploy.outputs.deployment_id != ''
+        if: inputs.module == 'hello' && inputs.dry_run == false && (inputs.minimal_smoke == true || inputs.diagnostic_runtime == true) && steps.acurast_deploy.outputs.deployment_id != ''
         env:
           WAIT_BEFORE_INSPECT_SEC: "390"
           INSPECT_EXECUTION_MARGIN_SEC: "90"
