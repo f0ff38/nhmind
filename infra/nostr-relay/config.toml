@@ -15,3 +15,12 @@ data_directory = "/usr/src/app/db"
 [limits]
 messages_per_sec = 20
 subscriptions_per_min = 240
+
+# Canary write policy (Phase 2):
+# - accepted nhmind state kinds: 30090 heartbeat, 30091 scorecard, 30092 registry
+# - DVM-compatible profile: 5900 request, 6900 result, 7000 feedback
+# - pubkey allowlist is enabled after hello/coordinator deployment pubkeys are fixed.
+#
+# nostr-rs-relay 0.10.0 does not expose the same kind/tag allowlist knobs as
+# Nosflare. Until a relay plugin or supported policy backend is added, nginx
+# rate limits and http-bridge protocol validation are the active enforcement.

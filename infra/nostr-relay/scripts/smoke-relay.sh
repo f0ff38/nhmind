@@ -88,4 +88,20 @@ if [ "${bridge_code}" != "200" ] || ! grep -qE '"(EOSE|CLOSED)"' /tmp/nhmind-rel
 fi
 echo "HTTP POST bridge OK"
 
+echo "Checking HTTP POST bridge rejects unsupported commands..."
+negative_body='["NOTICE","nhmind-smoke-negative"]'
+negative_code="$(curl -4sS -o /tmp/nhmind-relay-negative.json -w '%{http_code}' \
+  -X POST "https://${relay_hostname}/" \
+  -H "Content-Type: application/json" \
+  --data "${negative_body}" 2>/dev/null || true)"
+if [ "${negative_code}" != "400" ]; then
+  echo "::error::HTTP POST bridge accepted unsupported command (HTTP ${negative_code:-000})"
+  if [ -f /tmp/nhmind-relay-negative.json ]; then
+    echo "Negative response body:"
+    cat /tmp/nhmind-relay-negative.json || true
+  fi
+  exit 1
+fi
+echo "HTTP POST negative smoke OK"
+
 echo "Smoke passed for wss://${relay_hostname}/"

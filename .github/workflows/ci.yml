@@ -19,25 +19,22 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Build dev image
-        run: docker compose build dev
+        run: ./scripts/dev compose build dev
 
       - name: Install dependencies
-        run: docker compose run --rm dev npm ci --prefix packages/nostr-client
-
-      - name: Build
-        run: docker compose run --rm dev npm run build --prefix packages/nostr-client
+        run: NHIND_MODULE_DIR=packages/nostr-client ./scripts/dev install
 
       - name: Unit tests
-        run: docker compose run --rm dev npm test --prefix packages/nostr-client
+        run: NHIND_MODULE_DIR=packages/nostr-client ./scripts/dev test
 
       - name: Start nostr-relay
-        run: docker compose --profile relay up -d nostr-relay
+        run: ./scripts/dev up
 
       - name: Wait for relay
         run: sleep 5
 
       - name: Integration tests
-        run: docker compose run --rm dev npm run test:integration --prefix packages/nostr-client
+        run: ./scripts/dev test:integration
 
   verify:
     name: verify
@@ -51,24 +48,19 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Build dev image
-        run: docker compose build dev
+        run: ./scripts/dev compose build dev
 
       - name: Install and build nostr-client
-        run: |
-          docker compose run --rm dev npm ci --prefix packages/nostr-client
-          docker compose run --rm dev npm run build --prefix packages/nostr-client
-
-      - name: Install dependencies
-        run: docker compose run --rm dev npm ci --prefix modules/${{ matrix.module }}
+        run: NHIND_MODULE_DIR=modules/${{ matrix.module }} ./scripts/dev install
 
       - name: Unit tests
-        run: docker compose run --rm dev npm test --prefix modules/${{ matrix.module }}
+        run: NHIND_MODULE_DIR=modules/${{ matrix.module }} ./scripts/dev test
 
       - name: Bundle
-        run: docker compose run --rm dev npm run bundle --prefix modules/${{ matrix.module }}
+        run: NHIND_MODULE_DIR=modules/${{ matrix.module }} ./scripts/dev bundle
 
       - name: Smoke run (mock _STD_)
-        run: docker compose run --rm dev npm run start:local --prefix modules/${{ matrix.module }}
+        run: NHIND_MODULE_DIR=modules/${{ matrix.module }} ./scripts/dev run
 
   scaffold:
     name: verify-new-module-script
@@ -78,13 +70,13 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Build dev image
-        run: docker compose build dev
+        run: ./scripts/dev compose build dev
 
       - name: Create module from template
         run: ./scripts/new-module.sh ci-scaffold-smoke
 
       - name: Test scaffolded module
         run: |
-          docker compose run --rm dev npm ci --prefix modules/ci-scaffold-smoke
-          docker compose run --rm dev npm test --prefix modules/ci-scaffold-smoke
-          docker compose run --rm dev npm run bundle --prefix modules/ci-scaffold-smoke
+          NHIND_MODULE_DIR=modules/ci-scaffold-smoke ./scripts/dev install
+          NHIND_MODULE_DIR=modules/ci-scaffold-smoke ./scripts/dev test
+          NHIND_MODULE_DIR=modules/ci-scaffold-smoke ./scripts/dev bundle

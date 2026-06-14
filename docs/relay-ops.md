@@ -118,6 +118,8 @@ Selectel использует **три типа** токенов; для GitOps 
 
 **Файрвол workflow:** [provision-relay-infra.yml](../.github/workflows/provision-relay-infra.yml) — [github-actions.md](github-actions.md#10-provision-relay-vm-selectel).
 
+Terraform defaults сохраняют canary-поведение: `floating_ip_pool = "external-network"`, `ssh_cidr = "0.0.0.0/0"`. Для production hardening сначала прогнать `plan`, затем сузить `ssh_cidr` до VPN/self-hosted runner/operator `/32`.
+
 ### Планируемая структура в репозитории
 
 ```
@@ -150,7 +152,8 @@ infra/selectel/cloud-init/
 
 infra/nostr-relay/
 ├── docker-compose.yml    # nginx:1.30.2-alpine + scsibug/nostr-rs-relay:0.10.0
-├── nginx.conf
+├── nginx/
+│   └── nginx.conf.template  # rendered to nginx/active.conf on deploy
 ├── config.toml
 └── .env.example
 
@@ -171,9 +174,9 @@ infra/nostr-relay/
 |------|-----|-----|
 | Выпуск / продление | Selectel | [LE API](https://docs.selectel.ru/api/lets-encrypt-certificates/) `POST /issue?dnsv2=true`; авто-renew ~30 дней до expiry |
 | Приватный ключ | Knox (Selectel) | Не в git и не в GitHub Secrets; скачивается на deploy |
-| Установка на VM | `deploy-relay.yml` | [fetch-relay-tls-pem.sh](../infra/selectel/scripts/fetch-relay-tls-pem.sh) → `/opt/nhmind-relay/certs/` → nginx `:443` |
+| Установка на VM | `deploy-relay.yml` / `relay-uptime.yml` | [fetch-relay-tls-pem.sh](../infra/selectel/scripts/fetch-relay-tls-pem.sh) → `/opt/nhmind-relay/certs/` → nginx `:443` |
 
-**Pull-on-deploy:** каждый `deploy-relay` вызывает [issue-relay-le-cert.sh](../infra/selectel/scripts/issue-relay-le-cert.sh) (idempotent: найти по `RELAY_HOSTNAME` или выпустить) и тянет актуальный PEM из [Certificate Manager API](https://docs.selectel.ru/api/certificates-manager/) (`knox_cert_id`).
+**Pull-on-deploy:** каждый `deploy-relay` вызывает [issue-relay-le-cert.sh](../infra/selectel/scripts/issue-relay-le-cert.sh) (idempotent: найти по `RELAY_HOSTNAME` или выпустить) и тянет актуальный PEM из [Certificate Manager API](https://docs.selectel.ru/api/certificates-manager/) (`knox_cert_id`). Между deploy можно запускать **Relay Uptime** → `renew-tls`: [renew-tls.sh](../infra/nostr-relay/scripts/renew-tls.sh) обновляет PEM на VM и делает `nginx -s reload` без полного sync stack.
 
 Опциональный secret **`RELAY_TLS_KNOX_CERT_ID`** — UUID Knox, если в проекте несколько сертов; иначе резолв по домену из LE list API.
 
@@ -284,7 +287,8 @@ Workflow нормализует project id в **32 hex** (как в панели
 ```
 infra/nostr-relay/
 ├── docker-compose.yml      # nginx:1.30.2-alpine + scsibug/nostr-rs-relay:0.10.0
-├── nginx.conf              # TLS, WebSocket upgrade, rate limit
+├── nginx/
+│   └── nginx.conf.template  # TLS, WebSocket upgrade, rate limit
 ├── config.toml             # nostr-rs-relay (limits, allowlist — см. ниже)
 └── .env.example            # RELAY_HOSTNAME=nostr.example.com
 ```
@@ -301,7 +305,7 @@ infra/nostr-relay/
 
 | Идея | В Nosflare | В nhmind |
 |------|------------|----------|
-| **Allowlist event kinds** | `allowedEventKinds` в config | Только `30090`–`30092` (Phase 2), позже `5900`/`6900`/`7000` — в `config.toml` relay |
+| **Allowlist event kinds** | `allowedEventKinds` в config | Policy зафиксирована в `config.toml`: `30090`–`30092`, позже `5900`/`6900`/`7000`; enforcement через поддержанный relay policy/backend после фикса pubkeys |
 | **Allowlist tags** | `allowedTags` | Требовать tag `client` = `nhmind` на write (или фильтр на read в coordinator) |
 | **Allowlist pubkeys** | `allowedPubkeys` | Canary: только deployment keys hello/coordinator (secp256k1 pubkey из DevTools) |
 | **Rate limiting** | Worker + CF rules | `limit_req` в nginx; лимиты в nostr-rs-relay |
@@ -337,7 +341,7 @@ infra/nostr-relay/
 3. **nginx stable ≥ 1.30.2** в Docker (pin в compose), не полагаться на версию панели хостера.
 4. **Relay не на публичном :8080** — только через nginx `:443`.
 5. **TLS:** Selectel Certificate Manager LE (DNS-01); ключ в Knox, pull-on-deploy; продление на стороне Selectel.
-6. **Canary write policy:** pubkey allowlist в `nostr-rs-relay` — снижает спам на открытом relay.
+6. **Canary write policy:** active enforcement сейчас — nginx rate limit + HTTP bridge validation + negative smoke; pubkey/kind allowlist включать после фикса hello/coordinator deployment pubkeys и выбора поддержанного `nostr-rs-relay` policy backend.
 7. **Секреты:** SSH key только в GitHub environment **relay**; `RELAY_HOSTNAME` в **canary** (→ `RELAY_URL` в workflow).
 8. **Без CF proxy** на hostname processor (серое DNS / прямой `A`).
 

@@ -22,37 +22,14 @@ export PREPARE_OPENSTACK_EXPORT=1
 # shellcheck disable=SC1091
 source infra/selectel/scripts/prepare-openstack-env.sh
 
-declare -a txt_values=()
+txt_values="$(bash scripts/compute-relay-acu-txt-values.sh 2>/dev/null || true)"
+txt_values="$(printf '%s' "${txt_values}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
 
-compute_txt() {
-  local mnemonic="$1"
-  docker compose run --rm \
-    -e "ACURAST_MNEMONIC=${mnemonic}" \
-    dev bash -lc "
-      set -euo pipefail
-      npm install --prefix scripts --silent --no-fund --no-audit
-      node scripts/compute-acu-txt-v.mjs --from-mnemonic '${relay_hostname}'
-    "
-}
-
-for var in ACURAST_MNEMONIC_HELLO ACURAST_MNEMONIC_COORDINATOR ACURAST_MNEMONIC; do
-  mnemonic="$(printenv "${var}" 2>/dev/null || true)"
-  mnemonic="$(printf '%s' "${mnemonic}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-  if [ -z "${mnemonic}" ]; then
-    continue
-  fi
-  txt="$(compute_txt "${mnemonic}")"
-  case " ${txt_values[*]:-} " in
-    *" ${txt} "*) ;;
-    *) txt_values+=("${txt}") ;;
-  esac
-done
-
-if [ "${#txt_values[@]}" -eq 0 ]; then
+if [ -z "${txt_values}" ]; then
   echo "::warning::No deploy mnemonics available; skip _acu TXT upsert"
   exit 0
 fi
 
 export RELAY_HOSTNAME="${relay_hostname}"
-export ACURAST_TXT_V="${txt_values[*]}"
+export ACURAST_TXT_V="${txt_values}"
 bash infra/selectel/scripts/upsert-relay-acu-txt.sh

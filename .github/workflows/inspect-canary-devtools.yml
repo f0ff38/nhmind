@@ -40,22 +40,7 @@ jobs:
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
         run: |
           set -euo pipefail
-          MODULE="${{ inputs.module }}"
-          case "${MODULE}" in
-            hello) MNEMONIC="${MNEMONIC_HELLO:-${MNEMONIC_FALLBACK:-}}" ;;
-            coordinator) MNEMONIC="${MNEMONIC_COORDINATOR:-${MNEMONIC_FALLBACK:-}}" ;;
-            *) echo "Unknown module: ${MODULE}" >&2; exit 1 ;;
-          esac
-          if [ -z "${MNEMONIC}" ]; then
-            echo "Missing mnemonic secret for ${MODULE}." >&2
-            exit 1
-          fi
-          ENV_FILE="modules/${MODULE}/.env"
-          printf 'ACURAST_MNEMONIC=%s\n' "${MNEMONIC}" > "${ENV_FILE}"
-          if [ -n "${RELAY_HOSTNAME:-}" ]; then
-            relay_hostname="$(printf '%s' "${RELAY_HOSTNAME}" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s|/$||')"
-            printf 'RELAY_URL=wss://%s/\n' "${relay_hostname}" >> "${ENV_FILE}"
-          fi
+          bash scripts/write-canary-module-env.sh --module "${{ inputs.module }}" --mode devtools
 
       - name: Probe DevTools API
         run: docker compose run --rm dev node scripts/probe-devtools-api.mjs

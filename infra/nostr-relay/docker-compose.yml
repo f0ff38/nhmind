@@ -8,16 +8,36 @@ services:
       - ./config.toml:/usr/src/app/config.toml:ro
     expose:
       - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "test -d /usr/src/app/db"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   http-bridge:
     build: ./http-bridge
     restart: unless-stopped
     environment:
       RELAY_WS_URL: ws://relay:8080
+      MAX_BODY_BYTES: "1048576"
+      REQUEST_TIMEOUT_MS: "15000"
     expose:
       - "8090"
     depends_on:
       - relay
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:8090/healthz',function(r){process.exit(r.statusCode===200?0:1)}).on('error',function(){process.exit(1)})",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   nginx:
     image: nginx:1.30.2-alpine
@@ -30,6 +50,12 @@ services:
     depends_on:
       - relay
       - http-bridge
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
 
 volumes:
   relay-data:

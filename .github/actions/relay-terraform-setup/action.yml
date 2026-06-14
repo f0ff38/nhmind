@@ -1,0 +1,29 @@
+name: Relay Terraform Setup
+description: Install Terraform and initialize the Selectel relay remote state backend.
+
+inputs:
+  terraform-version:
+    description: Terraform CLI version
+    required: false
+    default: "1.9.8"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v4
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+
+    - name: Write S3 backend config
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: bash infra/selectel/scripts/write-terraform-backend-ci.sh
+
+    - name: Terraform init
+      shell: bash
+      working-directory: ${{ github.workspace }}/infra/selectel/terraform
+      run: |
+        set -euo pipefail
+        terraform init -backend-config=backend.ci.hcl
+        rm -f backend.ci.hcl

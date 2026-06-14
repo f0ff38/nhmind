@@ -28,7 +28,7 @@ scripts/dev             # Docker-обёртка (основной dev/CI пут�
 
 ## Обязательные проверки перед PR
 
-Используйте тот же путь, что и CI:
+Используйте тот же путь, что и CI: **только Docker/container**, без host Node/npm на локальном ПК пользователя.
 
 ```bash
 ./scripts/dev install
@@ -37,13 +37,17 @@ scripts/dev             # Docker-обёртка (основной dev/CI пут�
 ./scripts/dev run
 ```
 
-Если Docker недоступен (fallback):
+Если Docker daemon недоступен локально — **не** запускать host fallback; зафиксируйте, что проверки не выполнены. Простые проверки можно запускать через локальный Docker пользователя. Проверки, которым нужен сетевой доступ к Selectel/GitHub Environments, выполнять только через GitHub Actions + Selectel, а не с локального ПК.
+
+Сетевые/ops проверки:
 
 ```bash
-npm ci --prefix modules/hello
-npm test --prefix modules/hello
-npm run bundle --prefix modules/hello
-npm run start:local --prefix modules/hello
+# local container-only checks
+docker compose -f infra/nostr-relay/docker-compose.yml config
+docker compose run --rm dev node --check infra/nostr-relay/http-bridge/server.mjs
+
+# networked checks: run via GitHub Actions environment relay/canary
+# Validate Relay Secrets / Provision Relay Infra / Deploy Relay / Relay Uptime / Deploy Canary
 ```
 
 ## Архитектурные правила
@@ -51,7 +55,7 @@ npm run start:local --prefix modules/hello
 1. **Deployments, не «recipes»** — каждый модуль: bundle → `acurast.json` → `acurast deploy`.
 2. **Node.js v20** — target runtime Acurast processors.
 3. **Один bundle** — `dist/bundle.js`, зависимости внутри, без тяжёлых native-модулей.
-4. **Секреты** — только `.env` + `includeEnvironmentVariables`; **никогда** в коде или bundle.
+4. **Секреты** — только `.env` локально + GitHub Environments для ops/deploy + `includeEnvironmentVariables`; **никогда** в коде или bundle.
 5. **Подпись** — `_STD_.signers` в TEE; локально — mock из `modules/hello/src/runtime/local-std.ts`.
 6. **Nostr** — NIP-90 (jobs), NIP-44 (шифрование), NIP-33 (replaceable state); не использовать Nostr как БД. На Acurast processor: relay через `httpGET`/`httpPOST` (`@nhmind/nostr-client` HTTP backend), **не** npm `ws` и **не** `_STD_.ws` (это P2P mesh, не Nostr relay). Подпись: `createAcurastSigner(_STD_)`.
 7. **Гибридная координация** — Nostr (`RELAY_URL`, собственный relay на домене оператора) для публичного state/jobs; `_STD_.ws` — внутренний hot path (Phase 3+). Acurast P2P/tunnel relays и Substrate RPC **не** являются `RELAY_URL`. См. [docs/nostr-protocol.md](docs/nostr-protocol.md), ops relay: [docs/relay-ops.md](docs/relay-ops.md).
@@ -67,6 +71,37 @@ npm run start:local --prefix modules/hello
 | DNS TXT `_acu.<host>` whitelist | Нужны реальные DNS-записи владельца домена |
 
 Если задача требует deploy — опишите шаги для человека; не коммитьте mnemonic.
+
+## Секреты проекта
+
+Все deploy/ops секреты проекта хранятся только в GitHub Environments: <https://github.com/f0ff38/nhmind/settings/environments>. Не переносить их в repository secrets, Cursor secrets, файлы `.env`, Terraform state или docs.
+
+Environment **canary**:
+
+| Secret | Назначение |
+|--------|------------|
+| `ACURAST_MNEMONIC_COORDINATOR` | Deploy/inspect `modules/coordinator` |
+| `ACURAST_MNEMONIC_HELLO` | Deploy/inspect `modules/hello` |
+| `RELAY_HOSTNAME` | FQDN relay; workflow собирает `RELAY_URL=wss://<host>/` |
+
+Environment **relay**:
+
+| Secret | Назначение |
+|--------|------------|
+| `RELAY_DEPLOY_SSH_PRIVATE_KEY` | SSH deploy на relay VM |
+| `RELAY_DEPLOY_SSH_PUBLIC_KEY` | SSH keypair для Terraform/cloud-init |
+| `RELAY_HOSTNAME` | FQDN relay для DNS/PTR/TLS/deploy |
+| `SELECTEL_ACCOUNT_ID` | Selectel account number |
+| `SELECTEL_AVAILABILITY_ZONE` | AZ для VM, например `ru-3a` |
+| `SELECTEL_PROJECT_ID` | Selectel cloud project id |
+| `SELECTEL_SERVICE_PASSWORD` | Service user password |
+| `SELECTEL_SERVICE_USER` | Service user name |
+| `SELECTEL_STATIC_TOKEN` | Selectel IPAM/PTR `X-Token` |
+| `TF_STATE_S3_ACCESS_KEY` | Terraform state S3 access key |
+| `TF_STATE_S3_BUCKET` | Terraform state S3 bucket |
+| `TF_STATE_S3_SECRET_KEY` | Terraform state S3 secret key |
+
+Опциональные secrets (`SELECTEL_REGION`, `TF_STATE_S3_REGION`, `RELAY_DNS_ZONE`, `RELAY_DNS_ZONE_ID`, `SELECTEL_IAM_PROJECT_NAME`, `RELAY_TLS_KNOX_CERT_ID`) добавлять только если workflow явно требует override; не считать их обязательными defaults.
 
 ## Ветки и PR
 
@@ -103,20 +138,15 @@ docker compose build dev
 ./scripts/dev bundle
 ```
 
-### Секреты (Cursor Dashboard → Secrets, не в git)
+### Секреты
 
-| Secret | Назначение |
-|--------|------------|
-| `ACURAST_MNEMONIC` | Только если явно нужен canary deploy (редко) |
-| `RELAY_URL` | Override relay URL для интеграционных тестов |
-
-Секреты **не** дублировать в `.env` в коммитах.
+Deploy/ops secrets — только GitHub Environments `canary` и `relay` (см. раздел выше). Cursor Dashboard secrets не являются source of truth для этого проекта; не дублировать туда mnemonics/Selectel credentials без отдельной явной задачи.
 
 ## GitHub Actions
 
 CI: [.github/workflows/ci.yml](.github/workflows/ci.yml) — `install → test → bundle → smoke run` в Docker.
 
-Relay (environment **relay**): [validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml), [provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml). Ops: [docs/relay-ops.md](docs/relay-ops.md).
+Relay (environment **relay**): [validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml), [provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml), [deploy-relay.yml](.github/workflows/deploy-relay.yml), [relay-uptime.yml](.github/workflows/relay-uptime.yml). Canary (environment **canary**): [deploy-canary.yml](.github/workflows/deploy-canary.yml), inspect workflows. Ops: [docs/relay-ops.md](docs/relay-ops.md).
 
 При добавлении workflows:
 

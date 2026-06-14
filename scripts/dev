@@ -8,6 +8,14 @@ MODULE_DIR="${NHIND_MODULE_DIR:-modules/hello}"
 NEW_MODULE_SCRIPT="${ROOT_DIR}/scripts/new-module.sh"
 COMPOSE=(docker compose)
 
+module_npm_prefix() {
+  if [ "${MODULE_DIR}" = "packages/nostr-client" ]; then
+    printf '%s' "packages/nostr-client"
+    return
+  fi
+  printf '%s' "${MODULE_DIR}"
+}
+
 usage() {
   cat <<'EOF'
 NostrHiveMind dev wrapper (Docker-only host toolchain).
@@ -23,6 +31,12 @@ Commands:
   run             Run bundle locally with mock _STD_
   test            Run unit tests
   test:integration  Run nostr-relay integration tests (requires ./scripts/dev up)
+  preflight-heartbeat <host> [module]
+                  Check hello heartbeat on a relay (30090)
+  smoke-coordinator <host> [module]
+                  Check coordinator registry + scorecard on a relay
+  smoke-relay <host> [expected-ip]
+                  Check HTTPS, WSS, and Acurast HTTP bridge
   new-module <n>  Scaffold modules/<n> from module-template
   acurast <cmd>   Run acurast CLI in module dir (init, deploy, live, ...)
   npm <args>      Run npm in module dir
@@ -30,7 +44,7 @@ Commands:
 
 Examples:
   ./scripts/dev up
-  ./scripts/dev bundle
+  NHIND_MODULE_DIR=modules/coordinator ./scripts/dev bundle
   ./scripts/dev run
   ./scripts/dev test
   ./scripts/dev acurast init
@@ -60,19 +74,35 @@ case "${1:-}" in
     run_dev bash
     ;;
   install)
-    run_dev bash -lc "npm ci --prefix packages/nostr-client && npm run build --prefix packages/nostr-client && npm ci --prefix ${MODULE_DIR}"
+    if [ "${MODULE_DIR}" = "packages/nostr-client" ]; then
+      run_dev bash -lc "npm ci --prefix packages/nostr-client && npm run build --prefix packages/nostr-client"
+    else
+      run_dev bash -lc "npm ci --prefix packages/nostr-client && npm run build --prefix packages/nostr-client && npm ci --prefix ${MODULE_DIR}"
+    fi
     ;;
   bundle)
-    run_dev npm run bundle --prefix "${MODULE_DIR}"
+    run_dev npm run bundle --prefix "$(module_npm_prefix)"
     ;;
   run)
-    run_dev npm run start:local --prefix "${MODULE_DIR}"
+    run_dev npm run start:local --prefix "$(module_npm_prefix)"
     ;;
   test)
-    run_dev npm test --prefix "${MODULE_DIR}"
+    run_dev npm test --prefix "$(module_npm_prefix)"
     ;;
   test:integration)
     run_dev npm run test:integration --prefix packages/nostr-client
+    ;;
+  preflight-heartbeat)
+    shift
+    bash scripts/preflight-hello-heartbeat.sh "$@"
+    ;;
+  smoke-coordinator)
+    shift
+    bash scripts/smoke-coordinator-relay.sh "$@"
+    ;;
+  smoke-relay)
+    shift
+    bash infra/nostr-relay/scripts/smoke-relay.sh "$@"
     ;;
   new-module)
     shift
