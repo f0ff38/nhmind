@@ -6,11 +6,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TF_DIR="${SCRIPT_DIR}/../terraform"
 
-bash "${SCRIPT_DIR}/write-terraform-backend-ci.sh" >&2
+backend_log="$(mktemp)"
+trap 'rm -f backend.ci.hcl "${backend_log}" "${init_log:-}"' EXIT
+if ! bash "${SCRIPT_DIR}/write-terraform-backend-ci.sh" >"${backend_log}" 2>&1; then
+  cat "${backend_log}" >&2
+  exit 1
+fi
 
 cd "${TF_DIR}"
 init_log="$(mktemp)"
-trap 'rm -f backend.ci.hcl "${init_log}"' EXIT
 if ! terraform init -backend-config=backend.ci.hcl -input=false -no-color >"${init_log}" 2>&1; then
   cat "${init_log}" >&2
   exit 1
