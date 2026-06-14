@@ -45,6 +45,7 @@ jobs:
           set -euo pipefail
           PUBLIC_IP="$(bash infra/selectel/scripts/read-relay-public-ip.sh)"
           echo "public_ip=${PUBLIC_IP}" >> "${GITHUB_OUTPUT}"
+          echo "${PUBLIC_IP}"
 
       - name: Renew TLS from Selectel Knox
         if: inputs.action == 'renew-tls'
