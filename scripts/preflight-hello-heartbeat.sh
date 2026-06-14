@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fail fast when hello heartbeat is missing on production relay (coordinator deploy prerequisite).
+# Fail fast when hello heartbeat is missing on operator relay (coordinator deploy prerequisite).
 set -euo pipefail
 
 relay_hostname="${1:?usage: preflight-hello-heartbeat.sh <relay-hostname> [watch-module]}"

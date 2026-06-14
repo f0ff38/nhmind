@@ -26,7 +26,7 @@ README.md          ← корень: обзор, архитектура, dev, с
 
 | Документ | Назначение |
 |----------|------------|
-| [roadmap.md](roadmap.md) | Фазы 0–5, deliverables, **checkpoint — следующая сессия**, метрики успеха |
+| [roadmap.md](roadmap.md) | Фазы 0–5, deliverables, **checkpoint — следующая сессия** (canary vs mainnet vs operator relay), метрики успеха |
 
 Любая задача «что делать дальше» — сначала таблица статуса и checkpoint в roadmap.
 

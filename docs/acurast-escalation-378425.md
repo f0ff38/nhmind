@@ -14,7 +14,7 @@
 | ID | Config | Deploy run / notes |
 |----|--------|-------------------|
 | 378420–378422 | earlier attempts | same ack → Expired pattern |
-| **378423** | production (operator relay) | pre-window ack **1/1**, sla **0/1** → post-window **Expired**, ack **0/0** |
+| **378423** | operator relay (canary) | pre-window ack **1/1**, sla **0/1** → post-window **Expired**, ack **0/0** |
 | **378424** | A/B `RELAY_SKIP_WHITELIST=1`, `wss://relay.damus.io/` | same outcome ([PR #74](https://github.com/f0ff38/nhmind/pull/74)) |
 | **378425** | minimal `HELLO_MINIMAL=1`, damus, skip whitelist | same outcome ([PR #76](https://github.com/f0ff38/nhmind/pull/76), [run 27469893555](https://github.com/f0ff38/nhmind/actions/runs/27469893555)) |
 
@@ -29,7 +29,7 @@
 | Smoke `30090` | ⏭ skipped (`minimal_smoke=true`) |
 | Processor execution logs | **Not obtained** — see below |
 
-**Isolation conclusion:** relay/DNS, Nostr client, and bundle JS logic are ruled out. Minimal bundle (`console.log` only: `hello-minimal-start` / `hello-minimal-done`) reproduces the same on-chain outcome as production and A/B public relay.
+**Isolation conclusion:** relay/DNS, Nostr client, and bundle JS logic are ruled out. Minimal bundle (`console.log` only: `hello-minimal-start` / `hello-minimal-done`) reproduces the same on-chain outcome as operator-relay canary deploy and A/B public relay.
 
 ## Deployment config (relevant fields)
 

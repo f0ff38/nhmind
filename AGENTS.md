@@ -55,7 +55,7 @@ npm run start:local --prefix modules/hello
 5. **Подпись** — `_STD_.signers` в TEE; локально — mock из `modules/hello/src/runtime/local-std.ts`.
 6. **Nostr** — NIP-90 (jobs), NIP-44 (шифрование), NIP-33 (replaceable state); не использовать Nostr как БД. На Acurast processor: relay через `httpGET`/`httpPOST` (`@nhmind/nostr-client` HTTP backend), **не** npm `ws` и **не** `_STD_.ws` (это P2P mesh, не Nostr relay). Подпись: `createAcurastSigner(_STD_)`.
 7. **Гибридная координация** — Nostr (`RELAY_URL`, собственный relay на домене оператора) для публичного state/jobs; `_STD_.ws` — внутренний hot path (Phase 3+). Acurast P2P/tunnel relays и Substrate RPC **не** являются `RELAY_URL`. См. [docs/nostr-protocol.md](docs/nostr-protocol.md), ops relay: [docs/relay-ops.md](docs/relay-ops.md).
-8. **Production defaults** — `onlyAttestedDevices: true`, `mutability: Immutable` (в dev-модулях допустим `Mutable`).
+8. **Mainnet defaults** — `onlyAttestedDevices: true`, `mutability: Immutable` (в dev/canary-модулях допустим `Mutable`).
 
 ## Что агенты НЕ делают автоматически
 

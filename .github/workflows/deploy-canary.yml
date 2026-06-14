@@ -16,7 +16,7 @@ on:
         type: boolean
         default: false
       relay_url_override:
-        description: "Hello A/B only: override RELAY_URL (e.g. wss://relay.damus.io/). Sets RELAY_SKIP_WHITELIST=1. Empty = production RELAY_HOSTNAME."
+        description: "Hello A/B only: override RELAY_URL (e.g. wss://relay.damus.io/). Sets RELAY_SKIP_WHITELIST=1. Empty = operator relay (RELAY_HOSTNAME); deploy stays on Acurast canary."
         required: false
         type: string
         default: ""
@@ -187,7 +187,7 @@ jobs:
             fi
             relay_url="wss://${relay_hostname}/"
             smoke_hostname="${relay_hostname}"
-            relay_ab_mode="production"
+            relay_ab_mode="operator_relay"
             echo "RELAY_URL derived from RELAY_HOSTNAME (wss://<host>/)" >&2
           fi
           ENV_FILE="modules/${MODULE}/.env"
@@ -292,7 +292,7 @@ jobs:
             echo "::error::Missing smoke relay hostname from module_env step" >&2
             exit 1
           fi
-          echo "Hello smoke relay A/B mode: ${RELAY_AB_MODE:-production} → ${RELAY_SMOKE_HOSTNAME}"
+          echo "Hello smoke relay A/B mode: ${RELAY_AB_MODE:-operator_relay} → ${RELAY_SMOKE_HOSTNAME}"
           wait_sec="${WAIT_BEFORE_SMOKE_SEC}"
           if [ -f /tmp/acurast-deploy.log ]; then
             scheduled="$(grep -oE 'first execution scheduled in [0-9]+s' /tmp/acurast-deploy.log | tail -1 | grep -oE '[0-9]+' || true)"
