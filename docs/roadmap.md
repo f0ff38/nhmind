@@ -55,18 +55,21 @@ flowchart LR
 
 ## Checkpoint — следующая сессия
 
-**Где продолжить:** Phase 2 — **escalate to Acurast** (processor/runtime execution). Relay/DNS и JS/Nostr logic **исключены**: A/B public relay ✅ ([PR #74](https://github.com/f0ff38/nhmind/pull/74), **378424**) + **minimal hello bundle** ✅ ([PR #76](https://github.com/f0ff38/nhmind/pull/76), **378425**) — оба **ack 1/1 pre-window → Expired post-window → sla 0/1**; minimal path (`HELLO_MINIMAL=1`, только `console.log`) **не меняет исход**.
+**Где продолжить:** Phase 2 — **escalate to Acurast** (processor/runtime execution) на сети **Acurast canary** (testnet). Relay/DNS и JS/Nostr logic **исключены**: A/B public relay ✅ ([PR #74](https://github.com/f0ff38/nhmind/pull/74), **378424**) + **minimal hello bundle** ✅ ([PR #76](https://github.com/f0ff38/nhmind/pull/76), **378425**) — оба **ack 1/1 pre-window → Expired post-window → sla 0/1**; minimal path (`HELLO_MINIMAL=1`, только `console.log`) **не меняет исход**.
 
-### Симптом (актуально: minimal **378425**, A/B **378424**, production **378423**)
+**Терминология:** **Acurast canary** (testnet) — все deploy Phase 2 (`network: canary` в `acurast.json`). **Mainnet** — «production» в README/AGENTS (`network: mainnet`, Phase 5). **Operator relay** — Nostr relay оператора на Selectel (`RELAY_HOSTNAME`); не путать с сетью Acurast.
 
-| Шаг Deploy Canary (hello) | Production (`378423`) | A/B damus (`378424`) | Minimal smoke (`378425`, [27469893555](https://github.com/f0ff38/nhmind/actions/runs/27469893555)) |
-|---------------------------|---------------------|----------------------|-----------------------------------------------------------------------------------------------------|
-| Config | full hello | `RELAY_SKIP_WHITELIST=1` | `HELLO_MINIMAL=1` + damus + skip whitelist |
+### Симптом (актуально: minimal **378425**, A/B **378424**, operator relay **378423**/**378426**)
+
+| Шаг Deploy Canary (hello) | Operator relay (`378423`, `378426`) | A/B damus (`378424`) | Minimal smoke (`378425`, [27469893555](https://github.com/f0ff38/nhmind/actions/runs/27469893555)) |
+|---------------------------|-------------------------------------|----------------------|-----------------------------------------------------------------------------------------------------|
+| Acurast network | canary | canary | canary |
+| Config | full hello, `RELAY_HOSTNAME` | `RELAY_SKIP_WHITELIST=1` | `HELLO_MINIMAL=1` + damus + skip whitelist |
 | Register + pre-window ack | ✅ ack **1/1**, sla **0/1** | ✅ ack **1/1**, sla **0/1** | ✅ ack **1/1**, sla **0/1** |
 | Post-window SDK inspect | ❌ **Expired**; ack **0/0** | ❌ **Expired**; ack **0/0** | ❌ **Expired**; ack **0/0** |
 | Smoke `30090` | ❌ timeout | ❌ timeout | ⏭ skipped (minimal) |
 
-**Повтор production deploy** ([27471452097](https://github.com/f0ff38/nhmind/actions/runs/27471452097)): `minimal_smoke=false`, без `relay_url_override` — **on-chain регистрация не состоялась** (`RELAY_SKIP_WHITELIST` не в `.env` → acurast CLI error); smoke `30090` ❌ timeout **без нового deployment ID** (не подтверждает processor blocker — deploy не прошёл).
+**Повтор canary deploy на operator relay** ([27471452097](https://github.com/f0ff38/nhmind/actions/runs/27471452097)): `minimal_smoke=false`, без `relay_url_override` — **on-chain регистрация не состоялась** (`RELAY_SKIP_WHITELIST` не в `.env` → acurast CLI error); smoke `30090` ❌ timeout **без нового deployment ID** (не подтверждает processor blocker — deploy не прошёл). После env-fix: **378426** ([27472258038](https://github.com/f0ff38/nhmind/actions/runs/27472258038)) — register ✅, ack **1/1**, sla **0/1**, post-window **Expired**, smoke `30090` ❌ (тот же паттерн).
 
 Ранее: **378421**/**378422** — тот же паттерн. Coordinator deploy **не запускать**.
 
@@ -118,7 +121,7 @@ Ops: [relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay) �
 
 - `hello` на canary processor публикует `30090`; smoke видит событие через публичный WSS relay.
 - `coordinator` на canary processor читает `30090` и публикует `30092`/`30091`.
-- Локальный и production пути отличаются только transport backend, не payload schema.
+- Локальный и canary processor пути отличаются только transport backend, не payload schema.
 - Документация больше не называет экспериментальный `5900/6900` профиль полным generic NIP-90 без оговорок.
 
 ---
@@ -275,7 +278,7 @@ Ops: [relay-ops.md](relay-ops.md#selectel-gitops-провижининг-relay) �
 
 ### Deliverables
 
-- [ ] `mutability: Immutable` для production-модулей
+- [ ] `mutability: Immutable` для mainnet-модулей
 - [ ] `minProcessorReputation` / `processorWhitelist` для sensitive workloads
 - [ ] Mainnet deploy coordinator + validated modules
 - [ ] LLM inference module (experimental) — `requiredModules`, confidential inference

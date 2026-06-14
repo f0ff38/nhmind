@@ -2,7 +2,7 @@
 
 **Навигация:** [README](../README.md) · [map.md](map.md) · [roadmap.md](roadmap.md) (checkpoint) · [github-actions.md](github-actions.md)
 
-Руководство по production relay для nhmind: требования Acurast, выбор VPS, уроки из экосистемы Nostr (в т.ч. [Nosflare](https://github.com/Spl0itable/nosflare)).
+Руководство по **operator relay** (Selectel VM) для nhmind: требования Acurast, выбор VPS, уроки из экосистемы Nostr (в т.ч. [Nosflare](https://github.com/Spl0itable/nosflare)). Не путать с **Acurast mainnet** (Phase 5 / `network: mainnet`).
 
 **Статус (2026-06):** validate ✅, plan ✅, **apply ✅**, **Deploy Relay** + WSS smoke ✅, Selectel LE TLS ✅. Блокер Phase 2: **hello heartbeat на relay** (Deploy Canary smoke ❌) — **[roadmap → checkpoint](roadmap.md#checkpoint--следующая-сессия)** (единственный список «что дальше»).
 
@@ -18,7 +18,7 @@
 
 Локально: `docker compose --profile relay` → `ws://nostr-relay:8080` (порт `7777` на хосте).
 
-Canary/production: `RELAY_HOSTNAME` в GitHub environment **canary** → [deploy-canary.yml](../.github/workflows/deploy-canary.yml) собирает `RELAY_URL=wss://<RELAY_HOSTNAME>/` в `.env` модуля.
+Acurast **canary** deploy: `RELAY_HOSTNAME` в GitHub environment **canary** → [deploy-canary.yml](../.github/workflows/deploy-canary.yml) собирает `RELAY_URL=wss://<RELAY_HOSTNAME>/` в `.env` модуля (operator relay, не сеть Acurast).
 
 ---
 
@@ -114,7 +114,7 @@ Selectel использует **три типа** токенов; для GitOps 
 
 - Security group + cloud-init: `PasswordAuthentication no`, пользователь `deploy`, ключ из `RELAY_DEPLOY_SSH_*`
 - UFW на VM дублирует 22/443 (второй слой)
-- Сканирование порта 22 возможно — для production позже сузить (self-hosted runner, VPN, `/32` operator)
+- Сканирование порта 22 возможно — для mainnet/hardening позже сузить (self-hosted runner, VPN, `/32` operator)
 
 **Файрвол workflow:** [provision-relay-infra.yml](../.github/workflows/provision-relay-infra.yml) — [github-actions.md](github-actions.md#10-provision-relay-vm-selectel).
 

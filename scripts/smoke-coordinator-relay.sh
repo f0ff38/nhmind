@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wait for coordinator registry (30092) + scorecard (30091) on production relay.
+# Wait for coordinator registry (30092) + scorecard (30091) on operator relay.
 # Usage: smoke-coordinator-relay.sh <relay-hostname> [watch-module]
 set -euo pipefail
 

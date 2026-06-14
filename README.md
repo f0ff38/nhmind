@@ -131,7 +131,7 @@ Nostr — **event log с eventual consistency**, не база данных. В 
 - Код упаковывается в **один JS-bundle** (Webpack/esbuild); зависимости внутри bundle, не на processor.
 - Минимизировать размер bundle: tree-shaking, без тяжёлых native-модулей.
 
-### `acurast.json` (production defaults)
+### `acurast.json` (mainnet defaults — Phase 5)
 
 ```json
 {
@@ -151,13 +151,13 @@ Nostr — **event log с eventual consistency**, не база данных. В 
 | Параметр                 | Рекомендация                                                         |
 | ------------------------ | -------------------------------------------------------------------- |
 | `onlyAttestedDevices`    | `true` — только attested hardware                                    |
-| `mutability`             | `Immutable` в production; `Mutable` только для dev и `reuseKeysFrom` |
-| `network`                | `canary` → после валидации `mainnet`                                 |
+| `mutability`             | `Immutable` на mainnet; `Mutable` только для dev/canary и `reuseKeysFrom` |
+| `network`                | `canary` (Phase 2 testnet) → после валидации `mainnet` (Phase 5)         |
 | `execution.type`         | `interval` для агентов; `onetime` для разовых job                    |
 | `maxExecutionTimeInMs`   | Задавать явно под worst-case сценарий модуля                         |
 | `maxCostPerExecution`    | Всегда лимитировать; оценка через `acurast estimate-fee`             |
 | `startAt.msFromNow`      | Canary/CI: **`300000`** (5 мин, как дефолт CLI). Не ставить `0` (chain reject) и не `60000` — processors не успевают match до Start → Hub **Expired** |
-| `minProcessorReputation` | Поднимать для production-модулей                                     |
+| `minProcessorReputation` | Поднимать для mainnet-модулей                                        |
 | `processorWhitelist`     | Для canary и чувствительных модулей                                  |
 | `requiredModules`        | `['DataEncryption']` при работе с секретами                          |
 
@@ -189,8 +189,8 @@ Canary deploy из GHA: [deploy-canary-acurast.sh](scripts/deploy-canary-acurast
 | Bundle                  | `./scripts/dev bundle`                                                                |
 | Локальная отладка       | `./scripts/dev run`, затем `acurast live`                                             |
 | Тесты                   | `./scripts/dev test`                                                                  |
-| Canary                  | `./scripts/dev acurast deploy`                                                        |
-| Production              | `network: mainnet` + deploy или [@acurast/sdk](https://docs.acurast.com/)             |
+| Canary (Acurast testnet) | `./scripts/dev acurast deploy` (`network: canary`)                    |
+| Mainnet (production)     | `network: mainnet` + deploy или [@acurast/sdk](https://docs.acurast.com/) |
 | Оплата без ACU-аккаунта | [Deploy Agent](https://docs.acurast.com/developers/tools/deploy-agent) (x402, USDC на Base) |
 | LLM inference           | `requiredModules` для LLM; confidential inference в TEE                               |
 
