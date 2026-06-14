@@ -185,7 +185,7 @@ Canary deploy из GHA: [deploy-canary-acurast.sh](scripts/deploy-canary-acurast
 
 | Этап                    | Инструмент (в Docker через `./scripts/dev`)                                           |
 | ----------------------- | ------------------------------------------------------------------------------------- |
-| Scaffold                | `npx @acurast/cli new <module>` внутри контейнера                                     |
+| Scaffold                | `./scripts/new-module.sh <module>`                                                    |
 | Bundle                  | `./scripts/dev bundle`                                                                |
 | Локальная отладка       | `./scripts/dev run`, затем `acurast live`                                             |
 | Тесты                   | `./scripts/dev test`                                                                  |
@@ -241,7 +241,7 @@ Coordinator агрегирует метрики и публикует scorecard.
 
 ## Локальная разработка (только Docker)
 
-На хосте нужны **Docker Desktop**, **Cursor** и **git**. Node.js и npm на машине не требуются.
+На хосте нужны **Docker Desktop**, **Cursor** и **git**. Node.js и npm на машине не требуются. На Windows запускайте команды через **Git Bash**, **WSL** или **Dev Container**; PowerShell может вызвать wrapper как `bash scripts/dev <command>`.
 
 Официальный цикл Acurast выполняется в контейнере:
 
@@ -292,10 +292,13 @@ cp .env.example .env
 
 | Workflow                                                                     | Триггер             | Назначение                                                 |
 | ---------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------- |
-| `[ci.yml](.github/workflows/ci.yml)`                                         | push/PR → `main`    | test + bundle + smoke (hello, coordinator, template)       |
+| `[ci.yml](.github/workflows/ci.yml)`                                         | push/PR → `main`    | test + bundle + smoke (hello, coordinator, template, oracle-feed) |
 | `[deploy-canary.yml](.github/workflows/deploy-canary.yml)`                   | `workflow_dispatch` | canary deploy hello / coordinator (environment **canary**) |
 | `[validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml)` | `workflow_dispatch` | проверка секретов environment **relay**                    |
 | `[provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml)`   | `workflow_dispatch` | Terraform: Selectel VM, сеть, floating IP, PTR             |
+| `[deploy-relay.yml](.github/workflows/deploy-relay.yml)`                     | `workflow_dispatch` | relay compose на VM + smoke                                |
+| `[inspect-canary-deployments.yml](.github/workflows/inspect-canary-deployments.yml)` | `workflow_dispatch` | SDK + CLI deployment diagnostics                           |
+| `[inspect-canary-devtools.yml](.github/workflows/inspect-canary-devtools.yml)` | `workflow_dispatch` | DevTools API diagnostics (опционально)                     |
 
 
 CI и branch protection: `[docs/github-actions.md](docs/github-actions.md)`. Relay GitOps: environment **relay** — см. [relay-ops.md](docs/relay-ops.md). Canary: **canary** + `ACURAST_MNEMONIC_*`, `RELAY_HOSTNAME` (→ `RELAY_URL` в deploy-canary).
@@ -328,11 +331,14 @@ nhmind/
 │   ├── deploy-canary.yml
 │   ├── validate-relay-secrets.yml
 │   ├── provision-relay-infra.yml
-│   └── deploy-relay.yml
+│   ├── deploy-relay.yml
+│   ├── inspect-canary-deployments.yml
+│   └── inspect-canary-devtools.yml
 ├── infra/selectel/                 # Terraform + cloud-init (Selectel relay VM)
 ├── modules/
 │   ├── hello/                    # эталонный модуль (onetime)
 │   ├── coordinator/              # interval, registry + scorecard (Phase 2)
+│   ├── oracle-feed/              # experimental pull-oracle module (Phase 3)
 │   └── module-template/          # scaffold для новых модулей
 ├── packages/nostr-client/        # Nostr coordination library
 └── docs/                         # roadmap, map, nostr-protocol, relay-ops, github-actions, economics

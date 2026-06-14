@@ -64,6 +64,18 @@ variable "private_subnet_cidr" {
   default     = "10.10.42.0/24"
 }
 
+variable "floating_ip_pool" {
+  description = "OpenStack external network pool for relay floating IP."
+  type        = string
+  default     = "external-network"
+}
+
+variable "ssh_cidr" {
+  description = "CIDR allowed to SSH to the relay VM. Canary default is public GitHub-hosted runner friendly; narrow for production."
+  type        = string
+  default     = "0.0.0.0/0"
+}
+
 variable "server_name" {
   description = "Cloud server display name."
   type        = string

@@ -9,21 +9,22 @@
 Workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
 ```
-checkout → docker compose build → install → test → bundle → smoke run
+checkout → ./scripts/dev install → ./scripts/dev test → ./scripts/dev bundle → ./scripts/dev run
 ```
 
-Это **тот же путь**, что `./scripts/dev` локально — CI и dev не расходятся.
+Это **тот же wrapper contract**, что локально: CI и dev идут через Docker-only `./scripts/dev`, без npm/Node на runner host.
 
 ## Что учесть сейчас (до расширения CI)
 
 ### 1. Единый Docker-путь
 
-Все проверки — через `docker compose run --rm dev`. Не добавлять параллельный «npm на ubuntu-latest» без веской причины: иначе Cloud Agents, локальная среда и CI начнут расходиться.
+Все проверки — через `./scripts/dev` (внутри он вызывает `docker compose run --rm dev`). Не добавлять параллельный «npm на ubuntu-latest» без веской причины: иначе Cloud Agents, локальная среда и CI начнут расходиться.
 
 ### 2. Имена jobs и Bugbot / Cursor
 
-- Основной job: **`verify`** — стабильное имя для Bugbot Autofix и Automations («CI completed»).
-- Check name в PR будет `CI / verify` (или как назовёте workflow `name:`).
+- Основной matrix job: **`verify`** — стабильное имя для Bugbot Autofix и Automations («CI completed»).
+- Check names в PR: `CI / verify (hello)`, `CI / verify (coordinator)`, `CI / verify (module-template)`, `CI / verify (oracle-feed)`.
+- Дополнительные обязательные checks: `CI / verify-nostr-client`, `CI / verify-new-module-script`.
 
 ### 3. Секреты — только через GitHub Secrets
 
@@ -111,7 +112,7 @@ on:
 
 На `main` (GitHub → Settings → Branches):
 
-- [x] Required status checks: **`verify (hello)`**, **`verify (module-template)`**, **`verify-new-module-script`**
+- [x] Required status checks: **`verify-nostr-client`**, **`verify (hello)`**, **`verify (coordinator)`**, **`verify (module-template)`**, **`verify (oracle-feed)`**, **`verify-new-module-script`**
 - [x] Require pull request before merging
 - [x] Do not allow bypassing the above settings
 - [ ] optional: Bugbot `Cursor Bugbot` как required check
@@ -131,6 +132,7 @@ on:
 | `validate-relay-secrets.yml` | `workflow_dispatch` (`provision` \| `deploy` \| `all`) | Формат + live-проверки секретов **relay** (Keystone, S3, SSH keys, X-Token; deploy: SSH to VM via TF `public_ip`) ✅ |
 | `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через IPAM `ipam/v1` + `X-Token`; verify PTR propagation ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke` \| `all`) | Selectel LE + Knox PEM → SSH → `infra/nostr-relay/` compose; IP из Terraform state ✅ |
+| `relay-uptime.yml` | `schedule` + `workflow_dispatch` (`smoke` \| `renew-tls`) | Регулярный smoke relay; опционально Knox PEM refresh + nginx reload без полного deploy |
 | `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools API (опционально; часто 502 из GHA) |
 | `inspect-canary-deployments.yml` | `workflow_dispatch` | SDK + CLI deployment status (основной путь без Hub/DevTools web) |
 
@@ -184,6 +186,7 @@ Workflow **Deploy Relay**: [`.github/workflows/deploy-relay.yml`](../.github/wor
 | `validate-relay-secrets.yml` | `workflow_dispatch` | проверка секретов relay ✅ |
 | `provision-relay-infra.yml` | `workflow_dispatch` | Selectel VM + сеть ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` | relay compose на VM ✅ |
+| `relay-uptime.yml` | schedule / `workflow_dispatch` | relay smoke + TLS refresh ✅ |
 | `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools API (опционально) |
 | `inspect-canary-deployments.yml` | `workflow_dispatch` | SDK + CLI deployment diagnostics ✅ |
 | `cursor-agent.yml` | issue comment / schedule | Cursor CLI (будущее) |

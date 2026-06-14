@@ -18,7 +18,7 @@ README.md          ← корень: обзор, архитектура, dev, с
 | Документ | Назначение | Аудитория |
 |----------|------------|-----------|
 | [README.md](../README.md) | **Главная точка входа:** цель, архитектура, Docker-dev, структура репо, workflows (обзор), **ссылки Acurast** (Getting Started, Build, Tools, Processors, Protocol) | Все |
-| [AGENTS.md](../AGENTS.md) | Инструкции Cursor Cloud Agents / Automations / CLI: проверки, архитектурные правила, секреты | Агенты |
+| [AGENTS.md](../AGENTS.md) | Инструкции Cursor Cloud Agents / Automations / CLI: git/PR порядок, container-only проверки, архитектурные правила, GitHub Environments secrets | Агенты |
 
 ---
 
@@ -38,7 +38,7 @@ README.md          ← корень: обзор, архитектура, dev, с
 |----------|--------------|
 | [nostr-protocol.md](nostr-protocol.md) | Kinds, tags, JSON-схемы, Acurast transport (`httpGET`/`httpPOST`, не `_STD_.ws` для relay) |
 | [relay-ops.md](relay-ops.md) | Хостинг relay, Selectel GitOps, секреты environment **relay**, troubleshooting OpenStack |
-| [github-actions.md](github-actions.md) | CI, canary deploy, validate/provision relay, branch protection, секреты **canary** / **relay** |
+| [github-actions.md](github-actions.md) | CI, canary deploy, validate/provision/deploy/uptime relay, branch protection, секреты **canary** / **relay** |
 | [economics.md](economics.md) | ROI, treasury, cost/revenue attribution; модели **pull-oracle** (Phase 3) и **AI module** (Phase 5) |
 | [collective-intelligence.md](collective-intelligence.md) | CI: economic selection, NIP-90 market, multi-source oracle; ссылка на `oracle-feed` |
 

@@ -3,26 +3,9 @@
 # Each ACURAST_TXT_V value is v=base64(sha256(deployment_source || host)).
 set -euo pipefail
 
-DNS_API="${SELECTEL_DNS_API:-https://api.selectel.ru/domains/v2}"
-TTL="${RELAY_DNS_TTL:-300}"
-
-trim() {
-  printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
-}
-
-to_fqdn() {
-  local name
-  name="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[[:space:]]//g' | sed 's/\.$//')"
-  printf '%s.' "${name}"
-}
-
-normalize_zone_label() {
-  printf '%s' "$(to_fqdn "$1")" | sed 's/\.$//'
-}
-
-zone_names_match() {
-  [ "$(normalize_zone_label "$1")" = "$(normalize_zone_label "$2")" ]
-}
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${script_dir}/lib/dns-common.sh"
 
 relay_hostname_raw="$(trim "${RELAY_HOSTNAME:-}")"
 zone_override="$(trim "${RELAY_DNS_ZONE:-}")"
@@ -45,12 +28,7 @@ rrset_fqdn="$(to_fqdn "_acu.${relay_host}")"
 if [ -n "${zone_override}" ]; then
   zone_fqdn="$(to_fqdn "${zone_override}")"
 else
-  label_count="$(printf '%s' "${relay_host}" | tr -cd '.' | wc -c | tr -d ' ')"
-  if [ "${label_count}" -le 1 ]; then
-    zone_fqdn="$(to_fqdn "${relay_host}")"
-  else
-    zone_fqdn="$(to_fqdn "${relay_host#*.}")"
-  fi
+  zone_fqdn="$(default_zone_for_hostname "${relay_host}")"
 fi
 
 case "${rrset_fqdn}" in
@@ -61,60 +39,8 @@ case "${rrset_fqdn}" in
     ;;
 esac
 
-if ! command -v jq >/dev/null 2>&1; then
-  echo "::error::jq is required"
-  exit 1
-fi
-
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-token="$(bash "${script_dir}/get-selectel-dns-token.sh" | tr -d '\r\n')"
-token="$(trim "${token}")"
-
-if [ -z "${token}" ]; then
-  echo "::error::Selectel DNS token is empty"
-  exit 1
-fi
-
-dns_curl() {
-  curl -sS \
-    -H "X-Auth-Token: ${token}" \
-    -H "Accept: application/json" \
-    "$@"
-}
-
-dns_json_curl() {
-  curl -sS \
-    -H "X-Auth-Token: ${token}" \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json" \
-    "$@"
-}
-
-find_zone_id_by_name() {
-  local want_zone="$1"
-  local offset=0
-  local limit=100
-  while true; do
-    local payload
-    payload="$(dns_curl -G "${DNS_API}/zones" \
-      --data-urlencode "limit=${limit}" \
-      --data-urlencode "offset=${offset}")"
-    local id
-    id="$(printf '%s' "${payload}" | jq -r --arg z "${want_zone}" '
-      (.result // [])[] | select((.name // "") | ascii_downcase == ($z | ascii_downcase)) | .id
-    ' | head -n 1)"
-    if [ -n "${id}" ]; then
-      printf '%s' "${id}"
-      return 0
-    fi
-    local count
-    count="$(printf '%s' "${payload}" | jq -r '(.result // []) | length')"
-    if [ "${count}" -lt "${limit}" ]; then
-      return 1
-    fi
-    offset=$((offset + limit))
-  done
-}
+require_jq
+init_dns_token "${script_dir}"
 
 resolve_zone_id() {
   if [ -n "${zone_id_override}" ]; then

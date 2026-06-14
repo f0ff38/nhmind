@@ -39,7 +39,7 @@ resource "openstack_networking_port_v2" "relay" {
 }
 
 resource "openstack_networking_floatingip_v2" "relay" {
-  pool = "external-network"
+  pool = var.floating_ip_pool
 }
 
 resource "openstack_networking_floatingip_associate_v2" "relay" {

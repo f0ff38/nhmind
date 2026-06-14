@@ -48,13 +48,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: "1.9.8"
-
-      - name: Write S3 backend config
-        working-directory: ${{ github.workspace }}
+      - name: Setup relay Terraform backend
+        uses: ./.github/actions/relay-terraform-setup
         env:
           TF_STATE_S3_BUCKET: ${{ secrets.TF_STATE_S3_BUCKET }}
           TF_STATE_S3_ACCESS_KEY: ${{ secrets.TF_STATE_S3_ACCESS_KEY }}
@@ -62,13 +57,6 @@ jobs:
           TF_STATE_S3_REGION: ${{ secrets.TF_STATE_S3_REGION }}
           SELECTEL_REGION: ${{ secrets.SELECTEL_REGION }}
           SELECTEL_AVAILABILITY_ZONE: ${{ secrets.SELECTEL_AVAILABILITY_ZONE }}
-        run: bash infra/selectel/scripts/write-terraform-backend-ci.sh
-
-      - name: Terraform init
-        run: |
-          set -euo pipefail
-          terraform init -backend-config=backend.ci.hcl
-          rm -f backend.ci.hcl
 
       - name: Prepare OpenStack credentials
         if: inputs.action == 'plan' || inputs.action == 'apply' || inputs.action == 'destroy'

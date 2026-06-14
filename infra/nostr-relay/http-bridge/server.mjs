@@ -4,11 +4,21 @@ import WebSocket from "ws";
 const RELAY_WS = process.env.RELAY_WS_URL ?? "ws://relay:8080";
 const PORT = Number(process.env.PORT ?? 8090);
 const TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS ?? 15_000);
+const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES ?? 1_048_576);
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on("data", (chunk) => chunks.push(chunk));
+    let total = 0;
+    req.on("data", (chunk) => {
+      total += chunk.length;
+      if (total > MAX_BODY_BYTES) {
+        reject(new Error("request body too large"));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     req.on("error", reject);
   });
@@ -114,24 +124,44 @@ function relayOverWebSocket(message) {
 }
 
 const server = http.createServer(async (req, res) => {
+  if (req.method === "GET" && req.url === "/healthz") {
+    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("ok");
+    return;
+  }
+
   if (req.method !== "POST") {
     res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("POST only");
     return;
   }
 
+  const contentLength = Number(req.headers["content-length"] ?? 0);
+  if (contentLength > MAX_BODY_BYTES) {
+    res.writeHead(413, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("request body too large");
+    return;
+  }
+
   let message;
   try {
     message = JSON.parse(await readBody(req));
-  } catch {
-    res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end("invalid json");
+  } catch (error) {
+    const details = error instanceof Error ? error.message : "invalid json";
+    const status = details.includes("too large") ? 413 : 400;
+    res.writeHead(status, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end(status === 413 ? "request body too large" : "invalid json");
     return;
   }
 
   if (!Array.isArray(message) || typeof message[0] !== "string") {
     res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("expected nostr protocol array");
+    return;
+  }
+  if (!["EVENT", "REQ", "CLOSE"].includes(message[0])) {
+    res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("unsupported nostr protocol command");
     return;
   }
 

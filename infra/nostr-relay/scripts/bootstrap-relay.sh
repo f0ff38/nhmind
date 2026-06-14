@@ -77,15 +77,30 @@ sed "s/\${RELAY_HOSTNAME}/${relay_hostname}/g" nginx/nginx.conf.template > nginx
 docker compose up -d --force-recreate relay http-bridge nginx
 docker compose exec -T nginx nginx -s reload 2>/dev/null || true
 
+wait_for_service() {
+  local service="$1"
+  local attempts=24
+  local attempt=1
+  while [ "${attempt}" -le "${attempts}" ]; do
+    container_id="$(docker compose ps -q "${service}" 2>/dev/null || true)"
+    status=""
+    if [ -n "${container_id}" ]; then
+      status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "${container_id}" 2>/dev/null || true)"
+    fi
+    if [ "${status}" = "healthy" ] || [ "${status}" = "running" ]; then
+      return 0
+    fi
+    echo "Waiting for ${service} health (${status:-unknown}) ${attempt}/${attempts}..."
+    sleep 5
+    attempt=$((attempt + 1))
+  done
+  echo "::warning::${service} is not healthy — container logs:"
+  docker compose logs "${service}" --tail 40 2>/dev/null || true
+  return 1
+}
+
 docker compose ps
-if ! docker compose ps relay 2>/dev/null | grep -qE 'Up( |-)'; then
-  echo "::warning::nostr-rs-relay is not healthy — container logs:"
-  docker compose logs relay --tail 40 2>/dev/null || true
-  exit 1
-fi
-if ! docker compose ps http-bridge 2>/dev/null | grep -qE 'Up( |-)'; then
-  echo "::warning::http-bridge is not healthy — container logs:"
-  docker compose logs http-bridge --tail 40 2>/dev/null || true
-  exit 1
-fi
+wait_for_service relay
+wait_for_service http-bridge
+wait_for_service nginx
 echo "Relay stack is up for ${relay_hostname} (TLS from Selectel Knox)"
