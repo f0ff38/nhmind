@@ -43,7 +43,7 @@ jobs:
           set -euo pipefail
           PUBLIC_IP="$(bash infra/selectel/scripts/read-relay-public-ip.sh)"
           echo "public_ip=${PUBLIC_IP}" >> "${GITHUB_OUTPUT}"
-          echo "Relay SSH target: deploy@${PUBLIC_IP} (from terraform output public_ip)"
+          echo "${PUBLIC_IP}"
 
       - name: Deploy relay stack on VM
         if: inputs.action == 'deploy' || inputs.action == 'all'
