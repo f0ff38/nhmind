@@ -18,7 +18,7 @@ README.md          ← корень: обзор, архитектура, dev, с
 | Документ | Назначение | Аудитория |
 |----------|------------|-----------|
 | [README.md](../README.md) | **Главная точка входа:** цель, архитектура, Docker-dev, структура репо, workflows (обзор), **ссылки Acurast** (Getting Started, Build, Tools, Processors, Protocol) | Все |
-| [AGENTS.md](../AGENTS.md) | Инструкции Cursor Cloud Agents / Automations / CLI: container-only проверки, архитектурные правила, GitHub Environments secrets | Агенты |
+| [AGENTS.md](../AGENTS.md) | Инструкции Cursor Cloud Agents / Automations / CLI: git/PR порядок, container-only проверки, архитектурные правила, GitHub Environments secrets | Агенты |
 
 ---
 

@@ -110,6 +110,16 @@ Environment **relay**:
 - Минимальный diff; не рефакторить несвязанный код.
 - Обновляйте тесты при изменении логики модулей.
 
+### Git: как запускать и от чьего имени
+
+- Все git-команды запускать **из корня репозитория** (`C:\Users\716\Documents\nhmind` на Windows; `/workspace` или checkout root в контейнере/CI). Перед операциями всегда проверять `git status --short --branch`.
+- На Windows для git-команд с Bash-синтаксисом (`heredoc`, `&&`, shell quoting) использовать **Git Bash**: `C:\Program Files\Git\bin\bash.exe`. В PowerShell использовать `;` вместо `&&` и временные файлы вместо heredoc.
+- Агентам **запрещено менять git config** (`git config --global` / локальный config). Если git требует author identity, задавать ее только на одну команду через env vars.
+- Author/committer для агентских коммитов в этом репозитории: `Igor Kolesnikov <51603602+f0ff38@users.noreply.github.com>` через `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`.
+- Коммиты создавать только по явному запросу пользователя. Сообщение коммита передавать через file/heredoc, не через интерактивный editor; при rebase использовать `GIT_EDITOR=true`, если нужно сохранить существующее сообщение.
+- Перед PR: `git fetch origin`, feature branch должен быть поверх `origin/main`; при конфликтах сохранять изменения `main` и переносить refactor поверх них. После push создавать PR через `gh pr create`, checks смотреть через `gh pr checks <number> --watch`.
+- Не использовать destructive git commands (`reset --hard`, `checkout --`, force push) без отдельного явного разрешения пользователя.
+
 ## Cursor Cloud specific instructions
 
 Cloud Agent VM: Ubuntu, конфигурация в [.cursor/environment.json](.cursor/environment.json).
