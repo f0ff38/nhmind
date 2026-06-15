@@ -44,6 +44,11 @@ function getWebhookUrl(std: RuntimeStd): string {
   return process.env.WEBHOOK_URL ?? std.env?.WEBHOOK_URL ?? "";
 }
 
+function getEnvFlag(std: RuntimeStd, name: string): boolean {
+  const value = process.env[name] ?? std.env?.[name] ?? "";
+  return value === "1" || value.toLowerCase() === "true";
+}
+
 function isWebhookEnabled(webhookUrl: string): boolean {
   return Boolean(webhookUrl) && webhookUrl !== NO_WEBHOOK_SENTINEL;
 }
@@ -162,6 +167,33 @@ async function main(): Promise<void> {
     });
 
     await report("std-loaded");
+
+    if (getEnvFlag(std, "EXAMPLE_SMOKE_MINIMAL")) {
+      const payload = {
+        environment: "acurast-example-smoke",
+        source: "nhmind ultra-minimal smoke",
+        mode: "minimal",
+        ...context,
+        timestamp: Date.now(),
+        node_version: process.version,
+        platform: process.platform,
+        arch: process.arch,
+      };
+
+      await report("minimal-done", { payloadKeys: Object.keys(payload) });
+      console.log(JSON.stringify(payload, null, 2));
+
+      if (!isWebhookEnabled(webhookUrl)) {
+        console.log("WEBHOOK_URL not set; skipping minimal report POST");
+        await report("done", { mode: "minimal", reportPosted: false });
+        return;
+      }
+
+      await postWebhook(webhookUrl, payload);
+      await report("done", { mode: "minimal", reportPosted: true });
+      return;
+    }
+
     const scale = Number(process.env.EXAMPLE_SMOKE_SCALE ?? "1");
 
     await report("bench-start", { scale: Number.isFinite(scale) ? scale : 1 });

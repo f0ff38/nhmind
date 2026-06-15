@@ -21,6 +21,10 @@ Breadcrumb events are best-effort and never fail the workload: `started`,
 `std-loaded`, `bench-start`, `bench-done`, `network-start`, `network-done`,
 `payload-ready`, `done`, and `catch-error`.
 
+Ultra-minimal mode is enabled with `EXAMPLE_SMOKE_MINIMAL=1`. It sends only
+`started`, `std-loaded`, `minimal-done`, the final minimal payload, and `done`,
+then exits without running the benchmark or network test.
+
 ## Local
 
 ```bash
@@ -36,7 +40,8 @@ Use `.github/workflows/deploy-acurast-example-smoke.yml`.
 
 The workflow uses environment **canary** for the mnemonic. If available, set
 `ACURAST_EXAMPLE_WEBHOOK_URL` in that environment; otherwise provide the
-manual `webhook_url` input or leave both empty to skip POST.
+manual `webhook_url` input or leave both empty to skip POST. Use
+`minimal_smoke=true` for the ultra-minimal processor/reporting repro.
 
 ## Mainnet
 
@@ -44,7 +49,8 @@ Use `.github/workflows/deploy-acurast-example-smoke-mainnet.yml`.
 
 The workflow uses environment **mainnet** for `ACURAST_MNEMONIC_MAINNET`.
 For breadcrumb telemetry, set `ACURAST_EXAMPLE_WEBHOOK_URL` in that environment
-or provide the manual `webhook_url` input.
+or provide the manual `webhook_url` input. Use `minimal_smoke=true` for the
+ultra-minimal processor/reporting repro.
 
 ## Live Code Diagnostic
 

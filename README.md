@@ -303,7 +303,7 @@ ACURAST_MNEMONIC="..." scripts/acurast-live-example-smoke.sh run --network mainn
 | `[ci.yml](.github/workflows/ci.yml)`                                         | push/PR → `main`    | test + bundle + smoke (hello, coordinator, template, oracle-feed) + diagnostic example check |
 | `[deploy-canary.yml](.github/workflows/deploy-canary.yml)`                   | `workflow_dispatch` | canary deploy hello / coordinator (environment **canary**) |
 | `[deploy-acurast-example-smoke.yml](.github/workflows/deploy-acurast-example-smoke.yml)` | `workflow_dispatch` | official Acurast example smoke для processor/runtime диагностики |
-| `[deploy-acurast-example-smoke-mainnet.yml](.github/workflows/deploy-acurast-example-smoke-mainnet.yml)` | `workflow_dispatch` | mainnet A/B official example smoke (environment **mainnet**, default dry-run) |
+| `[deploy-acurast-example-smoke-mainnet.yml](.github/workflows/deploy-acurast-example-smoke-mainnet.yml)` | `workflow_dispatch` | mainnet A/B official/minimal example smoke (environment **mainnet**, default dry-run) |
 | `[validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml)` | `workflow_dispatch` | проверка секретов environment **relay**                    |
 | `[provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml)`   | `workflow_dispatch` | Terraform: Selectel VM, сеть, floating IP, PTR             |
 | `[deploy-relay.yml](.github/workflows/deploy-relay.yml)`                     | `workflow_dispatch` | relay compose на VM + smoke                                |

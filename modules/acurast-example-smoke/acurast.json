@@ -26,7 +26,7 @@
       "requiredModules": [],
       "minProcessorReputation": 0,
       "maxCostPerExecution": 50000000000,
-      "includeEnvironmentVariables": ["WEBHOOK_URL"],
+      "includeEnvironmentVariables": ["WEBHOOK_URL", "EXAMPLE_SMOKE_MINIMAL"],
       "processorWhitelist": [],
       "mutability": "Mutable"
     }
