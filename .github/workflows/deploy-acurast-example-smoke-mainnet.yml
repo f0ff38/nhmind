@@ -23,6 +23,26 @@ on:
         required: false
         type: boolean
         default: false
+      start_delay_ms:
+        description: "Delay before first execution in ms (default: 300000; long-window repro: 1200000)"
+        required: false
+        type: string
+        default: "300000"
+      max_execution_time_ms:
+        description: "Execution window duration in ms (default: 300000; long-window repro: 1200000)"
+        required: false
+        type: string
+        default: "300000"
+      max_allowed_start_delay_ms:
+        description: "Max processor start delay in ms (default: 300000; long-window repro: 900000)"
+        required: false
+        type: string
+        default: "300000"
+      post_window_margin_sec:
+        description: "Seconds to wait after expected execution window before post-window inspect"
+        required: false
+        type: string
+        default: "330"
 
 concurrency:
   group: deploy-acurast-example-smoke-mainnet
@@ -48,28 +68,41 @@ jobs:
       - name: Apply mainnet smoke config
         env:
           MAX_COST_PER_EXECUTION: ${{ inputs.max_cost_per_execution }}
+          START_DELAY_MS: ${{ inputs.start_delay_ms }}
+          MAX_EXECUTION_TIME_MS: ${{ inputs.max_execution_time_ms }}
+          MAX_ALLOWED_START_DELAY_MS: ${{ inputs.max_allowed_start_delay_ms }}
         run: |
           set -euo pipefail
           node <<'NODE'
           const { readFileSync, writeFileSync } = require("node:fs");
 
           const configPath = "modules/acurast-example-smoke/acurast.json";
-          const maxCost = Number(process.env.MAX_COST_PER_EXECUTION);
-          if (!Number.isSafeInteger(maxCost) || maxCost <= 0) {
-            throw new Error(`Invalid max_cost_per_execution: ${process.env.MAX_COST_PER_EXECUTION}`);
+          function positiveIntegerEnv(name) {
+            const value = Number(process.env[name]);
+            if (!Number.isSafeInteger(value) || value <= 0) {
+              throw new Error(`Invalid ${name}: ${process.env[name]}`);
+            }
+            return value;
           }
 
+          const maxCost = positiveIntegerEnv("MAX_COST_PER_EXECUTION");
+          const startDelayMs = positiveIntegerEnv("START_DELAY_MS");
+          const maxExecutionTimeMs = positiveIntegerEnv("MAX_EXECUTION_TIME_MS");
+          const maxAllowedStartDelayMs = positiveIntegerEnv("MAX_ALLOWED_START_DELAY_MS");
           const config = JSON.parse(readFileSync(configPath, "utf8"));
           const project = config.projects["acurast-example-smoke"];
           project.network = "mainnet";
           project.onlyAttestedDevices = false;
           project.mutability = "Mutable";
+          project.startAt = {
+            msFromNow: startDelayMs,
+          };
           project.execution = {
             ...project.execution,
             type: "onetime",
-            maxExecutionTimeInMs: 300000,
+            maxExecutionTimeInMs: maxExecutionTimeMs,
           };
-          project.maxAllowedStartDelayInMs = 300000;
+          project.maxAllowedStartDelayInMs = maxAllowedStartDelayMs;
           project.maxCostPerExecution = maxCost;
           writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
           NODE
@@ -177,16 +210,20 @@ jobs:
         env:
           ACURAST_NETWORK: mainnet
           ACURAST_RPC: wss://public-rpc.mainnet.acurast.com
-          WAIT_BEFORE_INSPECT_SEC: "690"
-          INSPECT_EXECUTION_MARGIN_SEC: "330"
+          START_DELAY_MS: ${{ inputs.start_delay_ms }}
+          MAX_EXECUTION_TIME_MS: ${{ inputs.max_execution_time_ms }}
+          POST_WINDOW_MARGIN_SEC: ${{ inputs.post_window_margin_sec }}
         run: |
           set -euo pipefail
-          wait_sec="${WAIT_BEFORE_INSPECT_SEC}"
+          start_delay_sec=$(( (START_DELAY_MS + 999) / 1000 ))
+          execution_sec=$(( (MAX_EXECUTION_TIME_MS + 999) / 1000 ))
+          margin_sec="${POST_WINDOW_MARGIN_SEC}"
+          wait_sec=$((start_delay_sec + execution_sec + margin_sec))
           if [ -f /tmp/acurast-deploy.log ]; then
             scheduled="$(grep -oE 'first execution scheduled in [0-9]+s' /tmp/acurast-deploy.log | tail -1 | grep -oE '[0-9]+' || true)"
             if [ -n "${scheduled}" ]; then
-              wait_sec=$((scheduled + INSPECT_EXECUTION_MARGIN_SEC))
-              echo "Parsed first execution in ${scheduled}s -> waiting ${wait_sec}s before post-window inspect"
+              wait_sec=$((scheduled + execution_sec + margin_sec))
+              echo "Parsed first execution in ${scheduled}s; execution=${execution_sec}s margin=${margin_sec}s -> waiting ${wait_sec}s before post-window inspect"
             fi
           fi
           echo "Waiting ${wait_sec}s before post-window inspect..."
