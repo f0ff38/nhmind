@@ -56,6 +56,11 @@ if [ -n "${deployment_id}" ]; then
   exit 0
 fi
 
+if [ "${DRY_RUN}" = "true" ] && [ "${deploy_exit}" -eq 0 ]; then
+  echo "::notice::acurast deploy dry-run completed without on-chain registration"
+  exit 0
+fi
+
 if [ "${deploy_exit}" -eq 124 ]; then
   echo "::error::acurast deploy timed out after ${TIMEOUT_SEC}s without on-chain registration"
   exit 1
