@@ -83,6 +83,7 @@ Environment **canary**:
 | `ACURAST_MNEMONIC_COORDINATOR` | Deploy/inspect `modules/coordinator` |
 | `ACURAST_MNEMONIC_HELLO` | Deploy/inspect `modules/hello` |
 | `RELAY_HOSTNAME` | FQDN relay; workflow собирает `RELAY_URL=wss://<host>/` |
+| `ACURAST_EXAMPLE_WEBHOOK_URL` | Опционально: report endpoint для `deploy-acurast-example-smoke.yml` |
 
 Environment **relay**:
 

@@ -292,8 +292,9 @@ cp .env.example .env
 
 | Workflow                                                                     | Триггер             | Назначение                                                 |
 | ---------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------- |
-| `[ci.yml](.github/workflows/ci.yml)`                                         | push/PR → `main`    | test + bundle + smoke (hello, coordinator, template, oracle-feed) |
+| `[ci.yml](.github/workflows/ci.yml)`                                         | push/PR → `main`    | test + bundle + smoke (hello, coordinator, template, oracle-feed) + diagnostic example check |
 | `[deploy-canary.yml](.github/workflows/deploy-canary.yml)`                   | `workflow_dispatch` | canary deploy hello / coordinator (environment **canary**) |
+| `[deploy-acurast-example-smoke.yml](.github/workflows/deploy-acurast-example-smoke.yml)` | `workflow_dispatch` | official Acurast example smoke для processor/runtime диагностики |
 | `[validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml)` | `workflow_dispatch` | проверка секретов environment **relay**                    |
 | `[provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml)`   | `workflow_dispatch` | Terraform: Selectel VM, сеть, floating IP, PTR             |
 | `[deploy-relay.yml](.github/workflows/deploy-relay.yml)`                     | `workflow_dispatch` | relay compose на VM + smoke                                |
@@ -329,6 +330,7 @@ nhmind/
 ├── .github/workflows/
 │   ├── ci.yml
 │   ├── deploy-canary.yml
+│   ├── deploy-acurast-example-smoke.yml
 │   ├── validate-relay-secrets.yml
 │   ├── provision-relay-infra.yml
 │   ├── deploy-relay.yml

@@ -1,0 +1,34 @@
+{
+  "projects": {
+    "acurast-example-smoke": {
+      "projectName": "acurast-example-smoke",
+      "fileUrl": "dist/bundle.js",
+      "network": "canary",
+      "onlyAttestedDevices": false,
+      "enableDevtools": true,
+      "startAt": {
+        "msFromNow": 300000
+      },
+      "assignmentStrategy": {
+        "type": "Single"
+      },
+      "execution": {
+        "type": "onetime",
+        "maxExecutionTimeInMs": 300000
+      },
+      "maxAllowedStartDelayInMs": 300000,
+      "usageLimit": {
+        "maxMemory": 0,
+        "maxNetworkRequests": 50,
+        "maxStorage": 0
+      },
+      "numberOfReplicas": 1,
+      "requiredModules": [],
+      "minProcessorReputation": 0,
+      "maxCostPerExecution": 50000000000,
+      "includeEnvironmentVariables": ["WEBHOOK_URL"],
+      "processorWhitelist": [],
+      "mutability": "Mutable"
+    }
+  }
+}

@@ -1,0 +1,132 @@
+name: Deploy Acurast Example Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Dry run only (no on-chain deploy)
+        required: false
+        type: boolean
+        default: false
+      webhook_url:
+        description: "Optional report POST URL. Prefer canary secret ACURAST_EXAMPLE_WEBHOOK_URL."
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: deploy-acurast-example-smoke
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy-acurast-example-smoke
+    runs-on: ubuntu-latest
+    environment: canary
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build dev image
+        run: docker compose build dev
+
+      - name: Install and bundle
+        run: |
+          docker compose run --rm dev npm ci --prefix modules/acurast-example-smoke
+          docker compose run --rm dev npm run bundle --prefix modules/acurast-example-smoke
+
+      - name: Write module .env from secrets
+        env:
+          MNEMONIC_EXAMPLE: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
+          MNEMONIC_FALLBACK: ${{ secrets.ACURAST_MNEMONIC }}
+          WEBHOOK_URL_INPUT: ${{ inputs.webhook_url }}
+          WEBHOOK_URL_SECRET: ${{ secrets.ACURAST_EXAMPLE_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          mnemonic="${MNEMONIC_EXAMPLE:-${MNEMONIC_FALLBACK:-}}"
+          if [ -z "${mnemonic}" ]; then
+            echo "::error::Missing ACURAST_MNEMONIC_HELLO or ACURAST_MNEMONIC in environment canary" >&2
+            exit 1
+          fi
+
+          webhook_url="$(printf '%s' "${WEBHOOK_URL_INPUT:-${WEBHOOK_URL_SECRET:-}}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          {
+            printf 'ACURAST_MNEMONIC=%s\n' "${mnemonic}"
+            printf 'ACURAST_RPC=wss://public-rpc.canary.acurast.com\n'
+            printf 'ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com\n'
+            printf 'ACURAST_CANARY_INDEXER=https://dev.indexer.canary.acurast.com/api/v1/rpc\n'
+            printf 'ACURAST_CANARY_INDEXER_API_KEY=OXuwySHqNSlwwa_qqB-cBw\n'
+            if [ -n "${webhook_url}" ]; then
+              printf 'WEBHOOK_URL=%s\n' "${webhook_url}"
+              echo "::notice::WEBHOOK_URL configured for example smoke report"
+            else
+              echo "::notice::WEBHOOK_URL not configured; example smoke will skip report POST"
+            fi
+          } > modules/acurast-example-smoke/.env
+
+      - name: Estimate fee
+        run: |
+          docker compose run --rm \
+            -e ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com \
+            dev bash -lc "cd modules/acurast-example-smoke && acurast estimate-fee"
+
+      - name: Deploy to Acurast canary
+        id: acurast_deploy
+        env:
+          ACURAST_DEPLOY_TIMEOUT_SEC: "300"
+        run: |
+          set -euo pipefail
+          deploy_out="$(bash scripts/deploy-canary-acurast.sh acurast-example-smoke "${{ inputs.dry_run }}")"
+          printf '%s\n' "${deploy_out}"
+          deployment_id="$(printf '%s\n' "${deploy_out}" | grep -E '^deployment_id=' | tail -1 | cut -d= -f2- || true)"
+          if [ -n "${deployment_id}" ]; then
+            echo "deployment_id=${deployment_id}" >> "${GITHUB_OUTPUT}"
+            echo "Parsed deployment_id=${deployment_id}"
+          else
+            echo "::warning::Could not parse deployment ID from acurast deploy output"
+          fi
+
+      - name: Inspect deployment (SDK + CLI, registered)
+        if: inputs.dry_run == false && steps.acurast_deploy.outputs.deployment_id != ''
+        run: |
+          bash scripts/inspect-canary-deployments.sh \
+            acurast-example-smoke \
+            "${{ steps.acurast_deploy.outputs.deployment_id }}" \
+            || echo "::warning::Deployment status inspect failed (registered)"
+
+      - name: Upload Acurast deployment files
+        if: inputs.dry_run == false && steps.acurast_deploy.outputs.deployment_id != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: acurast-deploy-acurast-example-smoke-${{ steps.acurast_deploy.outputs.deployment_id }}
+          path: modules/acurast-example-smoke/.acurast/deploy/
+          if-no-files-found: warn
+
+      - name: Acurast CLI deployment detail
+        if: inputs.dry_run == false && steps.acurast_deploy.outputs.deployment_id != ''
+        run: |
+          bash scripts/inspect-canary-deployment-cli.sh \
+            acurast-example-smoke \
+            "${{ steps.acurast_deploy.outputs.deployment_id }}" \
+            || echo "::warning::CLI deployment detail failed"
+
+      - name: Inspect deployment post-window
+        if: inputs.dry_run == false && steps.acurast_deploy.outputs.deployment_id != ''
+        env:
+          WAIT_BEFORE_INSPECT_SEC: "690"
+          INSPECT_EXECUTION_MARGIN_SEC: "330"
+        run: |
+          set -euo pipefail
+          wait_sec="${WAIT_BEFORE_INSPECT_SEC}"
+          if [ -f /tmp/acurast-deploy.log ]; then
+            scheduled="$(grep -oE 'first execution scheduled in [0-9]+s' /tmp/acurast-deploy.log | tail -1 | grep -oE '[0-9]+' || true)"
+            if [ -n "${scheduled}" ]; then
+              wait_sec=$((scheduled + INSPECT_EXECUTION_MARGIN_SEC))
+              echo "Parsed first execution in ${scheduled}s → waiting ${wait_sec}s before post-window inspect"
+            fi
+          fi
+          echo "Waiting ${wait_sec}s before post-window inspect..."
+          sleep "${wait_sec}"
+          bash scripts/inspect-canary-deployments.sh \
+            acurast-example-smoke \
+            "${{ steps.acurast_deploy.outputs.deployment_id }}"

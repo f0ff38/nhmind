@@ -10,6 +10,7 @@ on:
         options:
           - hello
           - coordinator
+          - acurast-example-smoke
       deployment_id:
         description: Hub deployment number (e.g. 378421); leave empty to list only
         required: false
@@ -46,11 +47,27 @@ jobs:
         env:
           MNEMONIC_HELLO: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
           MNEMONIC_COORDINATOR: ${{ secrets.ACURAST_MNEMONIC_COORDINATOR }}
+          MNEMONIC_EXAMPLE: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
           MNEMONIC_FALLBACK: ${{ secrets.ACURAST_MNEMONIC }}
           RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
         run: |
           set -euo pipefail
-          bash scripts/write-canary-module-env.sh --module "${{ inputs.module }}" --mode inspect
+          if [ "${{ inputs.module }}" = "acurast-example-smoke" ]; then
+            mnemonic="${MNEMONIC_EXAMPLE:-${MNEMONIC_FALLBACK:-}}"
+            if [ -z "${mnemonic}" ]; then
+              echo "::error::Missing ACURAST_MNEMONIC_HELLO or ACURAST_MNEMONIC in environment canary" >&2
+              exit 1
+            fi
+            {
+              printf 'ACURAST_MNEMONIC=%s\n' "${mnemonic}"
+              printf 'ACURAST_RPC=wss://public-rpc.canary.acurast.com\n'
+              printf 'ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com\n'
+              printf 'ACURAST_CANARY_INDEXER=https://dev.indexer.canary.acurast.com/api/v1/rpc\n'
+              printf 'ACURAST_CANARY_INDEXER_API_KEY=OXuwySHqNSlwwa_qqB-cBw\n'
+            } > modules/acurast-example-smoke/.env
+          else
+            bash scripts/write-canary-module-env.sh --module "${{ inputs.module }}" --mode inspect
+          fi
 
       - name: Inspect via SDK + CLI
         env:
