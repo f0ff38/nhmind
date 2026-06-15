@@ -34,7 +34,7 @@ checkout → ./scripts/dev install → ./scripts/dev test → ./scripts/dev bund
 | `ACURAST_MNEMONIC_HELLO` | Deploy `hello` из Actions | Environment **canary** |
 | `ACURAST_MNEMONIC_COORDINATOR` | Deploy `coordinator` | Environment **canary** |
 | `ACURAST_MNEMONIC` | Fallback, если нет per-module secret | Environment **canary** |
-| `ACURAST_EXAMPLE_WEBHOOK_URL` | Опциональный report endpoint для official example smoke | Environment **canary** |
+| `ACURAST_EXAMPLE_WEBHOOK_URL` | Опциональный breadcrumb/report endpoint для official example smoke | Environment **canary** / **mainnet** |
 | `ACURAST_MNEMONIC_MAINNET` | Единый deploy/payment wallet для mainnet smoke/deploy workflows | Environment **mainnet** |
 | `CURSOR_API_KEY` | Cursor CLI в Actions | Будущий workflow для авто-фиксов/docs |
 | `RELAY_HOSTNAME` | FQDN relay (`nostr.<домен>`); workflow собирает `RELAY_URL=wss://<host>/` | Environment **canary** (тот же hostname, что в **relay**); хостинг — [relay-ops.md](relay-ops.md) |
@@ -80,9 +80,9 @@ Programmatic SDK (вне TEE): `scripts/deploy-acurast-sdk.mjs` — тот же 
 
 **GHA deploy (hello/coordinator):** [deploy-canary-acurast.sh](../scripts/deploy-canary-acurast.sh) — `timeout` после on-chain registration (не ждать processor match 30+ min). `startAt.msFromNow: 300000` в `acurast.json` — буфер для match до Start (см. [README](../README.md#acurast-обязательные-практики)).
 
-**Official example smoke (canary):** [`.github/workflows/deploy-acurast-example-smoke.yml`](../.github/workflows/deploy-acurast-example-smoke.yml) — контрольный canary deploy `modules/acurast-example-smoke` на базе Acurast `app-benchmark-nodejs`; использует `ACURAST_MNEMONIC_HELLO`/fallback и optional `ACURAST_EXAMPLE_WEBHOOK_URL` или manual input `webhook_url`.
+**Official example smoke (canary):** [`.github/workflows/deploy-acurast-example-smoke.yml`](../.github/workflows/deploy-acurast-example-smoke.yml) — контрольный canary deploy `modules/acurast-example-smoke` на базе Acurast `app-benchmark-nodejs`; использует `ACURAST_MNEMONIC_HELLO`/fallback и optional `ACURAST_EXAMPLE_WEBHOOK_URL` или manual input `webhook_url`. Если `WEBHOOK_URL` задан, bundle отправляет breadcrumb telemetry (`started`, `bench-start`, `network-start`, `done`/`catch-error`) и финальный payload.
 
-**Official example smoke (mainnet):** [`.github/workflows/deploy-acurast-example-smoke-mainnet.yml`](../.github/workflows/deploy-acurast-example-smoke-mainnet.yml) — ручной diagnostic A/B на **Acurast mainnet** для проверки canary-specific blocker. Environment **mainnet**, secret `ACURAST_MNEMONIC_MAINNET`, RPC `wss://public-rpc.mainnet.acurast.com`. Workflow `workflow_dispatch`, default `dry_run=true`; для on-chain deploy явно запускать `dry_run=false`.
+**Official example smoke (mainnet):** [`.github/workflows/deploy-acurast-example-smoke-mainnet.yml`](../.github/workflows/deploy-acurast-example-smoke-mainnet.yml) — ручной diagnostic A/B на **Acurast mainnet** для проверки canary-specific blocker. Environment **mainnet**, secret `ACURAST_MNEMONIC_MAINNET`, optional `ACURAST_EXAMPLE_WEBHOOK_URL` или manual input `webhook_url`, RPC `wss://public-rpc.mainnet.acurast.com`. Workflow `workflow_dispatch`, default `dry_run=true`; для on-chain deploy явно запускать `dry_run=false`.
 
 `acurast deploy` в PR/push по-прежнему **не** запускается автоматически.
 

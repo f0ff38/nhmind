@@ -90,6 +90,7 @@ Environment **mainnet**:
 | Secret | Назначение |
 |--------|------------|
 | `ACURAST_MNEMONIC_MAINNET` | Единый deploy/payment wallet для mainnet smoke/deploy workflows |
+| `ACURAST_EXAMPLE_WEBHOOK_URL` | Опционально: breadcrumb/report endpoint для `deploy-acurast-example-smoke-mainnet.yml` |
 
 Environment **relay**:
 
