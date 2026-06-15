@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Submit canary deploy without blocking CI on processor match/ack (can take 30+ min).
+# Submit Acurast deploy without blocking CI on processor match/ack (can take 30+ min).
 # Succeeds once deployment ID is registered on-chain; smoke verifies execution via relay.
 set -euo pipefail
 
@@ -7,6 +7,12 @@ MODULE="${1:?usage: deploy-canary-acurast.sh <module> [dry_run]}"
 DRY_RUN="${2:-false}"
 DEPLOY_LOG="${DEPLOY_LOG:-/tmp/acurast-deploy.log}"
 TIMEOUT_SEC="${ACURAST_DEPLOY_TIMEOUT_SEC:-300}"
+NETWORK="${ACURAST_NETWORK:-canary}"
+if [ "${NETWORK}" = "mainnet" ]; then
+  RPC="${ACURAST_RPC:-wss://public-rpc.mainnet.acurast.com}"
+else
+  RPC="${ACURAST_RPC:-wss://public-rpc.canary.acurast.com}"
+fi
 
 DEPLOY_FLAGS="-n"
 if [ "${DRY_RUN}" = "true" ]; then
@@ -17,7 +23,9 @@ fi
 set +e
 timeout --foreground "${TIMEOUT_SEC}" \
   docker compose run --rm \
-    -e ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com \
+    -e "ACURAST_RPC=${RPC}" \
+    -e "ACURAST_CANARY_RPC=${RPC}" \
+    -e "ACURAST_MAINNET_RPC=${RPC}" \
     dev bash -lc "cd modules/${MODULE} && acurast deploy ${DEPLOY_FLAGS}" \
   2>&1 | tee -a "${DEPLOY_LOG}"
 deploy_exit=$?

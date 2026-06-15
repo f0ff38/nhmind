@@ -2,13 +2,19 @@
 # Run `acurast deployments <id>` when modules/<module>/.acurast/deploy/*-<id>.json exists.
 # Requires local deployment file (from deploy or downloaded GHA artifact).
 # Usage: inspect-canary-deployment-cli.sh <module> <deployment_id>
+# Env: ACURAST_NETWORK=canary|mainnet (default: canary)
 # Env: INSPECT_CLI_FAIL=1 — exit non-zero on failure.
 set -euo pipefail
 
 module="${1:?usage: inspect-canary-deployment-cli.sh <module> <deployment_id>}"
 deployment_id="${2:?usage: inspect-canary-deployment-cli.sh <module> <deployment_id>}"
 fail_on_error="${INSPECT_CLI_FAIL:-0}"
-canary_rpc="${ACURAST_RPC:-wss://public-rpc.canary.acurast.com}"
+network="${ACURAST_NETWORK:-canary}"
+if [ "${network}" = "mainnet" ]; then
+  rpc="${ACURAST_RPC:-wss://public-rpc.mainnet.acurast.com}"
+else
+  rpc="${ACURAST_RPC:-wss://public-rpc.canary.acurast.com}"
+fi
 deploy_dir="modules/${module}/.acurast/deploy"
 
 shopt -s nullglob
@@ -18,13 +24,14 @@ if [ "${#files[@]}" -eq 0 ]; then
   exit 0
 fi
 
-echo "=== acurast deployments ${deployment_id} --network canary (local .acurast/deploy) ==="
+echo "=== acurast deployments ${deployment_id} --network ${network} (local .acurast/deploy) ==="
 set +e
 cli_out="$(
   docker compose run --rm \
-    -e "ACURAST_RPC=${canary_rpc}" \
-    -e "ACURAST_CANARY_RPC=${canary_rpc}" \
-    dev bash -lc "cd modules/${module} && acurast deployments ${deployment_id} --network canary" 2>&1
+    -e "ACURAST_RPC=${rpc}" \
+    -e "ACURAST_CANARY_RPC=${rpc}" \
+    -e "ACURAST_MAINNET_RPC=${rpc}" \
+    dev bash -lc "cd modules/${module} && acurast deployments ${deployment_id} --network ${network}" 2>&1
 )"
 cli_exit=$?
 set -e
