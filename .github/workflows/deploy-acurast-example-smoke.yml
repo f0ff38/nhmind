@@ -50,13 +50,14 @@ jobs:
           fi
 
           webhook_url="$(printf '%s' "${WEBHOOK_URL_INPUT:-${WEBHOOK_URL_SECRET:-}}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          acurast_webhook_url="${webhook_url:-__NHMIND_NO_WEBHOOK__}"
           {
             printf 'ACURAST_MNEMONIC=%s\n' "${mnemonic}"
             printf 'ACURAST_RPC=wss://public-rpc.canary.acurast.com\n'
             printf 'ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com\n'
             printf 'ACURAST_CANARY_INDEXER=https://dev.indexer.canary.acurast.com/api/v1/rpc\n'
             printf 'ACURAST_CANARY_INDEXER_API_KEY=OXuwySHqNSlwwa_qqB-cBw\n'
-            printf 'WEBHOOK_URL=%s\n' "${webhook_url}"
+            printf 'WEBHOOK_URL=%s\n' "${acurast_webhook_url}"
             if [ -n "${webhook_url}" ]; then
               echo "::notice::WEBHOOK_URL configured for example smoke report"
             else
