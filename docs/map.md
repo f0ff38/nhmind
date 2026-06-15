@@ -38,7 +38,7 @@ README.md          ← корень: обзор, архитектура, dev, с
 |----------|--------------|
 | [nostr-protocol.md](nostr-protocol.md) | Kinds, tags, JSON-схемы, Acurast transport (`httpGET`/`httpPOST`, не `_STD_.ws` для relay) |
 | [relay-ops.md](relay-ops.md) | Хостинг relay, Selectel GitOps, секреты environment **relay**, troubleshooting OpenStack |
-| [github-actions.md](github-actions.md) | CI, canary deploy, official Acurast example smoke, validate/provision/deploy/uptime relay, branch protection, секреты **canary** / **relay** |
+| [github-actions.md](github-actions.md) | CI, canary/mainnet deploy diagnostics, official Acurast example smoke, validate/provision/deploy/uptime relay, branch protection, секреты **canary** / **mainnet** / **relay** |
 | [economics.md](economics.md) | ROI, treasury, cost/revenue attribution; модели **pull-oracle** (Phase 3) и **AI module** (Phase 5) |
 | [collective-intelligence.md](collective-intelligence.md) | CI: economic selection, NIP-90 market, multi-source oracle; ссылка на `oracle-feed` |
 

@@ -35,6 +35,7 @@ checkout → ./scripts/dev install → ./scripts/dev test → ./scripts/dev bund
 | `ACURAST_MNEMONIC_COORDINATOR` | Deploy `coordinator` | Environment **canary** |
 | `ACURAST_MNEMONIC` | Fallback, если нет per-module secret | Environment **canary** |
 | `ACURAST_EXAMPLE_WEBHOOK_URL` | Опциональный report endpoint для official example smoke | Environment **canary** |
+| `ACURAST_MNEMONIC_MAINNET` | Единый deploy/payment wallet для mainnet smoke/deploy workflows | Environment **mainnet** |
 | `CURSOR_API_KEY` | Cursor CLI в Actions | Будущий workflow для авто-фиксов/docs |
 | `RELAY_HOSTNAME` | FQDN relay (`nostr.<домен>`); workflow собирает `RELAY_URL=wss://<host>/` | Environment **canary** (тот же hostname, что в **relay**); хостинг — [relay-ops.md](relay-ops.md) |
 
@@ -79,7 +80,9 @@ Programmatic SDK (вне TEE): `scripts/deploy-acurast-sdk.mjs` — тот же 
 
 **GHA deploy (hello/coordinator):** [deploy-canary-acurast.sh](../scripts/deploy-canary-acurast.sh) — `timeout` после on-chain registration (не ждать processor match 30+ min). `startAt.msFromNow: 300000` в `acurast.json` — буфер для match до Start (см. [README](../README.md#acurast-обязательные-практики)).
 
-**Official example smoke:** [`.github/workflows/deploy-acurast-example-smoke.yml`](../.github/workflows/deploy-acurast-example-smoke.yml) — контрольный canary deploy `modules/acurast-example-smoke` на базе Acurast `app-benchmark-nodejs`; использует `ACURAST_MNEMONIC_HELLO`/fallback и optional `ACURAST_EXAMPLE_WEBHOOK_URL` или manual input `webhook_url`.
+**Official example smoke (canary):** [`.github/workflows/deploy-acurast-example-smoke.yml`](../.github/workflows/deploy-acurast-example-smoke.yml) — контрольный canary deploy `modules/acurast-example-smoke` на базе Acurast `app-benchmark-nodejs`; использует `ACURAST_MNEMONIC_HELLO`/fallback и optional `ACURAST_EXAMPLE_WEBHOOK_URL` или manual input `webhook_url`.
+
+**Official example smoke (mainnet):** [`.github/workflows/deploy-acurast-example-smoke-mainnet.yml`](../.github/workflows/deploy-acurast-example-smoke-mainnet.yml) — ручной diagnostic A/B на **Acurast mainnet** для проверки canary-specific blocker. Environment **mainnet**, secret `ACURAST_MNEMONIC_MAINNET`, RPC `wss://public-rpc.mainnet.acurast.com`. Workflow `workflow_dispatch`, default `dry_run=true`; для on-chain deploy явно запускать `dry_run=false`.
 
 `acurast deploy` в PR/push по-прежнему **не** запускается автоматически.
 
@@ -140,6 +143,7 @@ on:
 | `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke` \| `all`) | Selectel LE + Knox PEM → SSH → `infra/nostr-relay/` compose; IP из Terraform state ✅ |
 | `relay-uptime.yml` | `schedule` + `workflow_dispatch` (`smoke` \| `renew-tls`) | Регулярный smoke relay; опционально Knox PEM refresh + nginx reload без полного deploy |
 | `deploy-acurast-example-smoke.yml` | `workflow_dispatch` | Контрольный canary deploy official Acurast `app-benchmark-nodejs` workload для изоляции processor/runtime blocker |
+| `deploy-acurast-example-smoke-mainnet.yml` | `workflow_dispatch` | Контрольный mainnet deploy official example smoke; default `dry_run=true`, environment **mainnet** |
 | `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools API (опционально; часто 502 из GHA) |
 | `inspect-canary-deployments.yml` | `workflow_dispatch` | SDK + CLI deployment status (основной путь без Hub/DevTools web) |
 
@@ -195,6 +199,7 @@ Workflow **Deploy Relay**: [`.github/workflows/deploy-relay.yml`](../.github/wor
 | `deploy-relay.yml` | `workflow_dispatch` | relay compose на VM ✅ |
 | `relay-uptime.yml` | schedule / `workflow_dispatch` | relay smoke + TLS refresh ✅ |
 | `deploy-acurast-example-smoke.yml` | `workflow_dispatch` | official Acurast example smoke для processor/runtime диагностики |
+| `deploy-acurast-example-smoke-mainnet.yml` | `workflow_dispatch` | mainnet A/B official example smoke для проверки canary-specific blocker |
 | `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools API (опционально) |
 | `inspect-canary-deployments.yml` | `workflow_dispatch` | SDK + CLI deployment diagnostics ✅ |
 | `cursor-agent.yml` | issue comment / schedule | Cursor CLI (будущее) |

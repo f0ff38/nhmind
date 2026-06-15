@@ -295,6 +295,7 @@ cp .env.example .env
 | `[ci.yml](.github/workflows/ci.yml)`                                         | push/PR → `main`    | test + bundle + smoke (hello, coordinator, template, oracle-feed) + diagnostic example check |
 | `[deploy-canary.yml](.github/workflows/deploy-canary.yml)`                   | `workflow_dispatch` | canary deploy hello / coordinator (environment **canary**) |
 | `[deploy-acurast-example-smoke.yml](.github/workflows/deploy-acurast-example-smoke.yml)` | `workflow_dispatch` | official Acurast example smoke для processor/runtime диагностики |
+| `[deploy-acurast-example-smoke-mainnet.yml](.github/workflows/deploy-acurast-example-smoke-mainnet.yml)` | `workflow_dispatch` | mainnet A/B official example smoke (environment **mainnet**, default dry-run) |
 | `[validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml)` | `workflow_dispatch` | проверка секретов environment **relay**                    |
 | `[provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml)`   | `workflow_dispatch` | Terraform: Selectel VM, сеть, floating IP, PTR             |
 | `[deploy-relay.yml](.github/workflows/deploy-relay.yml)`                     | `workflow_dispatch` | relay compose на VM + smoke                                |
@@ -302,7 +303,7 @@ cp .env.example .env
 | `[inspect-canary-devtools.yml](.github/workflows/inspect-canary-devtools.yml)` | `workflow_dispatch` | DevTools API diagnostics (опционально)                     |
 
 
-CI и branch protection: `[docs/github-actions.md](docs/github-actions.md)`. Relay GitOps: environment **relay** — см. [relay-ops.md](docs/relay-ops.md). Canary: **canary** + `ACURAST_MNEMONIC_*`, `RELAY_HOSTNAME` (→ `RELAY_URL` в deploy-canary).
+CI и branch protection: `[docs/github-actions.md](docs/github-actions.md)`. Relay GitOps: environment **relay** — см. [relay-ops.md](docs/relay-ops.md). Canary: **canary** + `ACURAST_MNEMONIC_*`, `RELAY_HOSTNAME` (→ `RELAY_URL` в deploy-canary). Mainnet diagnostic smoke: **mainnet** + `ACURAST_MNEMONIC_MAINNET`.
 
 ### Что остаётся вне Docker
 
@@ -331,6 +332,7 @@ nhmind/
 │   ├── ci.yml
 │   ├── deploy-canary.yml
 │   ├── deploy-acurast-example-smoke.yml
+│   ├── deploy-acurast-example-smoke-mainnet.yml
 │   ├── validate-relay-secrets.yml
 │   ├── provision-relay-infra.yml
 │   ├── deploy-relay.yml

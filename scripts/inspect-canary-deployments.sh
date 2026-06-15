@@ -1,31 +1,42 @@
 #!/usr/bin/env bash
-# CLI/SDK canary deployment diagnostics (no DevTools web).
+# CLI/SDK Acurast deployment diagnostics (no DevTools web).
 # 1) SDK: indexer + on-chain RPC (works without local .acurast file)
 # 2) CLI: acurast deployments <id> when modules/<module>/.acurast/deploy/*-<id>.json exists
 # Usage: inspect-canary-deployments.sh <module> [deployment_id]
+# Env: ACURAST_NETWORK=canary|mainnet (default: canary)
 # Env: INSPECT_DEPLOYMENTS_FAIL=1 — exit non-zero on SDK failure (standalone GHA workflow).
 set -euo pipefail
 
 module="${1:?usage: inspect-canary-deployments.sh <module> [deployment_id]}"
 deployment_id="${2:-}"
 fail_on_error="${INSPECT_DEPLOYMENTS_FAIL:-0}"
-canary_rpc="${ACURAST_RPC:-wss://public-rpc.canary.acurast.com}"
-canary_indexer="${ACURAST_CANARY_INDEXER:-https://dev.indexer.canary.acurast.com/api/v1/rpc}"
-canary_indexer_key="${ACURAST_CANARY_INDEXER_API_KEY:-OXuwySHqNSlwwa_qqB-cBw}"
+network="${ACURAST_NETWORK:-canary}"
+if [ "${network}" = "mainnet" ]; then
+  rpc="${ACURAST_RPC:-wss://public-rpc.mainnet.acurast.com}"
+  indexer="${ACURAST_MAINNET_INDEXER:-https://dev.indexer.mainnet.acurast.com/api/v1/rpc}"
+  indexer_key="${ACURAST_MAINNET_INDEXER_API_KEY:-HbLxqSJoPTnzwa_rkF-tYv}"
+else
+  rpc="${ACURAST_RPC:-wss://public-rpc.canary.acurast.com}"
+  indexer="${ACURAST_CANARY_INDEXER:-https://dev.indexer.canary.acurast.com/api/v1/rpc}"
+  indexer_key="${ACURAST_CANARY_INDEXER_API_KEY:-OXuwySHqNSlwwa_qqB-cBw}"
+fi
 
-sdk_args=(--module "${module}" --network canary)
+sdk_args=(--module "${module}" --network "${network}")
 if [ -n "${deployment_id}" ]; then
   sdk_args+=(--deployment-id "${deployment_id}")
 fi
 
-echo "=== fetch-acurast-deployment-status.mjs (module=${module}${deployment_id:+, id=${deployment_id}}) ==="
+echo "=== fetch-acurast-deployment-status.mjs (network=${network}, module=${module}${deployment_id:+, id=${deployment_id}}) ==="
 set +e
 sdk_out="$(
   docker compose run --rm \
-    -e "ACURAST_RPC=${canary_rpc}" \
-    -e "ACURAST_CANARY_RPC=${canary_rpc}" \
-    -e "ACURAST_CANARY_INDEXER=${canary_indexer}" \
-    -e "ACURAST_CANARY_INDEXER_API_KEY=${canary_indexer_key}" \
+    -e "ACURAST_RPC=${rpc}" \
+    -e "ACURAST_CANARY_RPC=${rpc}" \
+    -e "ACURAST_MAINNET_RPC=${rpc}" \
+    -e "ACURAST_CANARY_INDEXER=${indexer}" \
+    -e "ACURAST_CANARY_INDEXER_API_KEY=${indexer_key}" \
+    -e "ACURAST_MAINNET_INDEXER=${indexer}" \
+    -e "ACURAST_MAINNET_INDEXER_API_KEY=${indexer_key}" \
     dev node scripts/fetch-acurast-deployment-status.mjs "${sdk_args[@]}" 2>&1
 )"
 sdk_exit=$?
@@ -40,6 +51,6 @@ if [ "${sdk_exit}" -ne 0 ]; then
 fi
 
 if [ -n "${deployment_id}" ]; then
-  bash scripts/inspect-canary-deployment-cli.sh "${module}" "${deployment_id}" \
+  ACURAST_NETWORK="${network}" ACURAST_RPC="${rpc}" bash scripts/inspect-canary-deployment-cli.sh "${module}" "${deployment_id}" \
     || echo "::warning::CLI deployment detail failed"
 fi
