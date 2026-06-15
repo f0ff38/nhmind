@@ -1,6 +1,6 @@
-# Acurast support escalation — hello canary execution (378420–378427)
+# Acurast support escalation — canary execution (378420–378428)
 
-**Status:** opened as [Acurast/acurast-cli#140](https://github.com/Acurast/acurast-cli/issues/140) · **network:** Canary · **module:** `modules/hello`
+**Status:** opened as [Acurast/acurast-cli#140](https://github.com/Acurast/acurast-cli/issues/140) · **network:** Canary · **modules:** `modules/hello`, `modules/acurast-example-smoke`
 
 ## Wallet
 
@@ -9,7 +9,7 @@
 | Deployment wallet | `5CAG2e4hcYLoU6j1J27wrWU6pqGX4StyaDYEfmdvWfkCmRn7` |
 | Hub (minimal **378425**) | https://hub.acurast.com/job-detail/acurast-5CAG2e4hcYLoU6j1J27wrWU6pqGX4StyaDYEfmdvWfkCmRn7-378425 |
 
-## Deployment IDs (hello canary)
+## Deployment IDs (canary)
 
 | ID | Config | Deploy run / notes |
 |----|--------|-------------------|
@@ -19,6 +19,7 @@
 | **378425** | minimal `HELLO_MINIMAL=1`, damus, skip whitelist | same outcome ([PR #76](https://github.com/f0ff38/nhmind/pull/76), [run 27469893555](https://github.com/f0ff38/nhmind/actions/runs/27469893555)) |
 | **378426** | operator relay after env fix | same outcome ([run 27472258038](https://github.com/f0ff38/nhmind/actions/runs/27472258038)) |
 | **378427** | diagnostic runtime: `HELLO_MINIMAL=1`, 300s execution/start-delay, 50 cACU reward | same outcome ([PR #86](https://github.com/f0ff38/nhmind/pull/86), [run 27491479667](https://github.com/f0ff38/nhmind/actions/runs/27491479667), final inspect [27491718496](https://github.com/f0ff38/nhmind/actions/runs/27491718496)) |
+| **378428** | official Acurast example smoke: adapted `app-benchmark-nodejs`, 300s execution/start-delay, 50 cACU reward | same outcome ([PR #88](https://github.com/f0ff38/nhmind/pull/88), [run 27526394107](https://github.com/f0ff38/nhmind/actions/runs/27526394107)) |
 
 ## Evidence — **378425** (minimal smoke)
 
@@ -44,6 +45,19 @@
 | Final post-window SDK inspect ([run 27491718496](https://github.com/f0ff38/nhmind/actions/runs/27491718496)) | ❌ **Expired**; ack **0/0**; assignments cleared |
 
 **Additional isolation conclusion:** short execution/report window and low reward are unlikely root causes.
+
+## Evidence — **378428** (official Acurast example smoke)
+
+| Phase | Result |
+|-------|--------|
+| Source workload | `modules/acurast-example-smoke`, adapted from official `Acurast/acurast-example-apps` `app-benchmark-nodejs` |
+| Runtime config | `execution.maxExecutionTimeInMs=300000`, `maxAllowedStartDelayInMs=300000`, `maxCostPerExecution=50000000000`, `onlyAttestedDevices=false` |
+| Register + pre-window ack | ✅ ack **1/1**, sla **0/1** |
+| Assigned processor (pre-window) | `5E1yebdEpkmv5gD2UJs1jsb2sPzqNUa6oZHbiekwYxE4NLJ3` |
+| Execution window | `2026-06-15T05:45:57Z` → `2026-06-15T05:50:57Z` (300s) |
+| Final post-window SDK inspect ([run 27526394107](https://github.com/f0ff38/nhmind/actions/runs/27526394107)) | ❌ **Expired**; ack **0/0**; assignments cleared |
+
+**Additional isolation conclusion:** the failure is not limited to `nhmind` hello/Nostr code. A known official-example workload registers and is acknowledged, then reaches the same Expired/no-SLA outcome.
 
 ## Deployment config (relevant fields)
 
@@ -72,11 +86,11 @@ From `modules/hello/acurast.json` (canary):
 2. For a minimal one-shot job (`HELLO_MINIMAL=1`, only `console.log`, no network), what on-chain or Hub signals should we expect when execution succeeds?
 3. With `onlyAttestedDevices: false` and diagnostic `maxAllowedStartDelayInMs: 300000`, are there other processor-side gates (bundle size, Node runtime version, reputation) that block execution without failing acknowledgement?
 4. DevTools API returned **502** from GitHub Actions (2026-06-13) — is there an alternate API or Hub Reports export for processor stdout for job **378425**?
-5. Is this processor known healthy on Canary for other operators' Node.js deployments?
+5. The official-example deployment **378428** was acknowledged by processor `5E1yebdEpkmv5gD2UJs1jsb2sPzqNUa6oZHbiekwYxE4NLJ3` and then expired the same way — is this processor known healthy on Canary for other operators' Node.js deployments?
 
 ## Suggested operator next step
 
-1. Open Hub → **378427** and **378425** → **Reports** — look for `hello-minimal-start` or any stderr.
+1. Open Hub → **378428**, **378427**, and **378425** → **Reports** — look for example benchmark JSON, `hello-minimal-start`, or any stderr.
 2. Follow up in [Acurast/acurast-cli#140](https://github.com/Acurast/acurast-cli/issues/140) with any Hub Reports screenshots/log snippets.
 3. **Do not** redeploy normal hello or coordinator until Acurast confirms root cause.
 
