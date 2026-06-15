@@ -62,6 +62,32 @@ jobs:
       - name: Smoke run (mock _STD_)
         run: NHIND_MODULE_DIR=modules/${{ matrix.module }} ./scripts/dev run
 
+  verify-acurast-example-smoke:
+    name: verify-acurast-example-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build dev image
+        run: ./scripts/dev compose build dev
+
+      - name: Install dependencies
+        run: NHIND_MODULE_DIR=modules/acurast-example-smoke ./scripts/dev install
+
+      - name: Typecheck
+        run: NHIND_MODULE_DIR=modules/acurast-example-smoke ./scripts/dev test
+
+      - name: Bundle
+        run: NHIND_MODULE_DIR=modules/acurast-example-smoke ./scripts/dev bundle
+
+      - name: Fast local smoke
+        run: |
+          docker compose run --rm \
+            -e EXAMPLE_SMOKE_SKIP_NETWORK=1 \
+            -e EXAMPLE_SMOKE_SCALE=0 \
+            dev npm run start:local --prefix modules/acurast-example-smoke
+
   scaffold:
     name: verify-new-module-script
     runs-on: ubuntu-latest

@@ -25,6 +25,7 @@ checkout → ./scripts/dev install → ./scripts/dev test → ./scripts/dev bund
 - Основной matrix job: **`verify`** — стабильное имя для Bugbot Autofix и Automations («CI completed»).
 - Check names в PR: `CI / verify (hello)`, `CI / verify (coordinator)`, `CI / verify (module-template)`, `CI / verify (oracle-feed)`.
 - Дополнительные обязательные checks: `CI / verify-nostr-client`, `CI / verify-new-module-script`.
+- Дополнительный необязательный diagnostic check: `CI / verify-acurast-example-smoke` (official Acurast example smoke, не branch-protection required).
 
 ### 3. Секреты — только через GitHub Secrets
 
@@ -33,6 +34,7 @@ checkout → ./scripts/dev install → ./scripts/dev test → ./scripts/dev bund
 | `ACURAST_MNEMONIC_HELLO` | Deploy `hello` из Actions | Environment **canary** |
 | `ACURAST_MNEMONIC_COORDINATOR` | Deploy `coordinator` | Environment **canary** |
 | `ACURAST_MNEMONIC` | Fallback, если нет per-module secret | Environment **canary** |
+| `ACURAST_EXAMPLE_WEBHOOK_URL` | Опциональный report endpoint для official example smoke | Environment **canary** |
 | `CURSOR_API_KEY` | Cursor CLI в Actions | Будущий workflow для авто-фиксов/docs |
 | `RELAY_HOSTNAME` | FQDN relay (`nostr.<домен>`); workflow собирает `RELAY_URL=wss://<host>/` | Environment **canary** (тот же hostname, что в **relay**); хостинг — [relay-ops.md](relay-ops.md) |
 
@@ -77,6 +79,8 @@ Programmatic SDK (вне TEE): `scripts/deploy-acurast-sdk.mjs` — тот же 
 
 **GHA deploy (hello/coordinator):** [deploy-canary-acurast.sh](../scripts/deploy-canary-acurast.sh) — `timeout` после on-chain registration (не ждать processor match 30+ min). `startAt.msFromNow: 300000` в `acurast.json` — буфер для match до Start (см. [README](../README.md#acurast-обязательные-практики)).
 
+**Official example smoke:** [`.github/workflows/deploy-acurast-example-smoke.yml`](../.github/workflows/deploy-acurast-example-smoke.yml) — контрольный canary deploy `modules/acurast-example-smoke` на базе Acurast `app-benchmark-nodejs`; использует `ACURAST_MNEMONIC_HELLO`/fallback и optional `ACURAST_EXAMPLE_WEBHOOK_URL` или manual input `webhook_url`.
+
 `acurast deploy` в PR/push по-прежнему **не** запускается автоматически.
 
 ### 5. Кэширование (backlog, не блокер Phase 2)
@@ -114,6 +118,7 @@ on:
 На `main` (GitHub → Settings → Branches):
 
 - [x] Required status checks: **`verify-nostr-client`**, **`verify (hello)`**, **`verify (coordinator)`**, **`verify (module-template)`**, **`verify (oracle-feed)`**, **`verify-new-module-script`**
+- [ ] optional: `verify-acurast-example-smoke` как required check, если diagnostic module станет постоянным
 - [x] Require pull request before merging
 - [x] Do not allow bypassing the above settings
 - [ ] optional: Bugbot `Cursor Bugbot` как required check
@@ -134,6 +139,7 @@ on:
 | `provision-relay-infra.yml` | `workflow_dispatch` (`plan` \| `apply` \| `destroy`) | Terraform: Selectel VM, сеть, floating IP, cloud-init; PTR через IPAM `ipam/v1` + `X-Token`; verify PTR propagation ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` (`deploy` \| `smoke` \| `all`) | Selectel LE + Knox PEM → SSH → `infra/nostr-relay/` compose; IP из Terraform state ✅ |
 | `relay-uptime.yml` | `schedule` + `workflow_dispatch` (`smoke` \| `renew-tls`) | Регулярный smoke relay; опционально Knox PEM refresh + nginx reload без полного deploy |
+| `deploy-acurast-example-smoke.yml` | `workflow_dispatch` | Контрольный canary deploy official Acurast `app-benchmark-nodejs` workload для изоляции processor/runtime blocker |
 | `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools API (опционально; часто 502 из GHA) |
 | `inspect-canary-deployments.yml` | `workflow_dispatch` | SDK + CLI deployment status (основной путь без Hub/DevTools web) |
 
@@ -188,6 +194,7 @@ Workflow **Deploy Relay**: [`.github/workflows/deploy-relay.yml`](../.github/wor
 | `provision-relay-infra.yml` | `workflow_dispatch` | Selectel VM + сеть ✅ |
 | `deploy-relay.yml` | `workflow_dispatch` | relay compose на VM ✅ |
 | `relay-uptime.yml` | schedule / `workflow_dispatch` | relay smoke + TLS refresh ✅ |
+| `deploy-acurast-example-smoke.yml` | `workflow_dispatch` | official Acurast example smoke для processor/runtime диагностики |
 | `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools API (опционально) |
 | `inspect-canary-deployments.yml` | `workflow_dispatch` | SDK + CLI deployment diagnostics ✅ |
 | `cursor-agent.yml` | issue comment / schedule | Cursor CLI (будущее) |

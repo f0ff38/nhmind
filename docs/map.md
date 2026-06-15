@@ -38,7 +38,7 @@ README.md          ← корень: обзор, архитектура, dev, с
 |----------|--------------|
 | [nostr-protocol.md](nostr-protocol.md) | Kinds, tags, JSON-схемы, Acurast transport (`httpGET`/`httpPOST`, не `_STD_.ws` для relay) |
 | [relay-ops.md](relay-ops.md) | Хостинг relay, Selectel GitOps, секреты environment **relay**, troubleshooting OpenStack |
-| [github-actions.md](github-actions.md) | CI, canary deploy, validate/provision/deploy/uptime relay, branch protection, секреты **canary** / **relay** |
+| [github-actions.md](github-actions.md) | CI, canary deploy, official Acurast example smoke, validate/provision/deploy/uptime relay, branch protection, секреты **canary** / **relay** |
 | [economics.md](economics.md) | ROI, treasury, cost/revenue attribution; модели **pull-oracle** (Phase 3) и **AI module** (Phase 5) |
 | [collective-intelligence.md](collective-intelligence.md) | CI: economic selection, NIP-90 market, multi-source oracle; ссылка на `oracle-feed` |
 
@@ -54,6 +54,7 @@ README.md          ← корень: обзор, архитектура, dev, с
 | Документ | Назначение |
 |----------|------------|
 | [modules/module-template/README.md](../modules/module-template/README.md) | Scaffold нового Acurast-модуля (`new-module.sh`) |
+| [modules/acurast-example-smoke/README.md](../modules/acurast-example-smoke/README.md) | Контрольный canary smoke на базе official Acurast `app-benchmark-nodejs` |
 | [modules/oracle-feed/README.md](../modules/oracle-feed/README.md) | Pull-oracle Phase 3: NIP-90 jobs, feeds, env |
 | [.cursor/BUGBOT.md](../.cursor/BUGBOT.md) | Правила авто-ревью PR (секреты, bundle, Nostr/Acurast) |
 | [.cursor/environment.json](../.cursor/environment.json) | Cloud Agent VM: setup/verify команды |
