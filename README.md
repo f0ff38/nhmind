@@ -300,7 +300,7 @@ cp .env.example .env
 | `[provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml)`   | `workflow_dispatch` | Terraform: Selectel VM, сеть, floating IP, PTR             |
 | `[deploy-relay.yml](.github/workflows/deploy-relay.yml)`                     | `workflow_dispatch` | relay compose на VM + smoke                                |
 | `[inspect-canary-deployments.yml](.github/workflows/inspect-canary-deployments.yml)` | `workflow_dispatch` | SDK + CLI deployment diagnostics                           |
-| `[request-acurast-devtools-url.yml](.github/workflows/request-acurast-devtools-url.yml)` | `workflow_dispatch` | fresh DevTools URL/view key через `acurast devtools`       |
+| `[request-acurast-devtools-url.yml](.github/workflows/request-acurast-devtools-url.yml)` | `workflow_dispatch` | fresh DevTools URL/view key через `acurast devtools <id>`  |
 | `[inspect-canary-devtools.yml](.github/workflows/inspect-canary-devtools.yml)` | `workflow_dispatch` | DevTools API diagnostics (опционально)                     |
 
 

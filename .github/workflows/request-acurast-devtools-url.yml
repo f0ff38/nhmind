@@ -101,7 +101,7 @@ jobs:
               -e "ACURAST_RPC=${rpc}" \
               -e "ACURAST_CANARY_RPC=${rpc}" \
               -e "ACURAST_MAINNET_RPC=${rpc}" \
-              dev bash -lc "cd modules/${MODULE} && acurast devtools ${DEPLOYMENT_ID} --network ${NETWORK}" 2>&1
+              dev bash -lc "cd modules/${MODULE} && acurast devtools ${DEPLOYMENT_ID}" 2>&1
           )"
           devtools_exit=$?
           set -e
