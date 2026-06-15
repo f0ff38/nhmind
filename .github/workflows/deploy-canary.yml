@@ -182,8 +182,14 @@ jobs:
           ACURAST_DEPLOY_TIMEOUT_SEC: "300"
         run: |
           set -euo pipefail
+          set +e
           deploy_out="$(bash scripts/deploy-canary-acurast.sh "${{ inputs.module }}" "${{ inputs.dry_run }}")"
+          deploy_exit=$?
+          set -e
           printf '%s\n' "${deploy_out}"
+          if [ "${deploy_exit}" -ne 0 ]; then
+            exit "${deploy_exit}"
+          fi
           deployment_id="$(printf '%s\n' "${deploy_out}" | grep -E '^deployment_id=' | tail -1 | cut -d= -f2- || true)"
           if [ -n "${deployment_id}" ]; then
             echo "deployment_id=${deployment_id}" >> "${GITHUB_OUTPUT}"
