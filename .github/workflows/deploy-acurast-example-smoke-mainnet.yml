@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: ""
+      minimal_smoke:
+        description: "Run ultra-minimal smoke only (started/minimal-done/done; no benchmark/network test)"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-acurast-example-smoke-mainnet
@@ -75,6 +80,7 @@ jobs:
           MNEMONIC_MAINNET: ${{ secrets.ACURAST_MNEMONIC_MAINNET }}
           WEBHOOK_URL_INPUT: ${{ inputs.webhook_url }}
           WEBHOOK_URL_SECRET: ${{ secrets.ACURAST_EXAMPLE_WEBHOOK_URL }}
+          MINIMAL_SMOKE: ${{ inputs.minimal_smoke }}
         run: |
           set -euo pipefail
           if [ -z "${MNEMONIC_MAINNET:-}" ]; then
@@ -89,6 +95,12 @@ jobs:
             printf 'ACURAST_RPC=wss://public-rpc.mainnet.acurast.com\n'
             printf 'ACURAST_MAINNET_RPC=wss://public-rpc.mainnet.acurast.com\n'
             printf 'WEBHOOK_URL=%s\n' "${acurast_webhook_url}"
+            if [ "${MINIMAL_SMOKE}" = "true" ]; then
+              printf 'EXAMPLE_SMOKE_MINIMAL=1\n'
+              echo "::notice::Ultra-minimal smoke enabled; benchmark and network test skipped"
+            else
+              printf 'EXAMPLE_SMOKE_MINIMAL=0\n'
+            fi
             if [ -n "${webhook_url}" ]; then
               echo "::notice::WEBHOOK_URL configured for example smoke breadcrumbs"
             else
