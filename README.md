@@ -274,6 +274,14 @@ cp .env.example .env
 ./scripts/dev acurast live            # отладка на live-processor
 ```
 
+Для текущей диагностики processor/runtime без DevTools web используйте official
+example smoke в Live Code:
+
+```bash
+ACURAST_MNEMONIC="..." scripts/acurast-live-example-smoke.sh setup --network mainnet
+ACURAST_MNEMONIC="..." scripts/acurast-live-example-smoke.sh run --network mainnet --skip-install
+```
+
 После deploy с `enableDevtools: true` CLI может выдать URL веб-дашборда (DevTools web часто недоступен из CI). **Основная диагностика без Hub/DevTools:** SDK + `acurast deployments <id>` — в GHA см. **Inspect Canary Deployment** ([github-actions.md](docs/github-actions.md)).
 
 ### Cursor Dev Container

@@ -71,6 +71,7 @@ docker compose run --rm dev node --check infra/nostr-relay/http-bridge/server.mj
 | DNS TXT `_acu.<host>` whitelist | Нужны реальные DNS-записи владельца домена |
 
 Если задача требует deploy — опишите шаги для человека; не коммитьте mnemonic.
+Для ручной Live Code диагностики official example smoke используйте [scripts/acurast-live-example-smoke.sh](scripts/acurast-live-example-smoke.sh); mnemonic передавать только как transient env var, не коммитить `.env`.
 
 ## Секреты проекта
 

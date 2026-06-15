@@ -45,3 +45,31 @@ Use `.github/workflows/deploy-acurast-example-smoke-mainnet.yml`.
 The workflow uses environment **mainnet** for `ACURAST_MNEMONIC_MAINNET`.
 For breadcrumb telemetry, set `ACURAST_EXAMPLE_WEBHOOK_URL` in that environment
 or provide the manual `webhook_url` input.
+
+## Live Code Diagnostic
+
+Use Acurast Live Code when DevTools web/API is unavailable but processor
+console output is needed. This is a manual operator flow and requires a
+live-code processor; it does not inspect an already registered deployment.
+
+```bash
+# One-time setup: follow the Acurast CLI prompts for a live-code processor.
+ACURAST_MNEMONIC="..." scripts/acurast-live-example-smoke.sh setup --network mainnet
+
+# After the processor is ready, stream console.log output and runtime errors.
+ACURAST_MNEMONIC="..." scripts/acurast-live-example-smoke.sh run --network mainnet --skip-install
+```
+
+Optional breadcrumb endpoint:
+
+```bash
+ACURAST_MNEMONIC="..." scripts/acurast-live-example-smoke.sh run \
+  --network mainnet \
+  --webhook-url "https://example.com/webhook" \
+  --skip-install
+```
+
+Expected success signal in live logs: `acurast-example-smoke entrypoint`,
+breadcrumb events, and the final JSON payload. If Live Code prints these while
+scheduled deployments still expire with `sla 0/1`, the bundle itself starts on a
+processor and the remaining failure is likely in scheduled execution/reporting.
