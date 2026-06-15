@@ -164,7 +164,7 @@ Deploy/ops secrets — только GitHub Environments `canary` и `relay` (с�
 
 CI: [.github/workflows/ci.yml](.github/workflows/ci.yml) — `install → test → bundle → smoke run` в Docker.
 
-Relay (environment **relay**): [validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml), [provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml), [deploy-relay.yml](.github/workflows/deploy-relay.yml), [relay-uptime.yml](.github/workflows/relay-uptime.yml). Canary (environment **canary**): [deploy-canary.yml](.github/workflows/deploy-canary.yml), inspect workflows. Mainnet smoke (environment **mainnet**): [deploy-acurast-example-smoke-mainnet.yml](.github/workflows/deploy-acurast-example-smoke-mainnet.yml), только `workflow_dispatch`. Ops: [docs/relay-ops.md](docs/relay-ops.md).
+Relay (environment **relay**): [validate-relay-secrets.yml](.github/workflows/validate-relay-secrets.yml), [provision-relay-infra.yml](.github/workflows/provision-relay-infra.yml), [deploy-relay.yml](.github/workflows/deploy-relay.yml), [relay-uptime.yml](.github/workflows/relay-uptime.yml). Canary (environment **canary**): [deploy-canary.yml](.github/workflows/deploy-canary.yml), inspect workflows. Mainnet smoke (environment **mainnet**): [deploy-acurast-example-smoke-mainnet.yml](.github/workflows/deploy-acurast-example-smoke-mainnet.yml). DevTools URL: [request-acurast-devtools-url.yml](.github/workflows/request-acurast-devtools-url.yml). Все deploy/ops workflows — только `workflow_dispatch`. Ops: [docs/relay-ops.md](docs/relay-ops.md).
 
 При добавлении workflows:
 

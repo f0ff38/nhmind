@@ -1,0 +1,127 @@
+name: Request Acurast DevTools URL
+
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        description: Acurast network
+        required: true
+        type: choice
+        options:
+          - canary
+          - mainnet
+        default: canary
+      module:
+        description: Acurast module that owns the deployment wallet
+        required: true
+        type: choice
+        options:
+          - hello
+          - coordinator
+          - acurast-example-smoke
+        default: acurast-example-smoke
+      deployment_id:
+        description: Deployment ID from Hub / deploy log
+        required: true
+        type: string
+
+concurrency:
+  group: request-acurast-devtools-url-${{ inputs.network }}-${{ inputs.module }}-${{ inputs.deployment_id }}
+  cancel-in-progress: false
+
+jobs:
+  request:
+    name: request-devtools-url-${{ inputs.network }}-${{ inputs.deployment_id }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.network }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build dev image
+        run: docker compose build dev
+
+      - name: Write module .env from secrets
+        env:
+          NETWORK: ${{ inputs.network }}
+          MODULE: ${{ inputs.module }}
+          MNEMONIC_HELLO: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
+          MNEMONIC_COORDINATOR: ${{ secrets.ACURAST_MNEMONIC_COORDINATOR }}
+          MNEMONIC_EXAMPLE: ${{ secrets.ACURAST_MNEMONIC_HELLO }}
+          MNEMONIC_FALLBACK: ${{ secrets.ACURAST_MNEMONIC }}
+          MNEMONIC_MAINNET: ${{ secrets.ACURAST_MNEMONIC_MAINNET }}
+          RELAY_HOSTNAME: ${{ secrets.RELAY_HOSTNAME }}
+        run: |
+          set -euo pipefail
+          if [ "${NETWORK}" = "mainnet" ]; then
+            if [ "${MODULE}" != "acurast-example-smoke" ]; then
+              echo "::error::mainnet DevTools URL requests currently support only acurast-example-smoke" >&2
+              exit 1
+            fi
+            if [ -z "${MNEMONIC_MAINNET:-}" ]; then
+              echo "::error::Missing ACURAST_MNEMONIC_MAINNET in environment mainnet" >&2
+              exit 1
+            fi
+            {
+              printf 'ACURAST_MNEMONIC=%s\n' "${MNEMONIC_MAINNET}"
+              printf 'ACURAST_RPC=wss://public-rpc.mainnet.acurast.com\n'
+              printf 'ACURAST_MAINNET_RPC=wss://public-rpc.mainnet.acurast.com\n'
+            } > "modules/${MODULE}/.env"
+          elif [ "${MODULE}" = "acurast-example-smoke" ]; then
+            mnemonic="${MNEMONIC_EXAMPLE:-${MNEMONIC_FALLBACK:-}}"
+            if [ -z "${mnemonic}" ]; then
+              echo "::error::Missing ACURAST_MNEMONIC_HELLO or ACURAST_MNEMONIC in environment canary" >&2
+              exit 1
+            fi
+            {
+              printf 'ACURAST_MNEMONIC=%s\n' "${mnemonic}"
+              printf 'ACURAST_RPC=wss://public-rpc.canary.acurast.com\n'
+              printf 'ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com\n'
+            } > modules/acurast-example-smoke/.env
+          else
+            bash scripts/write-canary-module-env.sh --module "${MODULE}" --mode devtools
+          fi
+
+      - name: Request DevTools URL
+        env:
+          NETWORK: ${{ inputs.network }}
+          MODULE: ${{ inputs.module }}
+          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+        run: |
+          set -euo pipefail
+          if [ "${NETWORK}" = "mainnet" ]; then
+            rpc="wss://public-rpc.mainnet.acurast.com"
+          else
+            rpc="wss://public-rpc.canary.acurast.com"
+          fi
+
+          set +e
+          devtools_out="$(
+            docker compose run --rm \
+              -e "ACURAST_RPC=${rpc}" \
+              -e "ACURAST_CANARY_RPC=${rpc}" \
+              -e "ACURAST_MAINNET_RPC=${rpc}" \
+              dev bash -lc "cd modules/${MODULE} && acurast devtools ${DEPLOYMENT_ID} --network ${NETWORK}" 2>&1
+          )"
+          devtools_exit=$?
+          set -e
+          printf '%s\n' "${devtools_out}"
+
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            {
+              echo "# Acurast DevTools URL"
+              echo ""
+              echo "- **Network:** \`${NETWORK}\`"
+              echo "- **Module:** \`${MODULE}\`"
+              echo "- **Deployment:** \`${DEPLOYMENT_ID}\`"
+              echo ""
+              echo '```'
+              printf '%s\n' "${devtools_out}"
+              echo '```'
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+          if [ "${devtools_exit}" -ne 0 ]; then
+            echo "::error::acurast devtools failed (exit ${devtools_exit})" >&2
+            exit "${devtools_exit}"
+          fi
