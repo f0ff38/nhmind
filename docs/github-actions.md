@@ -68,7 +68,7 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
      docker compose run --rm dev node scripts/fetch-acurast-deployment-status.mjs --module hello --deployment-id 378421
      bash scripts/inspect-canary-deployment-cli.sh hello 378421  # после deploy или с artifact
      ```
-   - **Request Acurast DevTools URL** (`request-acurast-devtools-url.yml`) — `workflow_dispatch`: запрашивает fresh DevTools URL/view key через официальный `acurast devtools <deployment-id> --network <network>` flow. Использовать, чтобы отличить «нужен view key» от реального outage DevTools API.
+   - **Request Acurast DevTools URL** (`request-acurast-devtools-url.yml`) — `workflow_dispatch`: запрашивает fresh DevTools URL/view key через официальный `acurast devtools <deployment-id>` flow; сеть выбирается через `ACURAST_RPC`. Использовать, чтобы отличить «нужен view key» от реального outage DevTools API.
    - DevTools web/API (`devtools.acurast.com`, `api.devtools.acurast.com`) — **опционально**, часто 502 из GHA; см. `inspect-canary-devtools.yml` только если API доступен.
 
 Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com). Адрес кошелька:
