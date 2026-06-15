@@ -4,6 +4,8 @@ const { runBenchmark } = require("./bench-core.js") as {
   runBenchmark: (scale: number, tmpDir: string) => Record<string, unknown>;
 };
 
+const NO_WEBHOOK_SENTINEL = "__NHMIND_NO_WEBHOOK__";
+
 interface RuntimeStd {
   app_info: { version: string };
   job: {
@@ -111,7 +113,7 @@ async function main(): Promise<void> {
 
   console.log(JSON.stringify(payload, null, 2));
 
-  if (!webhookUrl) {
+  if (!webhookUrl || webhookUrl === NO_WEBHOOK_SENTINEL) {
     console.log("WEBHOOK_URL not set; skipping report POST");
     return;
   }
