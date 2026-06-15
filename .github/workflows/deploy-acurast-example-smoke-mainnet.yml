@@ -13,6 +13,11 @@ on:
         required: false
         type: string
         default: "50000000000"
+      webhook_url:
+        description: "Optional breadcrumb/report POST URL. Prefer mainnet secret ACURAST_EXAMPLE_WEBHOOK_URL."
+        required: false
+        type: string
+        default: ""
 
 concurrency:
   group: deploy-acurast-example-smoke-mainnet
@@ -68,6 +73,8 @@ jobs:
       - name: Write module .env from mainnet secret
         env:
           MNEMONIC_MAINNET: ${{ secrets.ACURAST_MNEMONIC_MAINNET }}
+          WEBHOOK_URL_INPUT: ${{ inputs.webhook_url }}
+          WEBHOOK_URL_SECRET: ${{ secrets.ACURAST_EXAMPLE_WEBHOOK_URL }}
         run: |
           set -euo pipefail
           if [ -z "${MNEMONIC_MAINNET:-}" ]; then
@@ -75,11 +82,18 @@ jobs:
             exit 1
           fi
 
+          webhook_url="$(printf '%s' "${WEBHOOK_URL_INPUT:-${WEBHOOK_URL_SECRET:-}}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          acurast_webhook_url="${webhook_url:-__NHMIND_NO_WEBHOOK__}"
           {
             printf 'ACURAST_MNEMONIC=%s\n' "${MNEMONIC_MAINNET}"
             printf 'ACURAST_RPC=wss://public-rpc.mainnet.acurast.com\n'
             printf 'ACURAST_MAINNET_RPC=wss://public-rpc.mainnet.acurast.com\n'
-            printf 'WEBHOOK_URL=__NHMIND_NO_WEBHOOK__\n'
+            printf 'WEBHOOK_URL=%s\n' "${acurast_webhook_url}"
+            if [ -n "${webhook_url}" ]; then
+              echo "::notice::WEBHOOK_URL configured for example smoke breadcrumbs"
+            else
+              echo "::notice::WEBHOOK_URL not configured; example smoke will skip breadcrumb POSTs"
+            fi
           } > modules/acurast-example-smoke/.env
 
       - name: Estimate fee
