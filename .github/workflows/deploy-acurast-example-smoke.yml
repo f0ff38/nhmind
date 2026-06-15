@@ -56,8 +56,8 @@ jobs:
             printf 'ACURAST_CANARY_RPC=wss://public-rpc.canary.acurast.com\n'
             printf 'ACURAST_CANARY_INDEXER=https://dev.indexer.canary.acurast.com/api/v1/rpc\n'
             printf 'ACURAST_CANARY_INDEXER_API_KEY=OXuwySHqNSlwwa_qqB-cBw\n'
+            printf 'WEBHOOK_URL=%s\n' "${webhook_url}"
             if [ -n "${webhook_url}" ]; then
-              printf 'WEBHOOK_URL=%s\n' "${webhook_url}"
               echo "::notice::WEBHOOK_URL configured for example smoke report"
             else
               echo "::notice::WEBHOOK_URL not configured; example smoke will skip report POST"
