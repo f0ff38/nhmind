@@ -68,6 +68,7 @@ Workflow [`.github/workflows/deploy-canary.yml`](../.github/workflows/deploy-can
      docker compose run --rm dev node scripts/fetch-acurast-deployment-status.mjs --module hello --deployment-id 378421
      bash scripts/inspect-canary-deployment-cli.sh hello 378421  # после deploy или с artifact
      ```
+   - **Request Acurast DevTools URL** (`request-acurast-devtools-url.yml`) — `workflow_dispatch`: запрашивает fresh DevTools URL/view key через официальный `acurast devtools <deployment-id> --network <network>` flow. Использовать, чтобы отличить «нужен view key» от реального outage DevTools API.
    - DevTools web/API (`devtools.acurast.com`, `api.devtools.acurast.com`) — **опционально**, часто 502 из GHA; см. `inspect-canary-devtools.yml` только если API доступен.
 
 Пополнение cACU: [faucet.acurast.com](https://faucet.acurast.com). Адрес кошелька:
@@ -144,6 +145,7 @@ on:
 | `relay-uptime.yml` | `schedule` + `workflow_dispatch` (`smoke` \| `renew-tls`) | Регулярный smoke relay; опционально Knox PEM refresh + nginx reload без полного deploy |
 | `deploy-acurast-example-smoke.yml` | `workflow_dispatch` | Контрольный canary deploy official Acurast `app-benchmark-nodejs` workload для изоляции processor/runtime blocker |
 | `deploy-acurast-example-smoke-mainnet.yml` | `workflow_dispatch` | Контрольный mainnet deploy official example smoke; default `dry_run=true`, environment **mainnet** |
+| `request-acurast-devtools-url.yml` | `workflow_dispatch` | Получить DevTools URL/view key через `acurast devtools <id>` для canary/mainnet |
 | `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools API (опционально; часто 502 из GHA) |
 | `inspect-canary-deployments.yml` | `workflow_dispatch` | SDK + CLI deployment status (основной путь без Hub/DevTools web) |
 
@@ -200,6 +202,7 @@ Workflow **Deploy Relay**: [`.github/workflows/deploy-relay.yml`](../.github/wor
 | `relay-uptime.yml` | schedule / `workflow_dispatch` | relay smoke + TLS refresh ✅ |
 | `deploy-acurast-example-smoke.yml` | `workflow_dispatch` | official Acurast example smoke для processor/runtime диагностики |
 | `deploy-acurast-example-smoke-mainnet.yml` | `workflow_dispatch` | mainnet A/B official example smoke для проверки canary-specific blocker |
+| `request-acurast-devtools-url.yml` | `workflow_dispatch` | fresh DevTools URL/view key через официальный CLI flow |
 | `inspect-canary-devtools.yml` | `workflow_dispatch` | DevTools API (опционально) |
 | `inspect-canary-deployments.yml` | `workflow_dispatch` | SDK + CLI deployment diagnostics ✅ |
 | `cursor-agent.yml` | issue comment / schedule | Cursor CLI (будущее) |
