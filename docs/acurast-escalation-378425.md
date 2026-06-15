@@ -1,6 +1,6 @@
-# Acurast support escalation — hello canary execution (378420–378425)
+# Acurast support escalation — hello canary execution (378420–378427)
 
-**Status:** ready to open ticket · **network:** Canary · **module:** `modules/hello`
+**Status:** opened as [Acurast/acurast-cli#140](https://github.com/Acurast/acurast-cli/issues/140) · **network:** Canary · **module:** `modules/hello`
 
 ## Wallet
 
@@ -17,6 +17,8 @@
 | **378423** | operator relay (canary) | pre-window ack **1/1**, sla **0/1** → post-window **Expired**, ack **0/0** |
 | **378424** | A/B `RELAY_SKIP_WHITELIST=1`, `wss://relay.damus.io/` | same outcome ([PR #74](https://github.com/f0ff38/nhmind/pull/74)) |
 | **378425** | minimal `HELLO_MINIMAL=1`, damus, skip whitelist | same outcome ([PR #76](https://github.com/f0ff38/nhmind/pull/76), [run 27469893555](https://github.com/f0ff38/nhmind/actions/runs/27469893555)) |
+| **378426** | operator relay after env fix | same outcome ([run 27472258038](https://github.com/f0ff38/nhmind/actions/runs/27472258038)) |
+| **378427** | diagnostic runtime: `HELLO_MINIMAL=1`, 300s execution/start-delay, 50 cACU reward | same outcome ([PR #86](https://github.com/f0ff38/nhmind/pull/86), [run 27491479667](https://github.com/f0ff38/nhmind/actions/runs/27491479667), final inspect [27491718496](https://github.com/f0ff38/nhmind/actions/runs/27491718496)) |
 
 ## Evidence — **378425** (minimal smoke)
 
@@ -31,6 +33,18 @@
 
 **Isolation conclusion:** relay/DNS, Nostr client, and bundle JS logic are ruled out. Minimal bundle (`console.log` only: `hello-minimal-start` / `hello-minimal-done`) reproduces the same on-chain outcome as operator-relay canary deploy and A/B public relay.
 
+## Evidence — **378427** (diagnostic runtime)
+
+| Phase | Result |
+|-------|--------|
+| Runtime override | `execution.maxExecutionTimeInMs=300000`, `maxAllowedStartDelayInMs=300000`, `maxCostPerExecution=50000000000` |
+| Register + pre-window ack | ✅ ack **1/1**, sla **0/1** |
+| Assigned processor (pre-window) | `5FHmaR9P6sRQYStXRfpneHsGvJbvXnnPcxWag5YPVEZoYNCJ` |
+| Execution window | `2026-06-14T07:14:27Z` → `2026-06-14T07:19:27Z` (300s) |
+| Final post-window SDK inspect ([run 27491718496](https://github.com/f0ff38/nhmind/actions/runs/27491718496)) | ❌ **Expired**; ack **0/0**; assignments cleared |
+
+**Additional isolation conclusion:** short execution/report window and low reward are unlikely root causes.
+
 ## Deployment config (relevant fields)
 
 From `modules/hello/acurast.json` (canary):
@@ -41,6 +55,7 @@ From `modules/hello/acurast.json` (canary):
 - `maxNetworkRequests: 10`
 - `mutability: Mutable`
 - Minimal path: env `HELLO_MINIMAL=1` (workflow input `minimal_smoke=true`)
+- Diagnostic path: workflow input `diagnostic_runtime=true` (hello only; temporary checkout override, normal `acurast.json` defaults unchanged)
 
 ## Execution logs — what we tried
 
@@ -49,20 +64,20 @@ From `modules/hello/acurast.json` (canary):
 | GHA deploy + inspect logs ([27469893555](https://github.com/f0ff38/nhmind/actions/runs/27469893555), [27470279264](https://github.com/f0ff38/nhmind/actions/runs/27470279264)) | On-chain status only; **`hello-minimal-start` not present** (expected — runtime logs are on processor) |
 | Artifact `acurast-deploy-hello-378425` + `inspect-canary-deployment-cli.sh` | CLI Assignments JSON; no execution stdout |
 | DevTools API ([run 27470313002](https://github.com/f0ff38/nhmind/actions/runs/27470313002)) | **`api.devtools.acurast.com` → HTTP 502** on `/`, `/health`, `/v1/auth/view-key`; log fetch skipped |
-| Hub Reports (web) | **Manual step** — operator must open Hub job detail → Reports tab |
+| Hub Reports (web) | **Manual step** — operator must open Hub job detail → Reports tab; public web fetch returns only SPA shell |
 
 ## Questions for Acurast support
 
-1. Processor `5GEr1Nd2XHHddsXjXrXtdQQVT3NnVrUeZB2hFXgpr1n19DBP` acknowledged deployment **378425** but reported **sla 0/1** before the window and **no SLA** after expiry — did the Node.js bundle execute at all? Any crash/attestation/runtime rejection?
+1. Processors acknowledged deployments **378425** (`5GEr1Nd2XHHddsXjXrXtdQQVT3NnVrUeZB2hFXgpr1n19DBP`) and **378427** (`5FHmaR9P6sRQYStXRfpneHsGvJbvXnnPcxWag5YPVEZoYNCJ`) but reported **sla 0/1** before the window and **no SLA** after expiry — did the Node.js bundle execute at all? Any crash/attestation/runtime rejection?
 2. For a minimal one-shot job (`HELLO_MINIMAL=1`, only `console.log`, no network), what on-chain or Hub signals should we expect when execution succeeds?
-3. With `onlyAttestedDevices: false` and `maxAllowedStartDelayInMs: 60000`, are there other processor-side gates (bundle size, Node runtime version, reputation) that block execution without failing acknowledgement?
+3. With `onlyAttestedDevices: false` and diagnostic `maxAllowedStartDelayInMs: 300000`, are there other processor-side gates (bundle size, Node runtime version, reputation) that block execution without failing acknowledgement?
 4. DevTools API returned **502** from GitHub Actions (2026-06-13) — is there an alternate API or Hub Reports export for processor stdout for job **378425**?
 5. Is this processor known healthy on Canary for other operators' Node.js deployments?
 
 ## Suggested operator next step
 
-1. Open Hub → **378425** → **Reports** — look for `hello-minimal-start` or any stderr.
-2. If Reports empty / DevTools still 502, file this escalation with deployment IDs **378420–378425** and processor address above.
-3. **Do not** redeploy hello or coordinator until Acurast confirms root cause.
+1. Open Hub → **378427** and **378425** → **Reports** — look for `hello-minimal-start` or any stderr.
+2. Follow up in [Acurast/acurast-cli#140](https://github.com/Acurast/acurast-cli/issues/140) with any Hub Reports screenshots/log snippets.
+3. **Do not** redeploy normal hello or coordinator until Acurast confirms root cause.
 
 Related: [roadmap checkpoint](roadmap.md#checkpoint--следующая-сессия) · [github-actions.md](github-actions.md#4-deploy-canary-из-github-actions)
