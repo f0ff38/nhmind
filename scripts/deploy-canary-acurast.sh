@@ -54,4 +54,7 @@ if [ "${deploy_exit}" -eq 124 ]; then
 fi
 
 echo "::error::acurast deploy failed (exit ${deploy_exit}); no deployment ID in log"
-exit "${deploy_exit:-1}"
+if [ "${deploy_exit}" -ne 0 ]; then
+  exit "${deploy_exit}"
+fi
+exit 1
