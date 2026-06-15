@@ -103,6 +103,7 @@ README.md          ← корень: обзор, архитектура, dev, с
 | CI / deploy canary / deployment diagnostics | github-actions.md |
 | Статус deployment (SDK + CLI, без Hub/DevTools) | github-actions.md → `inspect-canary-deployments.yml`, `fetch-acurast-deployment-status.mjs` |
 | DevTools URL/logs (опционально, API часто 502) | github-actions.md → `request-acurast-devtools-url.yml`, `inspect-canary-devtools.yml` |
+| Live Code processor logs | README → `scripts/acurast-live-example-smoke.sh`, `modules/acurast-example-smoke/README.md` |
 | Acurast support escalation (canary 378420–378428) | [acurast-escalation-378425.md](acurast-escalation-378425.md) |
 | Новый модуль | module-template README → AGENTS |
 | ROI / promote-pause-kill / oracle / AI economics | economics.md → roadmap Phase 3–5 |

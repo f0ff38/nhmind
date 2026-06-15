@@ -10,7 +10,9 @@
     "start:local": "node dist/bundle.js",
     "test": "tsc --noEmit",
     "deploy": "npm run bundle && acurast deploy",
-    "estimate-fee": "acurast estimate-fee"
+    "estimate-fee": "acurast estimate-fee",
+    "live": "acurast live",
+    "live:setup": "acurast live --setup"
   },
   "license": "MIT",
   "devDependencies": {
